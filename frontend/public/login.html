@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Smart Delivery SaaS</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+        .login-container {
+            background: #fff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        .login-container h1 {
+            color: #e67e22;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .login-container .form-group {
+            margin-bottom: 16px;
+        }
+        .login-container .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        .login-container .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .login-container .form-group input:focus {
+            outline: none;
+            border-color: #e67e22;
+        }
+        .login-container .btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+        }
+        .login-container .register-link {
+            text-align: center;
+            margin-top: 16px;
+            color: #888;
+        }
+        .login-container .register-link a {
+            color: #e67e22;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .login-container .register-link a:hover {
+            text-decoration: underline;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🔐 Smart Delivery</h1>
+        <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>E-mail</label>
+                <input type="email" id="login-email" placeholder="admin@firerburger.com" required>
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="login-password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn">Entrar</button>
+        </form>
+        <div class="register-link">
+            Não tem uma conta? <a href="register.html">Cadastre-se</a>
+        </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        const API_URL = window.location.origin + '/api';
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch(API_URL + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    showToast('Login realizado com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1000);
+                } else {
+                    showToast(data.message || 'Erro ao fazer login', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao conectar ao servidor', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const icons = { success: '✅', error: '❌', warning: '⚠️' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || '📢'}</span>
+                <span>${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
+            }, 3500);
+        }
+
+        // Verificar se já está logado
+        if (localStorage.getItem('token')) {
+            window.location.href = '/admin';
+        }
+    </script>
+</body>
+</html>

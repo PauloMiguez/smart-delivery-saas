@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Smart Delivery SaaS</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+        .register-container {
+            background: #fff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 450px;
+            width: 100%;
+        }
+        .register-container h1 {
+            color: #e67e22;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .register-container .form-group {
+            margin-bottom: 14px;
+        }
+        .register-container .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        .register-container .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .register-container .form-group input:focus {
+            outline: none;
+            border-color: #e67e22;
+        }
+        .register-container .btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+        }
+        .register-container .login-link {
+            text-align: center;
+            margin-top: 16px;
+            color: #888;
+        }
+        .register-container .login-link a {
+            color: #e67e22;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .register-container .login-link a:hover {
+            text-decoration: underline;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>🚀 Criar Conta</h1>
+        <form id="register-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label>Nome do Restaurante *</label>
+                <input type="text" id="reg-tenant-name" placeholder="Fire Burger" required>
+            </div>
+            <div class="form-group">
+                <label>Subdomínio *</label>
+                <input type="text" id="reg-subdomain" placeholder="firerburger" required>
+                <small style="color:#888;font-size:12px;">Ex: firerburger.smartdelivery.com</small>
+            </div>
+            <div class="form-group">
+                <label>Seu Nome *</label>
+                <input type="text" id="reg-name" placeholder="Seu nome completo" required>
+            </div>
+            <div class="form-group">
+                <label>E-mail *</label>
+                <input type="email" id="reg-email" placeholder="contato@firerburger.com" required>
+            </div>
+            <div class="form-group">
+                <label>Telefone</label>
+                <input type="text" id="reg-phone" placeholder="(85) 99999-9999">
+            </div>
+            <div class="form-group">
+                <label>Senha *</label>
+                <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            </div>
+            <button type="submit" class="btn">Criar Conta</button>
+        </form>
+        <div class="login-link">
+            Já tem uma conta? <a href="login.html">Faça login</a>
+        </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        const API_URL = window.location.origin + '/api';
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const data = {
+                tenant_name: document.getElementById('reg-tenant-name').value.trim(),
+                subdomain: document.getElementById('reg-subdomain').value.trim().toLowerCase(),
+                name: document.getElementById('reg-name').value.trim(),
+                email: document.getElementById('reg-email').value.trim(),
+                phone: document.getElementById('reg-phone').value.trim(),
+                password: document.getElementById('reg-password').value
+            };
+
+            // Validar subdomínio
+            if (!/^[a-z0-9-]+$/.test(data.subdomain)) {
+                showToast('Subdomínio deve conter apenas letras minúsculas, números e hífens.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    localStorage.setItem('token', result.data.token);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+                    showToast('Conta criada com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1000);
+                } else {
+                    showToast(result.message || 'Erro ao criar conta', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao conectar ao servidor', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const icons = { success: '✅', error: '❌', warning: '⚠️' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || '📢'}</span>
+                <span>${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
+            }, 3500);
+        }
+
+        if (localStorage.getItem('token')) {
+            window.location.href = '/admin';
+        }
+    </script>
+</body>
+</html>

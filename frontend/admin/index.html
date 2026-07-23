@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Smart Delivery SaaS</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+    <div class="header">
+        <h1>⚙️ Painel Administrativo</h1>
+        <div class="user-info">
+            <span>👤 Proprietário</span>
+            <span id="tenant-display" style="background:#f0ede8;padding:4px 12px;border-radius:30px;font-size:12px;">🏷️ Carregando...</span>
+            <a href="/" target="_blank">🔗 Ver Loja</a>
+            <a href="#" onclick="logout()">🚪 Sair</a>
+        </div>
+    </div>
+
+    <div class="admin-tabs">
+        <button class="active" data-tab="tab-products">📦 Produtos</button>
+        <button data-tab="tab-categories">🏷️ Categorias</button>
+        <button data-tab="tab-config">⚙️ Configurações</button>
+        <button data-tab="tab-orders">📦 Pedidos</button>
+        <button data-tab="tab-dashboard">📊 Dashboard</button>
+    </div>
+
+    <!-- ===== PRODUTOS ===== -->
+    <div id="tab-products" class="admin-page active">
+        <div class="flex-between" style="margin-bottom:16px;">
+            <h2>Gerenciar Produtos</h2>
+            <button class="btn" onclick="openProductModal()">+ Adicionar Produto</button>
+        </div>
+        <div id="admin-product-list"></div>
+    </div>
+
+    <!-- ===== CATEGORIAS ===== -->
+    <div id="tab-categories" class="admin-page">
+        <div class="flex-between" style="margin-bottom:16px;">
+            <h2>Gerenciar Categorias</h2>
+            <button class="btn btn-primary" onclick="openCategoryModal()">+ Nova Categoria</button>
+        </div>
+        <div class="card" style="background:#fff8f0;border:1px solid #fdebd0;">
+            <p style="color:#e67e22;font-size:14px;">💡 As categorias organizam os produtos no cardápio.</p>
+        </div>
+        <div id="admin-category-list"></div>
+    </div>
+
+    <!-- ===== CONFIGURAÇÕES ===== -->
+    <div id="tab-config" class="admin-page">
+        <h2>Configurações da Loja</h2>
+        <div class="card">
+            <div class="config-row">
+                <label>Nome da loja</label>
+                <input type="text" id="config-store-name">
+            </div>
+            <div class="config-row">
+                <label>Telefone (WhatsApp)</label>
+                <input type="text" id="config-phone">
+            </div>
+            <div class="config-row">
+                <label>Taxa de entrega (R$)</label>
+                <input type="number" id="config-delivery-fee" step="0.01">
+            </div>
+            <div class="config-row">
+                <label>Horário de funcionamento</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <input type="time" id="config-open">
+                    <span>às</span>
+                    <input type="time" id="config-close">
+                </div>
+            </div>
+            <div class="config-row">
+                <label>Status da loja</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="config-status" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span id="config-status-label">Aberto</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:12px;">📍 Endereço da Loja</h3>
+            <div class="address-grid">
+                <div class="full-width">
+                    <label>CEP</label>
+                    <input type="text" id="config-cep" placeholder="00000-000" maxlength="9" oninput="formatCep(this)" onblur="buscarCepAdmin(this.value)">
+                    <div class="cep-loading" id="admin-cep-loading">🔍 Buscando endereço...</div>
+                </div>
+                <div class="full-width">
+                    <label>Rua</label>
+                    <input type="text" id="config-street" placeholder="Rua" disabled>
+                </div>
+                <div>
+                    <label>Número</label>
+                    <input type="text" id="config-number" placeholder="Número">
+                </div>
+                <div>
+                    <label>Complemento</label>
+                    <input type="text" id="config-complement" placeholder="Complemento">
+                </div>
+                <div class="full-width">
+                    <label>Bairro</label>
+                    <input type="text" id="config-neighborhood" placeholder="Bairro" disabled>
+                </div>
+                <div>
+                    <label>Cidade</label>
+                    <input type="text" id="config-city" placeholder="Cidade" disabled>
+                </div>
+                <div>
+                    <label>Estado</label>
+                    <input type="text" id="config-state" placeholder="UF" disabled>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:12px;">🖼️ Imagens da Loja</h3>
+            <div class="config-row">
+                <label>Banner (topo)</label>
+                <div class="image-upload-group">
+                    <input type="file" id="banner-upload" accept="image/*" onchange="previewImage(this, 'banner-preview')">
+                    <div class="preview-container">
+                        <img id="banner-preview" style="display:none;" alt="Banner">
+                        <div class="placeholder" id="banner-placeholder">Sem banner</div>
+                        <button class="btn btn-sm btn-danger" onclick="clearImage('banner')">Remover</button>
+                    </div>
+                </div>
+            </div>
+            <div class="config-row">
+                <label>Logo (redonda)</label>
+                <div class="image-upload-group">
+                    <input type="file" id="logo-upload" accept="image/*" onchange="previewImage(this, 'logo-preview')">
+                    <div class="preview-container">
+                        <img id="logo-preview" style="display:none;" alt="Logo">
+                        <div class="placeholder" id="logo-placeholder">Sem logo</div>
+                        <button class="btn btn-sm btn-danger" onclick="clearImage('logo')">Remover</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="saveConfig()">💾 Salvar Configurações</button>
+    </div>
+
+    <!-- ===== PEDIDOS ===== -->
+    <div id="tab-orders" class="admin-page">
+        <h2>Pedidos Recebidos</h2>
+        <div id="admin-orders-list"></div>
+    </div>
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="tab-dashboard" class="admin-page">
+        <h2>📊 Dashboard</h2>
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="number" id="dash-total-orders">0</div>
+                <div class="label">Total de Pedidos</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="number" id="dash-today-revenue">R$ 0,00</div>
+                <div class="label">Faturamento Hoje</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="number" id="dash-avg-ticket">R$ 0,00</div>
+                <div class="label">Ticket Médio</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="number" id="dash-pending-orders">0</div>
+                <div class="label">Pedidos Pendentes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL PRODUTO ===== -->
+    <div class="modal-overlay" id="product-modal">
+        <div class="modal-box">
+            <h3 id="product-modal-title">Adicionar Produto</h3>
+            <div class="form-group">
+                <label>Nome do produto *</label>
+                <input type="text" id="prod-name" placeholder="Ex: Frango grande">
+            </div>
+            <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" id="prod-desc" placeholder="Breve descrição">
+            </div>
+            <div class="form-group">
+                <label>Preço (R$) *</label>
+                <input type="number" id="prod-price" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Categoria *</label>
+                <select id="prod-category"></select>
+                <div style="margin-top:6px;">
+                    <button class="btn btn-sm btn-secondary" onclick="openCategoryModalFromProduct()" style="width:auto;">➕ Criar nova categoria</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Disponível</label>
+                <select id="prod-active">
+                    <option value="1">Sim</option>
+                    <option value="0">Não</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeProductModal()">Cancelar</button>
+                <button class="btn" id="product-save-btn" onclick="saveProduct()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL CATEGORIA ===== -->
+    <div class="modal-overlay" id="category-modal">
+        <div class="modal-box">
+            <h3 id="category-modal-title">Nova Categoria</h3>
+            <div class="form-group">
+                <label>Nome da categoria *</label>
+                <input type="text" id="cat-name" placeholder="Ex: Bebidas, Sobremesas">
+            </div>
+            <div class="form-group">
+                <label>Ordem de exibição</label>
+                <input type="number" id="cat-order" placeholder="1" value="1">
+                <small style="color:#888;font-size:12px;">Menor número aparece primeiro</small>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeCategoryModal()">Cancelar</button>
+                <button class="btn" id="category-save-btn" onclick="saveCategory()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>
