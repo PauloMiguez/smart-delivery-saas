@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO RENDER - FINAL)
+// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO FINAL CORRIGIDA)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -179,74 +179,50 @@ async function verifyToken(req, res, next) {
 }
 
 // ============================================================
-//  ROTAS DE AUTENTICAÇÃO (COM LOGS DETALHADOS)
+//  ROTAS DE AUTENTICAÇÃO (CORRIGIDAS - COLUNA 'password')
 // ============================================================
 
-// Login - COM LOGS DETALHADOS
+// Login
 app.post('/api/auth/login', async (req, res) => {
     try {
-        console.log('🔐 [LOGIN] Iniciando tentativa de login...');
-        console.log('📧 Email recebido:', req.body.email);
-        console.log('🔑 Senha recebida:', req.body.password ? '***' : 'vazia');
-
         const { email, password } = req.body;
 
         if (!email || !password) {
-            console.log('❌ [LOGIN] Email ou senha não fornecidos');
             return res.status(400).json({ 
                 success: false, 
                 error: 'Email e senha são obrigatórios' 
             });
         }
 
-        console.log('🔄 [LOGIN] Conectando ao banco...');
-        
-        // Testar conexão antes da query
-        try {
-            const testConn = await pool.getConnection();
-            console.log('✅ [LOGIN] Conexão com banco OK');
-            testConn.release();
-        } catch (connError) {
-            console.error('❌ [LOGIN] Falha na conexão com banco:', connError.message);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Erro de conexão com banco de dados: ' + connError.message 
-            });
-        }
+        console.log('🔐 Login:', email);
 
-        console.log('🔍 [LOGIN] Buscando usuário:', email);
         const [users] = await pool.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            console.log('❌ [LOGIN] Usuário não encontrado:', email);
             return res.status(401).json({ 
                 success: false, 
                 error: 'Email ou senha inválidos' 
             });
         }
 
-        console.log('✅ [LOGIN] Usuário encontrado:', users[0].email);
-        console.log('🔑 [LOGIN] Verificando senha...');
-        
         const user = users[0];
-        const validPassword = await bcrypt.compare(password, user.password_hash);
+        
+        // USANDO 'password' (NÃO 'password_hash')
+        const validPassword = await bcrypt.compare(password, user.password);
         
         if (!validPassword) {
-            console.log('❌ [LOGIN] Senha inválida para:', email);
             return res.status(401).json({ 
                 success: false, 
                 error: 'Email ou senha inválidos' 
             });
         }
-
-        console.log('✅ [LOGIN] Senha correta! Gerando token...');
 
         const token = generateToken(user.id, user.tenant_id);
         
-        console.log('✅ [LOGIN] Login bem-sucedido para:', email);
+        console.log('✅ Login bem-sucedido:', email);
         
         res.json({
             success: true,
@@ -262,9 +238,7 @@ app.post('/api/auth/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ [LOGIN] Erro inesperado:');
-        console.error('   Mensagem:', error.message);
-        console.error('   Stack:', error.stack);
+        console.error('❌ Erro no login:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Erro interno do servidor: ' + error.message 
@@ -331,9 +305,9 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Inserir usuário
+        // Inserir usuário - USANDO 'password' (NÃO 'password_hash')
         const [result] = await pool.query(
-            `INSERT INTO users (tenant_id, name, email, phone, password_hash, role) 
+            `INSERT INTO users (tenant_id, name, email, phone, password, role) 
              VALUES (?, ?, ?, ?, ?, 'admin')`,
             [subdomain, ownerName, email, phone || null, passwordHash]
         );
