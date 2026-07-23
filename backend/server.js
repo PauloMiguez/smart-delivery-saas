@@ -21,7 +21,7 @@ app.use(express.static('frontend/public'));
 app.use('/admin', express.static('frontend/admin'));
 
 // ============================================================
-//  CONEXÃO COM O BANCO DE DADOS
+//  CONEXÃO COM O BANCO DE DADOS (COM SSL)
 // ============================================================
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com',
@@ -29,6 +29,7 @@ const pool = mysql.createPool({
     user: process.env.DB_USER || '39E87ruqfSzYfRX.root',
     password: process.env.DB_PASSWORD || '8inwhBgD2ePqz8HH',
     database: process.env.DB_NAME || 'smart_delivery_saas',
+    ssl: {}, // ATIVA A CONEXÃO TLS/SSL (OBRIGATÓRIO PARA TIDB CLOUD)
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -831,5 +832,6 @@ app.listen(PORT, () => {
     console.log(`🔐 Admin: http://localhost:${PORT}/admin`);
     console.log('🏷️ Multi-tenant habilitado');
     console.log('⚡ Rate Limiting: 100 req/min por tenant');
+    console.log('🔒 Conexão SSL com TiDB Cloud ativada');
     console.log('✅ Server ready!');
 });
