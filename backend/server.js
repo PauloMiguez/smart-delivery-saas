@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO
+// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO FINAL)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -8,6 +8,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,8 +18,6 @@ const PORT = process.env.PORT || 3000;
 // ============================================================
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('frontend/public'));
-app.use('/admin', express.static('frontend/admin'));
 
 // ============================================================
 //  CONEXÃO COM O BANCO DE DADOS (COM SSL)
@@ -774,33 +773,45 @@ app.get('/api/tenant', (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS (FALLBACK)
+//  ROTAS DE ARQUIVOS ESTÁTICOS (CORRIGIDAS)
 // ============================================================
 
-// Servir arquivos estáticos do frontend
+// Servir arquivos estáticos do frontend (cliente)
 app.use(express.static('frontend/public'));
 
-// Servir arquivos do admin
+// Servir arquivos estáticos do admin (CORRIGIDO)
 app.use('/admin', express.static('frontend/admin'));
 
+// Rota para admin (com e sem barra)
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/admin/index.html'));
+});
+
+app.get('/admin/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/admin/index.html'));
+});
+
 // Rota para login.html
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
+});
+
 app.get('/login.html', (req, res) => {
-    res.sendFile(__dirname + '/frontend/public/login.html');
+    res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
 });
 
 // Rota para register.html
-app.get('/register.html', (req, res) => {
-    res.sendFile(__dirname + '/frontend/public/register.html');
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
 });
 
-// Rota para admin
-app.get('/admin', (req, res) => {
-    res.sendFile(__dirname + '/frontend/admin/index.html');
+app.get('/register.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
 });
 
 // Rota para index.html (cliente)
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/frontend/public/index.html');
+    res.sendFile(path.join(__dirname, 'frontend/public/index.html'));
 });
 
 // ============================================================
@@ -821,6 +832,21 @@ const tenantLimiter = rateLimit({
 });
 
 app.use('/api/', tenantLimiter);
+
+// ============================================================
+//  FALLBACK PARA ROTAS NÃO ENCONTRADAS (ÚLTIMA ROTA)
+// ============================================================
+app.use((req, res) => {
+    // Se for uma requisição de API, retornar 404 JSON
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ 
+            success: false, 
+            error: 'Endpoint não encontrado' 
+        });
+    }
+    // Para rotas HTML não encontradas, servir o index.html (SPA)
+    res.sendFile(path.join(__dirname, 'frontend/public/index.html'));
+});
 
 // ============================================================
 //  INICIAR SERVIDOR
