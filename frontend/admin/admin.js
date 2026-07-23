@@ -10,20 +10,45 @@ function checkAuth() {
     return true;
 }
 
-// No início do documento
-if (!checkAuth()) {
-    // O redirecionamento já acontece na função
-}
-
 // ============================================================
-//  CONFIGURAÇÃO
+//  CONFIGURAÇÃO - TENANT CORRETO
 // ============================================================
 const API_URL = window.location.origin + '/api';
-const hostname = window.location.hostname;
-const subdomain = hostname.split('.')[0];
-const TENANT_ID = (subdomain === 'localhost' || subdomain === '127.0.0.1') ? 'firerburger' : subdomain;
 
+// FUNÇÃO PARA DETECTAR TENANT
+function getTenant() {
+    // 1. Tenta da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tenantFromUrl = urlParams.get('tenant');
+    if (tenantFromUrl) {
+        console.log('✅ Tenant da URL:', tenantFromUrl);
+        return tenantFromUrl;
+    }
+    
+    // 2. Tenta do subdomínio
+    const hostname = window.location.hostname;
+    const subdomain = hostname.split('.')[0];
+    if (subdomain && subdomain !== 'localhost' && subdomain !== '127.0.0.1' && subdomain !== 'smart-delivery-saas') {
+        console.log('✅ Tenant do subdomínio:', subdomain);
+        return subdomain;
+    }
+    
+    // 3. Fallback - SEU RESTAURANTE
+    console.log('⚠️ Usando fallback: firerburger');
+    return 'firerburger';
+}
+
+const TENANT_ID = getTenant();
 console.log('🏷️ Admin Tenant:', TENANT_ID);
+
+// Salvar para uso futuro
+sessionStorage.setItem('tenant', TENANT_ID);
+
+// Adicionar tenant à URL se não estiver presente
+if (!window.location.search.includes('tenant=')) {
+    const newUrl = window.location.pathname + '?tenant=' + TENANT_ID + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+}
 
 // ============================================================
 //  ESTADO
@@ -47,10 +72,20 @@ async function apiRequest(endpoint, options = {}) {
             'X-Tenant-ID': TENANT_ID
         }
     };
-    const config = { ...defaultOptions, ...options };
+    const configOptions = { ...defaultOptions, ...options };
 
     try {
-        const response = await fetch(url, config);
+        const response = await fetch(url, configOptions);
+        
+        // Se for 404, tentar com tenant na URL
+        if (response.status === 404) {
+            const urlWithTenant = url + (url.includes('?') ? '&' : '?') + 'tenant=' + TENANT_ID;
+            const retryResponse = await fetch(urlWithTenant, configOptions);
+            if (retryResponse.ok) {
+                return await retryResponse.json();
+            }
+        }
+        
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.message || 'Erro na requisição');
@@ -71,7 +106,8 @@ async function loadData() {
         
         const tenantRes = await apiRequest('/tenant');
         if (tenantRes.success) {
-            document.getElementById('tenant-display').textContent = '🏷️ ' + tenantRes.data.subdomain;
+            const display = document.getElementById('tenant-display');
+            if (display) display.textContent = '🏷️ ' + (tenantRes.data?.subdomain || TENANT_ID);
         }
 
         const productsRes = await apiRequest('/products');
@@ -116,6 +152,7 @@ function renderAll() {
 // ============================================================
 function renderAdminProducts() {
     const container = document.getElementById('admin-product-list');
+    if (!container) return;
     if (!products || products.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -143,6 +180,7 @@ function renderAdminProducts() {
 
 function openProductModal(product = null) {
     const modal = document.getElementById('product-modal');
+    if (!modal) return;
     modal.classList.add('open');
 
     if (!categories || categories.length === 0) {
@@ -175,11 +213,13 @@ function openProductModal(product = null) {
 }
 
 function closeProductModal() {
-    document.getElementById('product-modal').classList.remove('open');
+    const modal = document.getElementById('product-modal');
+    if (modal) modal.classList.remove('open');
 }
 
 function populateCategorySelect() {
     const sel = document.getElementById('prod-category');
+    if (!sel) return;
     sel.innerHTML = '';
     if (!categories || categories.length === 0) {
         const opt = document.createElement('option');
@@ -248,6 +288,7 @@ async function deleteProduct(id) {
 // ============================================================
 function renderAdminCategories() {
     const container = document.getElementById('admin-category-list');
+    if (!container) return;
     if (!categories || categories.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -276,6 +317,7 @@ function renderAdminCategories() {
 
 function openCategoryModal(category = null) {
     const modal = document.getElementById('category-modal');
+    if (!modal) return;
     modal.classList.add('open');
 
     if (category) {
@@ -299,7 +341,8 @@ function openCategoryModalFromProduct() {
 }
 
 function closeCategoryModal() {
-    document.getElementById('category-modal').classList.remove('open');
+    const modal = document.getElementById('category-modal');
+    if (modal) modal.classList.remove('open');
     categoryModalSource = 'categories';
 }
 
@@ -412,35 +455,41 @@ function buscarCepAdmin(cep) {
 function updateImagePreviews() {
     const bannerPreview = document.getElementById('banner-preview');
     const bannerPlaceholder = document.getElementById('banner-placeholder');
-    if (config.banner_image) {
-        bannerPreview.src = config.banner_image;
-        bannerPreview.style.display = 'block';
-        bannerPlaceholder.style.display = 'none';
-    } else {
-        bannerPreview.style.display = 'none';
-        bannerPlaceholder.style.display = 'flex';
+    if (bannerPreview && bannerPlaceholder) {
+        if (config.banner_image) {
+            bannerPreview.src = config.banner_image;
+            bannerPreview.style.display = 'block';
+            bannerPlaceholder.style.display = 'none';
+        } else {
+            bannerPreview.style.display = 'none';
+            bannerPlaceholder.style.display = 'flex';
+        }
     }
     const logoPreview = document.getElementById('logo-preview');
     const logoPlaceholder = document.getElementById('logo-placeholder');
-    if (config.logo_image) {
-        logoPreview.src = config.logo_image;
-        logoPreview.style.display = 'block';
-        logoPlaceholder.style.display = 'none';
-    } else {
-        logoPreview.style.display = 'none';
-        logoPlaceholder.style.display = 'flex';
+    if (logoPreview && logoPlaceholder) {
+        if (config.logo_image) {
+            logoPreview.src = config.logo_image;
+            logoPreview.style.display = 'block';
+            logoPlaceholder.style.display = 'none';
+        } else {
+            logoPreview.style.display = 'none';
+            logoPlaceholder.style.display = 'flex';
+        }
     }
 }
 
 function previewImage(input, previewId) {
     const preview = document.getElementById(previewId);
-    const placeholder = preview.parentElement.querySelector('.placeholder');
+    const placeholder = preview?.parentElement?.querySelector('.placeholder');
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
+            if (preview) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+            }
         };
         reader.readAsDataURL(input.files[0]);
     }
@@ -449,11 +498,13 @@ function previewImage(input, previewId) {
 function clearImage(type) {
     if (type === 'banner') {
         config.banner_image = '';
-        document.getElementById('banner-upload').value = '';
+        const upload = document.getElementById('banner-upload');
+        if (upload) upload.value = '';
         updateImagePreviews();
     } else if (type === 'logo') {
         config.logo_image = '';
-        document.getElementById('logo-upload').value = '';
+        const upload = document.getElementById('logo-upload');
+        if (upload) upload.value = '';
         updateImagePreviews();
     }
 }
@@ -484,11 +535,11 @@ async function saveConfig() {
         }
 
         const bannerPreview = document.getElementById('banner-preview');
-        if (bannerPreview.src && bannerPreview.src.startsWith('data:image')) {
+        if (bannerPreview && bannerPreview.src && bannerPreview.src.startsWith('data:image')) {
             data.banner_image = bannerPreview.src;
         }
         const logoPreview = document.getElementById('logo-preview');
-        if (logoPreview.src && logoPreview.src.startsWith('data:image')) {
+        if (logoPreview && logoPreview.src && logoPreview.src.startsWith('data:image')) {
             data.logo_image = logoPreview.src;
         }
 
@@ -505,6 +556,7 @@ async function saveConfig() {
 // ============================================================
 function renderAdminOrders() {
     const container = document.getElementById('admin-orders-list');
+    if (!container) return;
     if (!orders || orders.length === 0) {
         container.innerHTML = '<div class="empty-state">Nenhum pedido recebido.</div>';
         return;
@@ -573,12 +625,8 @@ function showToast(message, type = 'success', duration = 3500) {
     if (!container) return;
     const icons = { success: '✅', error: '❌', warning: '⚠️' };
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <span class="toast-icon">${icons[type] || '📢'}</span>
-        <span>${message}</span>
-        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
-    `;
+    toast.className = 'toast ' + type;
+    toast.innerHTML = '<span class="toast-icon">' + (icons[type] || '📢') + '</span><span>' + message + '</span><button class="toast-close" onclick="this.parentElement.remove()">✕</button>';
     container.appendChild(toast);
     setTimeout(() => {
         toast.classList.add('hide');
@@ -595,7 +643,8 @@ document.querySelectorAll('.admin-tabs button').forEach(btn => {
         this.classList.add('active');
         const tab = this.dataset.tab;
         document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
-        document.getElementById(tab).classList.add('active');
+        const target = document.getElementById(tab);
+        if (target) target.classList.add('active');
         if (tab === 'tab-orders') renderAdminOrders();
         if (tab === 'tab-dashboard') updateDashboard();
         if (tab === 'tab-products') renderAdminProducts();
@@ -608,6 +657,7 @@ document.querySelectorAll('.admin-tabs button').forEach(btn => {
 // ============================================================
 function logout() {
     if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('token');
         localStorage.removeItem('admin_token');
         window.location.href = '/';
     }
@@ -618,6 +668,7 @@ function logout() {
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Painel Administrativo SaaS iniciado!');
+    if (!checkAuth()) return;
     loadData();
 });
 
