@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO FINAL)
+// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO RENDER)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -28,7 +28,7 @@ const pool = mysql.createPool({
     user: process.env.DB_USER || '39E87ruqfSzYfRX.root',
     password: process.env.DB_PASSWORD || '8inwhBgD2ePqz8HH',
     database: process.env.DB_NAME || 'smart_delivery_saas',
-    ssl: {}, // ATIVA A CONEXÃO TLS/SSL (OBRIGATÓRIO PARA TIDB CLOUD)
+    ssl: {},
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -38,27 +38,23 @@ const pool = mysql.createPool({
 //  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
-    // Ignorar rotas públicas
     const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/register'];
     if (publicRoutes.includes(req.path)) {
         return next();
     }
 
-    // 1. Tentar da query string
     if (req.query.tenant) {
         req.tenantId = req.query.tenant;
         console.log('🏷️ Tenant da query:', req.tenantId);
         return next();
     }
 
-    // 2. Tentar do header
     if (req.headers['x-tenant-id']) {
         req.tenantId = req.headers['x-tenant-id'];
         console.log('🏷️ Tenant do header:', req.tenantId);
         return next();
     }
 
-    // 3. Tentar do subdomínio
     const host = req.get('host');
     if (host) {
         const parts = host.split('.');
@@ -72,16 +68,14 @@ app.use((req, res, next) => {
         }
     }
 
-    // 4. Para requisições de arquivos estáticos, passar sem tenant
     if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
         return next();
     }
 
-    // 5. Fallback - retornar erro para rotas de API
     if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ 
-            success: false, 
-            error: 'Tenant não encontrado. Use ?tenant=seu_subdominio ou header X-Tenant-ID.' 
+        return res.status(404).json({
+            success: false,
+            error: 'Tenant não encontrado. Use ?tenant=seu_subdominio ou header X-Tenant-ID.'
         });
     }
 
@@ -92,8 +86,8 @@ app.use((req, res, next) => {
 //  HEALTH CHECK
 // ============================================================
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        success: true, 
+    res.json({
+        success: true,
         message: 'Smart Delivery SaaS API rodando!',
         timestamp: new Date().toISOString()
     });
@@ -104,12 +98,10 @@ app.get('/api/health', (req, res) => {
 // ============================================================
 const JWT_SECRET = process.env.JWT_SECRET || 'smart_delivery_super_secret_key_change_in_production_2024';
 
-// Gerar token JWT
 function generateToken(userId, tenantId) {
     return jwt.sign({ userId, tenantId }, JWT_SECRET, { expiresIn: '7d' });
 }
 
-// Middleware para verificar token
 async function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -131,7 +123,6 @@ async function verifyToken(req, res, next) {
 //  ROTAS DE AUTENTICAÇÃO
 // ============================================================
 
-// Login
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -175,78 +166,70 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Registro
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { 
-            restaurantName, 
-            subdomain, 
-            ownerName, 
-            email, 
-            phone, 
-            password 
+        const {
+            restaurantName,
+            subdomain,
+            ownerName,
+            email,
+            phone,
+            password
         } = req.body;
 
-        // Validações
         if (!restaurantName || !subdomain || !ownerName || !email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Todos os campos são obrigatórios' 
+            return res.status(400).json({
+                success: false,
+                error: 'Todos os campos são obrigatórios'
             });
         }
 
         if (password.length < 6) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'A senha deve ter no mínimo 6 caracteres' 
+            return res.status(400).json({
+                success: false,
+                error: 'A senha deve ter no mínimo 6 caracteres'
             });
         }
 
-        // Verificar se subdomínio já existe
         const [existingTenant] = await pool.query(
             'SELECT * FROM users WHERE tenant_id = ?',
             [subdomain]
         );
 
         if (existingTenant.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Este subdomínio já está em uso' 
+            return res.status(400).json({
+                success: false,
+                error: 'Este subdomínio já está em uso'
             });
         }
 
-        // Verificar se email já está cadastrado
         const [existingEmail] = await pool.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
 
         if (existingEmail.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Este email já está cadastrado' 
+            return res.status(400).json({
+                success: false,
+                error: 'Este email já está cadastrado'
             });
         }
 
-        // Hash da senha
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Inserir usuário
         const [result] = await pool.query(
             `INSERT INTO users (tenant_id, name, email, phone, password_hash, role) 
              VALUES (?, ?, ?, ?, ?, 'admin')`,
             [subdomain, ownerName, email, phone || null, passwordHash]
         );
 
-        // Criar configurações padrão para a loja
         await pool.query(
             `INSERT INTO config (tenant_id, store_name, is_open) 
              VALUES (?, ?, 'true')`,
             [subdomain, restaurantName]
         );
 
-        // Gerar token
         const token = generateToken(result.insertId, subdomain);
 
         res.status(201).json({
@@ -275,7 +258,6 @@ app.post('/api/auth/register', async (req, res) => {
 //  ROTAS DE PRODUTOS
 // ============================================================
 
-// Listar produtos
 app.get('/api/products', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -295,7 +277,6 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// Criar produto
 app.post('/api/products', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -322,7 +303,6 @@ app.post('/api/products', verifyToken, async (req, res) => {
     }
 });
 
-// Atualizar produto
 app.put('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -351,7 +331,6 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Deletar produto
 app.delete('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -377,7 +356,6 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
 //  ROTAS DE CATEGORIAS
 // ============================================================
 
-// Listar categorias
 app.get('/api/categories', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -397,7 +375,6 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
-// Criar categoria
 app.post('/api/categories', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -424,7 +401,6 @@ app.post('/api/categories', verifyToken, async (req, res) => {
     }
 });
 
-// Atualizar categoria
 app.put('/api/categories/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -452,7 +428,6 @@ app.put('/api/categories/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Deletar categoria
 app.delete('/api/categories/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -478,7 +453,6 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 //  ROTAS DE PEDIDOS
 // ============================================================
 
-// Listar pedidos
 app.get('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -487,11 +461,10 @@ app.get('/api/orders', async (req, res) => {
         }
 
         const [orders] = await pool.query(
-            `SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC`,
+            'SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC',
             [tenantId]
         );
 
-        // Processar items JSON
         const processedOrders = orders.map(o => ({
             ...o,
             items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
@@ -504,7 +477,6 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-// Criar pedido
 app.post('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -529,7 +501,6 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
-        // Gerar número do pedido
         const orderNumber = '#' + Date.now().toString().slice(-6);
 
         const [result] = await pool.query(
@@ -562,7 +533,6 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-// Atualizar status do pedido
 app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -602,7 +572,6 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 //  ROTAS DE CONFIGURAÇÕES
 // ============================================================
 
-// Obter configurações
 app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -616,7 +585,6 @@ app.get('/api/config', async (req, res) => {
         );
 
         if (config.length === 0) {
-            // Criar configurações padrão
             await pool.query(
                 `INSERT INTO config (tenant_id, store_name, is_open) VALUES (?, 'Minha Loja', 'true')`,
                 [tenantId]
@@ -634,7 +602,6 @@ app.get('/api/config', async (req, res) => {
     }
 });
 
-// Atualizar configurações
 app.put('/api/config', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -696,28 +663,24 @@ app.get('/api/stats/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         if (!tenantId) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
             });
         }
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
-        // Buscar todos os pedidos do tenant
         const [orders] = await pool.query(
             'SELECT * FROM orders WHERE tenant_id = ?',
             [tenantId]
         );
 
         const total = orders.length;
-        
-        // Pedidos pendentes (status 'pending' ou 'Pendente')
-        const pending = orders.filter(o => 
+        const pending = orders.filter(o =>
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
-        
-        // Faturamento de hoje
+
         const today = new Date().toISOString().split('T')[0];
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
@@ -725,8 +688,7 @@ app.get('/api/stats/orders', async (req, res) => {
             return date.toISOString().split('T')[0] === today;
         });
         const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
-        
-        // Ticket médio
+
         const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
 
         res.json({
@@ -744,9 +706,9 @@ app.get('/api/stats/orders', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erro ao buscar estatísticas:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao carregar estatísticas: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar estatísticas: ' + error.message
         });
     }
 });
@@ -758,71 +720,91 @@ app.get('/api/stats/orders', async (req, res) => {
 app.get('/api/tenant', (req, res) => {
     const tenant = req.tenantId;
     if (!tenant) {
-        return res.status(404).json({ 
-            success: false, 
-            error: 'Tenant não encontrado' 
+        return res.status(404).json({
+            success: false,
+            error: 'Tenant não encontrado'
         });
     }
-    res.json({ 
-        success: true, 
-        data: { 
+    res.json({
+        success: true,
+        data: {
             subdomain: tenant,
             url: `https://${tenant}.smartdelivery.com`
-        } 
+        }
     });
 });
 
 // ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS (CORRIGIDAS)
+//  ROTAS DE ARQUIVOS ESTÁTICOS (VERSÃO RENDER)
 // ============================================================
 
-// Servir arquivos estáticos do frontend (cliente)
-app.use(express.static('frontend/public'));
+// __dirname no Render está em /opt/render/project/src/backend
+// Precisamos subir um nível para a raiz do projeto
+const PROJECT_ROOT = path.join(__dirname, '..');
 
-// Servir arquivos estáticos do admin (CORRIGIDO)
-app.use('/admin', express.static('frontend/admin'));
+console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
+console.log('📁 __dirname:', __dirname);
+
+// Servir arquivos estáticos do frontend (cliente)
+app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
+
+// Servir arquivos estáticos do admin
+app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
 // Rota para admin (com e sem barra)
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/admin/index.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
 });
 
 app.get('/admin/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/admin/index.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
 });
 
 // Rota para login.html
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
 });
 
 app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/public/login.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
 });
 
 // Rota para register.html
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
 });
 
 app.get('/register.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/public/register.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
 });
 
 // Rota para index.html (cliente)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/public/index.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
+});
+
+// Rota para qualquer outra página HTML (fallback)
+app.get('/*.html', (req, res) => {
+    const fileName = req.path.split('/').pop();
+    const filePath = path.join(PROJECT_ROOT, 'frontend/public', fileName);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            res.status(404).send('Página não encontrada');
+        }
+    });
 });
 
 // ============================================================
-//  RATE LIMITING
+//  RATE LIMITING (CORRIGIDO)
 // ============================================================
 
-// Rate limiting por tenant
 const tenantLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minuto
-    max: 100, // 100 requisições por minuto
-    keyGenerator: (req) => req.tenantId || req.ip,
+    windowMs: 60 * 1000,
+    max: 100,
+    keyGenerator: (req) => {
+        // Usar o tenant ID se disponível, senão o IP
+        return req.tenantId || req.ip;
+    },
     handler: (req, res) => {
         res.status(429).json({
             success: false,
@@ -836,16 +818,22 @@ app.use('/api/', tenantLimiter);
 // ============================================================
 //  FALLBACK PARA ROTAS NÃO ENCONTRADAS (ÚLTIMA ROTA)
 // ============================================================
+
 app.use((req, res) => {
     // Se for uma requisição de API, retornar 404 JSON
     if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ 
-            success: false, 
-            error: 'Endpoint não encontrado' 
+        return res.status(404).json({
+            success: false,
+            error: 'Endpoint não encontrado'
         });
     }
     // Para rotas HTML não encontradas, servir o index.html (SPA)
-    res.sendFile(path.join(__dirname, 'frontend/public/index.html'));
+    const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            res.status(404).send('Página não encontrada');
+        }
+    });
 });
 
 // ============================================================
