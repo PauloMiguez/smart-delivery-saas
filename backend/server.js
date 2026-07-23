@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO RENDER - CORRIGIDA)
+// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO RENDER - FINAL)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -20,7 +20,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
-//  CONEXÃO COM O BANCO DE DADOS (VERSÃO RENDER - CORRIGIDA)
+//  CONEXÃO COM O BANCO DE DADOS (VERSÃO RENDER - FINAL)
 // ============================================================
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com',
@@ -29,14 +29,22 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD || '8inwhBgD2ePqz8HH',
     database: process.env.DB_NAME || 'smart_delivery_saas',
     ssl: {
-        rejectUnauthorized: false // Permite conexão mesmo com certificado auto-assinado
+        rejectUnauthorized: false
     },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+    keepAliveInitialDelay: 0,
+    connectTimeout: 30000,
+    acquireTimeout: 30000,
+    timeout: 30000
 });
+
+console.log('📊 Configuração do banco:');
+console.log('   Host:', process.env.DB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com');
+console.log('   Database:', process.env.DB_NAME || 'smart_delivery_saas');
+console.log('   User:', process.env.DB_USER || '39E87ruqfSzYfRX.root');
 
 // ============================================================
 //  TESTE DE CONEXÃO COM O BANCO
@@ -45,15 +53,12 @@ async function testDatabaseConnection() {
     try {
         const connection = await pool.getConnection();
         console.log('✅ Conexão com o banco de dados estabelecida com sucesso!');
-        console.log('📊 Banco:', process.env.DB_NAME || 'smart_delivery_saas');
-        console.log('📍 Host:', process.env.DB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com');
         connection.release();
         return true;
     } catch (error) {
         console.error('❌ Erro ao conectar ao banco de dados:');
         console.error('   Mensagem:', error.message);
         console.error('   Código:', error.code);
-        console.error('   Detalhes:', error);
         return false;
     }
 }
@@ -63,7 +68,7 @@ async function testDatabaseConnection() {
 // ============================================================
 app.use((req, res, next) => {
     // Ignorar rotas públicas
-    const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/register'];
+    const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/register', '/api/test-db'];
     if (publicRoutes.includes(req.path)) {
         return next();
     }
@@ -124,6 +129,28 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================================
+//  ENDPOINT DE TESTE DO BANCO
+// ============================================================
+app.get('/api/test-db', async (req, res) => {
+    try {
+        console.log('🔄 Testando conexão com banco...');
+        const [result] = await pool.query('SELECT 1 as connected');
+        console.log('✅ Conexão com banco OK:', result);
+        res.json({ 
+            success: true, 
+            message: 'Conexão com banco OK',
+            data: result 
+        });
+    } catch (error) {
+        console.error('❌ Erro no teste de conexão:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// ============================================================
 //  AUTENTICAÇÃO
 // ============================================================
 const JWT_SECRET = process.env.JWT_SECRET || 'smart_delivery_super_secret_key_change_in_production_2024';
@@ -152,40 +179,75 @@ async function verifyToken(req, res, next) {
 }
 
 // ============================================================
-//  ROTAS DE AUTENTICAÇÃO
+//  ROTAS DE AUTENTICAÇÃO (COM LOGS DETALHADOS)
 // ============================================================
 
-// Login
+// Login - COM LOGS DETALHADOS
 app.post('/api/auth/login', async (req, res) => {
     try {
+        console.log('🔐 [LOGIN] Iniciando tentativa de login...');
+        console.log('📧 Email recebido:', req.body.email);
+        console.log('🔑 Senha recebida:', req.body.password ? '***' : 'vazia');
+
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ success: false, error: 'Email e senha são obrigatórios' });
+            console.log('❌ [LOGIN] Email ou senha não fornecidos');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Email e senha são obrigatórios' 
+            });
         }
 
-        console.log('🔐 Tentativa de login:', email);
+        console.log('🔄 [LOGIN] Conectando ao banco...');
+        
+        // Testar conexão antes da query
+        try {
+            const testConn = await pool.getConnection();
+            console.log('✅ [LOGIN] Conexão com banco OK');
+            testConn.release();
+        } catch (connError) {
+            console.error('❌ [LOGIN] Falha na conexão com banco:', connError.message);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Erro de conexão com banco de dados: ' + connError.message 
+            });
+        }
 
+        console.log('🔍 [LOGIN] Buscando usuário:', email);
         const [users] = await pool.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            console.log('❌ Usuário não encontrado:', email);
-            return res.status(401).json({ success: false, error: 'Email ou senha inválidos' });
+            console.log('❌ [LOGIN] Usuário não encontrado:', email);
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Email ou senha inválidos' 
+            });
         }
 
+        console.log('✅ [LOGIN] Usuário encontrado:', users[0].email);
+        console.log('🔑 [LOGIN] Verificando senha...');
+        
         const user = users[0];
         const validPassword = await bcrypt.compare(password, user.password_hash);
+        
         if (!validPassword) {
-            console.log('❌ Senha inválida para:', email);
-            return res.status(401).json({ success: false, error: 'Email ou senha inválidos' });
+            console.log('❌ [LOGIN] Senha inválida para:', email);
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Email ou senha inválidos' 
+            });
         }
 
-        console.log('✅ Login bem-sucedido:', email);
+        console.log('✅ [LOGIN] Senha correta! Gerando token...');
 
         const token = generateToken(user.id, user.tenant_id);
+        
+        console.log('✅ [LOGIN] Login bem-sucedido para:', email);
+        
         res.json({
             success: true,
             data: {
@@ -200,8 +262,13 @@ app.post('/api/auth/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Erro no login:', error);
-        res.status(500).json({ success: false, error: 'Erro interno do servidor: ' + error.message });
+        console.error('❌ [LOGIN] Erro inesperado:');
+        console.error('   Mensagem:', error.message);
+        console.error('   Stack:', error.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro interno do servidor: ' + error.message 
+        });
     }
 });
 
@@ -521,7 +588,7 @@ app.get('/api/orders', async (req, res) => {
         }
 
         const [orders] = await pool.query(
-            `SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC`,
+            'SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC',
             [tenantId]
         );
 
