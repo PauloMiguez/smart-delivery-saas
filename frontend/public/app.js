@@ -492,10 +492,35 @@ function buildOrderSummary() {
 }
 
 // ============================================================
-//  ENVIAR PEDIDO
+//  ENVIAR PEDIDO - CORRIGIDO (COM VALIDAÇÃO DE ENDEREÇO)
 // ============================================================
 async function submitOrder() {
-    if (state.cart.length === 0) { showToast('Sacola vazia!', 'warning'); return; }
+    // 1. Validar carrinho
+    if (state.cart.length === 0) { 
+        showToast('Sacola vazia!', 'warning'); 
+        return; 
+    }
+
+    // 2. Validar endereço
+    if (!state.user.address || state.user.address.trim() === '') {
+        showToast('Por favor, preencha o endereço de entrega.', 'warning');
+        // Abrir o modal de endereço
+        openAddressModal();
+        return;
+    }
+
+    // 3. Validar telefone
+    const phoneClean = state.user.phone.replace(/\D/g, '');
+    if (phoneClean.length < 10) {
+        showToast('Por favor, preencha um telefone válido (DDD + número).', 'warning');
+        return;
+    }
+
+    // 4. Validar nome
+    if (!state.user.name || state.user.name.trim() === '') {
+        showToast('Por favor, preencha seu nome.', 'warning');
+        return;
+    }
 
     const subtotal = state.cart.reduce((acc, i) => acc + i.price * i.qty, 0);
     const fee = parseFloat(state.config.delivery_fee) || 0;
@@ -507,16 +532,29 @@ async function submitOrder() {
         discountText = '\nDesconto (' + couponApplied.value + '%): -R$ ' + discount.toFixed(2);
     }
 
+    // Log dos dados para debug
+    console.log('📦 Enviando pedido:', {
+        customer_name: state.user.name,
+        customer_phone: state.user.phone,
+        customer_address: state.user.address,
+        items: state.cart.length,
+        subtotal: subtotal,
+        total: total
+    });
+
     try {
         const orderData = {
             customer_name: state.user.name,
-            customer_email: state.user.email,
             customer_phone: state.user.phone,
             customer_address: state.user.address,
-            items: state.cart,
+            items: state.cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: parseFloat(item.price),
+                qty: item.qty
+            })),
             subtotal: subtotal,
             delivery_fee: fee,
-            discount: couponApplied ? (total * couponApplied.value / 100) : 0,
             total: total,
             payment_method: selectedPayment,
             delivery_type: 'delivery',
@@ -524,7 +562,11 @@ async function submitOrder() {
             notes: ''
         };
 
-        const result = await apiRequest('/orders', { method: 'POST', body: JSON.stringify(orderData) });
+        const result = await apiRequest('/orders', { 
+            method: 'POST', 
+            body: JSON.stringify(orderData) 
+        });
+        
         console.log('✅ Pedido criado:', result);
 
         // WhatsApp
@@ -540,6 +582,7 @@ async function submitOrder() {
         showToast('Pedido enviado com sucesso!', 'success');
 
     } catch (error) {
+        console.error('❌ Erro ao enviar pedido:', error);
         showToast('Erro ao enviar pedido: ' + error.message, 'error');
     }
 }
