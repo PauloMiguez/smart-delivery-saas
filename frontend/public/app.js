@@ -51,7 +51,6 @@ let state = {
     config: {},
     user: {
         name: 'Usuário',
-        email: 'usuario@email.com',
         phone: '(85) 99999-9999',
         address: ''
     },
@@ -102,12 +101,10 @@ async function loadData() {
         const savedAddress = localStorage.getItem('user_address');
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
-        const savedEmail = localStorage.getItem('user_email');
         
         if (savedAddress) state.user.address = savedAddress;
         if (savedName) state.user.name = savedName;
         if (savedPhone) state.user.phone = savedPhone;
-        if (savedEmail) state.user.email = savedEmail;
 
         const configRes = await apiRequest('/config');
         state.config = configRes.data || {};
@@ -705,7 +702,6 @@ async function saveUserAddress() {
         localStorage.setItem('user_address', address);
         localStorage.setItem('user_name', state.user.name);
         localStorage.setItem('user_phone', state.user.phone);
-        localStorage.setItem('user_email', state.user.email);
     } catch (e) {
         console.warn('Não foi possível salvar no localStorage:', e);
     }
@@ -717,15 +713,13 @@ async function saveUserAddress() {
 }
 
 // ============================================================
-//  PERFIL
+//  PERFIL - CORRIGIDO (SEM EMAIL)
 // ============================================================
 function renderProfile() {
     const user = state.user;
-    document.getElementById('user-avatar').textContent = user.name ? user.name.substring(0, 1).toUpperCase() : '?';
     document.getElementById('user-name-display').textContent = user.name || 'Não definido';
-    document.getElementById('user-email-display').textContent = user.email || 'Não definido';
+    document.getElementById('user-phone-display').textContent = user.phone || 'Não definido';
     document.getElementById('user-name-value').textContent = user.name || 'Não definido';
-    document.getElementById('user-email-value').textContent = user.email || 'Não definido';
     document.getElementById('user-phone-value').textContent = user.phone || 'Não definido';
     document.getElementById('user-address-value').textContent = user.address || 'Não cadastrado';
 }
@@ -733,7 +727,6 @@ function renderProfile() {
 function editUserField(field) {
     const labels = { 
         'name': 'Nome completo', 
-        'email': 'E-mail', 
         'phone': 'Telefone' 
     };
     editFieldName = field;
@@ -760,7 +753,6 @@ async function saveEditField() {
     // Salvar no localStorage
     try {
         localStorage.setItem('user_name', state.user.name);
-        localStorage.setItem('user_email', state.user.email);
         localStorage.setItem('user_phone', state.user.phone);
     } catch (e) {
         console.warn('Não foi possível salvar no localStorage:', e);
@@ -768,16 +760,15 @@ async function saveEditField() {
     
     renderProfile();
     renderHeader();
-    const labelMap = { 'name': 'Nome', 'email': 'E-mail', 'phone': 'Telefone' };
+    const labelMap = { 'name': 'Nome', 'phone': 'Telefone' };
     showToast(labelMap[editFieldName] + ' atualizado com sucesso!', 'success');
 }
 
 function clearUserData() {
     if (confirm('Deseja resetar os dados do usuário?')) {
-        state.user = { name: 'Usuário', email: 'usuario@email.com', phone: '(85) 99999-9999', address: '' };
+        state.user = { name: 'Usuário', phone: '(85) 99999-9999', address: '' };
         // Limpar localStorage
         localStorage.removeItem('user_name');
-        localStorage.removeItem('user_email');
         localStorage.removeItem('user_phone');
         localStorage.removeItem('user_address');
         renderProfile();
