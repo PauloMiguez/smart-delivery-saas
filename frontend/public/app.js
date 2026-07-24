@@ -51,7 +51,7 @@ let state = {
     config: {},
     user: {
         name: 'Usuário',
-        phone: '(85) 99999-9999',
+        phone: '(00) 00000-0000',
         address: ''
     },
     orders: [],
