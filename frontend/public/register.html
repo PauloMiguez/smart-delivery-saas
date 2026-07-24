@@ -115,41 +115,63 @@
         async function handleRegister(event) {
             event.preventDefault();
             
-            const data = {
-                tenant_name: document.getElementById('reg-tenant-name').value.trim(),
-                subdomain: document.getElementById('reg-subdomain').value.trim().toLowerCase(),
-                name: document.getElementById('reg-name').value.trim(),
-                email: document.getElementById('reg-email').value.trim(),
-                phone: document.getElementById('reg-phone').value.trim(),
-                password: document.getElementById('reg-password').value
-            };
+            // Capturar os valores do formulário
+            const restaurantName = document.getElementById('restaurant-name').value.trim();
+            const subdomain = document.getElementById('subdomain').value.trim();
+            const ownerName = document.getElementById('owner-name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value;
 
-            // Validar subdomínio
-            if (!/^[a-z0-9-]+$/.test(data.subdomain)) {
-                showToast('Subdomínio deve conter apenas letras minúsculas, números e hífens.', 'warning');
+            // Validar campos obrigatórios
+            if (!restaurantName || !subdomain || !ownerName || !email || !password) {
+                showToast('Preencha todos os campos obrigatórios.', 'warning');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('A senha deve ter no mínimo 6 caracteres.', 'warning');
                 return;
             }
 
             try {
-                const response = await fetch(API_URL + '/auth/register', {
+                const response = await fetch('/api/auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        restaurantName,
+                        subdomain,
+                        ownerName,
+                        email,
+                        phone,
+                        password
+                    })
                 });
-                const result = await response.json();
 
-                if (result.success) {
-                    localStorage.setItem('token', result.data.token);
-                    localStorage.setItem('user', JSON.stringify(result.data.user));
-                    showToast('Conta criada com sucesso!', 'success');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao cadastrar');
+                }
+
+                if (data.success) {
+                    // Salvar token e tenant
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('tenant', data.data.tenantId);
+                    sessionStorage.setItem('tenant', data.data.tenantId);
+                    
+                    showToast('Restaurante cadastrado com sucesso!', 'success');
+                    
+                    // Redirecionar para o admin
                     setTimeout(() => {
-                        window.location.href = '/admin';
-                    }, 1000);
-                } else {
-                    showToast(result.message || 'Erro ao criar conta', 'error');
+                        window.location.href = '/admin?tenant=' + data.data.tenantId;
+                    }, 1500);
                 }
             } catch (error) {
-                showToast('Erro ao conectar ao servidor', 'error');
+                console.error('❌ Erro no registro:', error);
+                showToast(error.message, 'error');
             }
         }
 
