@@ -16,38 +16,65 @@ function checkAuth() {
 const API_URL = window.location.origin + '/api';
 
 // FUNÇÃO PARA DETECTAR TENANT
+// ============================================================
+//  DETECÇÃO DE TENANT (ADMIN - SEM FALLBACK)
+// ============================================================
 function getTenant() {
-    // 1. Tenta da URL
+    // 1. Tenta da URL (query param)
     const urlParams = new URLSearchParams(window.location.search);
     const tenantFromUrl = urlParams.get('tenant');
     if (tenantFromUrl) {
         console.log('✅ Tenant da URL:', tenantFromUrl);
+        sessionStorage.setItem('tenant', tenantFromUrl);
         return tenantFromUrl;
     }
-    
-    // 2. Tenta do subdomínio
+
+    // 2. Tenta do sessionStorage
+    const tenantFromStorage = sessionStorage.getItem('tenant');
+    if (tenantFromStorage) {
+        console.log('✅ Tenant do sessionStorage:', tenantFromStorage);
+        return tenantFromStorage;
+    }
+
+    // 3. Tenta do subdomínio
     const hostname = window.location.hostname;
     const subdomain = hostname.split('.')[0];
     if (subdomain && subdomain !== 'localhost' && subdomain !== '127.0.0.1' && subdomain !== 'smart-delivery-saas') {
         console.log('✅ Tenant do subdomínio:', subdomain);
+        sessionStorage.setItem('tenant', subdomain);
         return subdomain;
     }
+
+    // 4. SEM FALLBACK! Redirecionar para login com mensagem
+    console.error('❌ Nenhum tenant encontrado!');
+    showToast('Por favor, faça login novamente com seu subdomínio.', 'error');
     
-    // 3. Fallback - SEU RESTAURANTE
-    console.log('⚠️ Usando fallback: firerburger');
-    return 'firerburger';
+    // Tentar obter da sessão de login
+    const loginTenant = localStorage.getItem('tenant');
+    if (loginTenant) {
+        console.log('✅ Tenant do localStorage:', loginTenant);
+        return loginTenant;
+    }
+    
+    // Redirecionar para login
+    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    return null;
 }
 
-const TENANT_ID = getTenant();
-console.log('🏷️ Admin Tenant:', TENANT_ID);
+// DEFINIR O TENANT (SEM FALLBACK)
+const TENANT = getTenant();
+console.log('🏷️ Admin Tenant:', TENANT);
 
-// Salvar para uso futuro
-sessionStorage.setItem('tenant', TENANT_ID);
+// Se não tiver tenant, parar a execução
+if (!TENANT) {
+    throw new Error('Tenant não encontrado. Por favor, faça login novamente.');
+}
 
-// Adicionar tenant à URL se não estiver presente
-if (!window.location.search.includes('tenant=')) {
-    const newUrl = window.location.pathname + '?tenant=' + TENANT_ID + window.location.hash;
+// Forçar adição do tenant na URL
+if (TENANT && !window.location.search.includes('tenant=')) {
+    const newUrl = window.location.pathname + '?tenant=' + TENANT + window.location.hash;
     window.history.replaceState({}, '', newUrl);
+    console.log('🔄 URL atualizada com tenant:', newUrl);
 }
 
 // ============================================================

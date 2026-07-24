@@ -12,6 +12,8 @@
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #e67e22, #d35400);
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .login-container {
             background: #fff;
@@ -20,11 +22,13 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             max-width: 400px;
             width: 100%;
+            margin: 20px;
         }
         .login-container h1 {
             color: #e67e22;
             text-align: center;
             margin-bottom: 24px;
+            font-size: 28px;
         }
         .login-container .form-group {
             margin-bottom: 16px;
@@ -34,6 +38,7 @@
             font-weight: 500;
             margin-bottom: 4px;
             color: #555;
+            font-size: 14px;
         }
         .login-container .form-group input {
             width: 100%;
@@ -41,20 +46,45 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
         }
         .login-container .form-group input:focus {
             outline: none;
             border-color: #e67e22;
+            box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+        }
+        .login-container .form-group small {
+            display: block;
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
         }
         .login-container .btn {
             width: 100%;
             padding: 12px;
             margin-top: 8px;
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .login-container .btn:hover {
+            background: #d35400;
+        }
+        .login-container .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .login-container .register-link {
             text-align: center;
             margin-top: 16px;
             color: #888;
+            font-size: 14px;
         }
         .login-container .register-link a {
             color: #e67e22;
@@ -64,67 +94,187 @@
         .login-container .register-link a:hover {
             text-decoration: underline;
         }
+        .login-container .error-message {
+            background: #fde8e8;
+            color: #c0392b;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+            font-size: 14px;
+            border-left: 3px solid #c0392b;
+        }
         .toast-container {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 99999;
         }
+        .toast {
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid #27ae60;
+        }
+        .toast.error {
+            border-left-color: #e74c3c;
+        }
+        .toast.warning {
+            border-left-color: #f39c12;
+        }
+        .toast .toast-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 4px;
+            margin-left: auto;
+        }
+        .toast .toast-close:hover {
+            color: #333;
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 24px;
+                margin: 12px;
+            }
+            .login-container h1 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
         <h1>🔐 Smart Delivery</h1>
+        
+        <div class="error-message" id="error-message"></div>
+
         <form id="login-form" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label>E-mail</label>
-                <input type="email" id="login-email" placeholder="admin@firerburger.com" required>
+                <label for="login-email">E-mail</label>
+                <input type="email" id="login-email" placeholder="admin@meurestaurante.com" required autocomplete="email">
             </div>
+            
             <div class="form-group">
-                <label>Senha</label>
-                <input type="password" id="login-password" placeholder="••••••••" required>
+                <label for="login-password">Senha</label>
+                <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn">Entrar</button>
+
+            <div class="form-group">
+                <label for="login-tenant">Subdomínio do Restaurante</label>
+                <input type="text" id="login-tenant" placeholder="ex: firerburger" required autocomplete="off">
+                <small>Ex: firerburger.smartdelivery.com</small>
+            </div>
+
+            <button type="submit" class="btn" id="login-btn">Entrar</button>
         </form>
+
         <div class="register-link">
             Não tem uma conta? <a href="register.html">Cadastre-se</a>
         </div>
     </div>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script>
         const API_URL = window.location.origin + '/api';
 
+        // ============================================================
+        //  HANDLE LOGIN
+        // ============================================================
         async function handleLogin(event) {
             event.preventDefault();
-            const email = document.getElementById('login-email').value;
+            
+            const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
+            const tenant = document.getElementById('login-tenant').value.trim();
+            const errorEl = document.getElementById('error-message');
+            const btn = document.getElementById('login-btn');
+
+            // Reset error
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+
+            // Validações
+            if (!email || !password || !tenant) {
+                showToast('Preencha todos os campos.', 'warning');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('A senha deve ter no mínimo 6 caracteres.', 'warning');
+                return;
+            }
+
+            // Desabilitar botão durante requisição
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
 
             try {
+                console.log('🔐 Tentando login:', email, 'Tenant:', tenant);
+
                 const response = await fetch(API_URL + '/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
+
                 const data = await response.json();
 
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao fazer login');
+                }
+
                 if (data.success) {
+                    // Salvar tenant e token
+                    const tenantId = data.data.user.tenantId || tenant;
                     localStorage.setItem('token', data.data.token);
-                    localStorage.setItem('user', JSON.stringify(data.data.user));
-                    showToast('Login realizado com sucesso!', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/admin';
-                    }, 1000);
+                    localStorage.setItem('tenant', tenantId);
+                    sessionStorage.setItem('tenant', tenantId);
+                    
+                    console.log('✅ Login bem-sucedido! Tenant:', tenantId);
+                    
+                    // Redirecionar para admin com tenant na URL
+                    window.location.href = '/admin?tenant=' + encodeURIComponent(tenantId);
                 } else {
-                    showToast(data.message || 'Erro ao fazer login', 'error');
+                    showToast(data.error || 'Erro no login', 'error');
                 }
             } catch (error) {
-                showToast('Erro ao conectar ao servidor', 'error');
+                console.error('❌ Erro no login:', error);
+                showToast(error.message || 'Erro ao fazer login. Tente novamente.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
             }
         }
 
-        function showToast(message, type = 'success') {
+        // ============================================================
+        //  TOAST NOTIFICATIONS
+        // ============================================================
+        function showToast(message, type = 'success', duration = 3500) {
             const container = document.getElementById('toast-container');
+            if (!container) return;
+            
             const icons = { success: '✅', error: '❌', warning: '⚠️' };
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -134,16 +284,66 @@
                 <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
             `;
             container.appendChild(toast);
+            
             setTimeout(() => {
                 toast.classList.add('hide');
                 setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
-            }, 3500);
+            }, duration);
         }
 
-        // Verificar se já está logado
-        if (localStorage.getItem('token')) {
-            window.location.href = '/admin';
+        // ============================================================
+        //  VERIFICAR SESSÃO EXISTENTE
+        // ============================================================
+        function checkExistingSession() {
+            const token = localStorage.getItem('token');
+            const tenant = localStorage.getItem('tenant');
+            
+            if (token && tenant) {
+                console.log('🔐 Sessão existente encontrada. Tenant:', tenant);
+                // Se já tiver sessão, redireciona direto para o admin com o tenant
+                window.location.href = '/admin?tenant=' + encodeURIComponent(tenant);
+                return true;
+            }
+            return false;
         }
+
+        // ============================================================
+        //  INICIALIZAÇÃO
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página de login carregada');
+            
+            // Se já tiver sessão, redirecionar
+            if (checkExistingSession()) {
+                return;
+            }
+
+            // Preencher tenant automaticamente se vier da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tenantFromUrl = urlParams.get('tenant');
+            if (tenantFromUrl) {
+                document.getElementById('login-tenant').value = tenantFromUrl;
+                console.log('📝 Tenant preenchido da URL:', tenantFromUrl);
+            }
+
+            // Foco no primeiro campo
+            document.getElementById('login-email').focus();
+
+            // Suporte para Enter no campo tenant
+            document.getElementById('login-tenant').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('login-form').dispatchEvent(new Event('submit'));
+                }
+            });
+        });
+
+        // ============================================================
+        //  EXPOSIÇÃO GLOBAL
+        // ============================================================
+        window.handleLogin = handleLogin;
+        window.showToast = showToast;
+
+        console.log('✅ Login page ready!');
     </script>
 </body>
 </html>
