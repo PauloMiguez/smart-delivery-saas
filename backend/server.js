@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO (VERSÃO FINAL CORRIGIDA)
+// SMART DELIVERY SAAS - SERVER COMPLETO (COM CLOUDINARY)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -9,6 +9,11 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+
+// ============================================================
+//  IMPORTS CLOUDINARY
+// ============================================================
+const { uploadBanner, uploadLogo, uploadProduct, deleteImage } = require('./upload');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -277,7 +282,7 @@ app.post('/api/auth/register', async (req, res) => {
 
         // Verificar se subdomínio já existe
         const [existingTenant] = await pool.query(
-            'SELECT * FROM users WHERE tenant_id = ?',
+            'SELECT * FROM tenants WHERE subdomain = ?',
             [subdomain]
         );
 
@@ -305,41 +310,62 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Inserir usuário - USANDO 'password' (NÃO 'password_hash')
-        const [result] = await pool.query(
-            `INSERT INTO users (tenant_id, name, email, phone, password, role) 
-             VALUES (?, ?, ?, ?, ?, 'admin')`,
-            [subdomain, ownerName, email, phone || null, passwordHash]
-        );
+        // INICIAR TRANSAÇÃO
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-        // Criar configurações padrão para a loja
-        await pool.query(
-            `INSERT INTO config (tenant_id, store_name, is_open) 
-             VALUES (?, ?, 'true')`,
-            [subdomain, restaurantName]
-        );
+        try {
+            // 1. Criar o tenant
+            await connection.query(
+                `INSERT INTO tenants (id, name, subdomain, email, phone, plan, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [subdomain, restaurantName, subdomain, email, phone || null, 'free', 'active']
+            );
 
-        console.log('✅ Registro concluído:', email);
+            // 2. Inserir o usuário
+            const [result] = await connection.query(
+                `INSERT INTO users (tenant_id, name, email, phone, password, role) 
+                 VALUES (?, ?, ?, ?, ?, 'admin')`,
+                [subdomain, ownerName, email, phone || null, passwordHash]
+            );
 
-        // Gerar token
-        const token = generateToken(result.insertId, subdomain);
+            // 3. Criar configurações padrão (usando config_key / config_value)
+            await connection.query(
+                `INSERT INTO config (tenant_id, config_key, config_value) 
+                 VALUES 
+                 (?, 'store_name', ?),
+                 (?, 'is_open', 'true')`,
+                [subdomain, restaurantName, subdomain]
+            );
 
-        res.status(201).json({
-            success: true,
-            message: 'Restaurante cadastrado com sucesso!',
-            data: {
-                token,
-                user: {
-                    id: result.insertId,
-                    name: ownerName,
-                    email: email,
-                    tenantId: subdomain,
-                    role: 'admin'
-                },
-                subdomain: subdomain,
-                url: `https://${subdomain}.smartdelivery.com`
-            }
-        });
+            await connection.commit();
+            connection.release();
+
+            console.log('✅ Registro concluído:', email);
+
+            const token = generateToken(result.insertId, subdomain);
+
+            res.status(201).json({
+                success: true,
+                message: 'Restaurante cadastrado com sucesso!',
+                data: {
+                    token,
+                    user: {
+                        id: result.insertId,
+                        name: ownerName,
+                        email: email,
+                        tenantId: subdomain,
+                        role: 'admin'
+                    },
+                    subdomain: subdomain,
+                    url: `https://${subdomain}.smartdelivery.com`
+                }
+            });
+        } catch (error) {
+            await connection.rollback();
+            connection.release();
+            throw error;
+        }
     } catch (error) {
         console.error('❌ Erro no registro:', error);
         res.status(500).json({ success: false, error: 'Erro interno do servidor: ' + error.message });
@@ -381,7 +407,7 @@ app.post('/api/products', verifyToken, async (req, res) => {
         }
 
         const [result] = await pool.query(
-            `INSERT INTO products (tenant_id, name, description, price, category, active, image) 
+            `INSERT INTO products (tenant_id, name, description, price, category, active, image_url) 
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [tenantId, name, description || null, price, category || null, active ? 1 : 0, image || null]
         );
@@ -410,7 +436,7 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
 
         const [result] = await pool.query(
             `UPDATE products 
-             SET name = ?, description = ?, price = ?, category = ?, active = ?, image = ?
+             SET name = ?, description = ?, price = ?, category = ?, active = ?, image_url = ?
              WHERE id = ? AND tenant_id = ?`,
             [name, description || null, price, category || null, active ? 1 : 0, image || null, productId, tenantId]
         );
@@ -674,15 +700,10 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE CONFIGURAÇÕES
+//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR)
 // ============================================================
 
 // Obter configurações
-// ============================================================
-//  ROTAS DE CONFIGURAÇÕES (CORRIGIDAS - CHAVE-VALOR)
-// ============================================================
-
-// Obter configurações (converte chave-valor para objeto)
 app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -727,7 +748,7 @@ app.get('/api/config', async (req, res) => {
     }
 });
 
-// Atualizar configurações (recebe objeto e converte para chave-valor)
+// Atualizar configurações
 app.put('/api/config', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -738,18 +759,18 @@ app.put('/api/config', verifyToken, async (req, res) => {
         const configData = req.body;
         console.log('📝 Atualizando config para tenant:', tenantId, configData);
 
-        // Iniciar transação
         const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         try {
-            // Para cada chave, atualizar ou inserir
             for (const [key, value] of Object.entries(configData)) {
+                // Converter booleanos para string
+                const stringValue = typeof value === 'boolean' ? String(value) : value;
                 await connection.query(
                     `INSERT INTO config (tenant_id, config_key, config_value) 
                      VALUES (?, ?, ?) 
                      ON DUPLICATE KEY UPDATE config_value = ?`,
-                    [tenantId, key, value, value]
+                    [tenantId, key, stringValue, stringValue]
                 );
             }
 
@@ -769,6 +790,150 @@ app.put('/api/config', verifyToken, async (req, res) => {
 });
 
 // ============================================================
+//  ROTAS DE UPLOAD DE IMAGENS (CLOUDINARY)
+// ============================================================
+
+// Upload de Banner
+app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'Nenhuma imagem enviada' });
+        }
+
+        const tenantId = req.tenantId;
+        const imageUrl = req.file.path;
+        const publicId = req.file.filename;
+
+        console.log('📸 Banner uploaded:', imageUrl);
+
+        await pool.query(
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+             VALUES (?, 'banner_image', ?) 
+             ON DUPLICATE KEY UPDATE config_value = ?`,
+            [tenantId, imageUrl, imageUrl]
+        );
+
+        // Salvar também o public_id para futura remoção
+        await pool.query(
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+             VALUES (?, 'banner_public_id', ?) 
+             ON DUPLICATE KEY UPDATE config_value = ?`,
+            [tenantId, publicId, publicId]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                url: imageUrl,
+                public_id: publicId
+            },
+            message: 'Banner enviado com sucesso!'
+        });
+    } catch (error) {
+        console.error('❌ Erro no upload do banner:', error);
+        res.status(500).json({ success: false, error: 'Erro ao enviar banner' });
+    }
+});
+
+// Upload de Logo
+app.post('/api/upload/logo', verifyToken, uploadLogo.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'Nenhuma imagem enviada' });
+        }
+
+        const tenantId = req.tenantId;
+        const imageUrl = req.file.path;
+        const publicId = req.file.filename;
+
+        console.log('📸 Logo uploaded:', imageUrl);
+
+        await pool.query(
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+             VALUES (?, 'logo_image', ?) 
+             ON DUPLICATE KEY UPDATE config_value = ?`,
+            [tenantId, imageUrl, imageUrl]
+        );
+
+        await pool.query(
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+             VALUES (?, 'logo_public_id', ?) 
+             ON DUPLICATE KEY UPDATE config_value = ?`,
+            [tenantId, publicId, publicId]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                url: imageUrl,
+                public_id: publicId
+            },
+            message: 'Logo enviado com sucesso!'
+        });
+    } catch (error) {
+        console.error('❌ Erro no upload do logo:', error);
+        res.status(500).json({ success: false, error: 'Erro ao enviar logo' });
+    }
+});
+
+// Upload de Imagem de Produto
+app.post('/api/upload/product', verifyToken, uploadProduct.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'Nenhuma imagem enviada' });
+        }
+
+        const imageUrl = req.file.path;
+        const publicId = req.file.filename;
+
+        console.log('📸 Produto image uploaded:', imageUrl);
+
+        res.json({
+            success: true,
+            data: {
+                url: imageUrl,
+                public_id: publicId
+            },
+            message: 'Imagem do produto enviada com sucesso!'
+        });
+    } catch (error) {
+        console.error('❌ Erro no upload da imagem do produto:', error);
+        res.status(500).json({ success: false, error: 'Erro ao enviar imagem do produto' });
+    }
+});
+
+// Deletar imagem
+app.post('/api/upload/delete', verifyToken, async (req, res) => {
+    try {
+        const { public_id, config_key } = req.body;
+        const tenantId = req.tenantId;
+
+        if (!public_id) {
+            return res.status(400).json({ success: false, error: 'public_id é obrigatório' });
+        }
+
+        console.log('🗑️ Deletando imagem:', public_id);
+
+        // Deletar do Cloudinary
+        await deleteImage(public_id);
+
+        // Remover do banco (se tiver config_key)
+        if (config_key) {
+            await pool.query(
+                `UPDATE config SET config_value = NULL 
+                 WHERE tenant_id = ? AND config_key = ?`,
+                [tenantId, config_key]
+            );
+        }
+
+        res.json({ success: true, message: 'Imagem removida com sucesso!' });
+    } catch (error) {
+        console.error('❌ Erro ao deletar imagem:', error);
+        res.status(500).json({ success: false, error: 'Erro ao deletar imagem' });
+    }
+});
+
+// ============================================================
 //  ROTAS DE ESTATÍSTICAS (DASHBOARD)
 // ============================================================
 
@@ -784,20 +949,16 @@ app.get('/api/stats/orders', async (req, res) => {
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
-        // Buscar todos os pedidos do tenant
         const [orders] = await pool.query(
             'SELECT * FROM orders WHERE tenant_id = ?',
             [tenantId]
         );
 
         const total = orders.length;
-        
-        // Pedidos pendentes (status 'pending' ou 'Pendente')
         const pending = orders.filter(o => 
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
         
-        // Faturamento de hoje
         const today = new Date().toISOString().split('T')[0];
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
@@ -805,8 +966,6 @@ app.get('/api/stats/orders', async (req, res) => {
             return date.toISOString().split('T')[0] === today;
         });
         const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
-        
-        // Ticket médio
         const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
 
         res.json({
@@ -856,8 +1015,6 @@ app.get('/api/tenant', (req, res) => {
 //  ROTAS DE ARQUIVOS ESTÁTICOS (VERSÃO RENDER)
 // ============================================================
 
-// __dirname no Render está em /opt/render/project/src/backend
-// Precisamos subir um nível para a raiz do projeto
 const PROJECT_ROOT = path.join(__dirname, '..');
 
 console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
@@ -920,7 +1077,6 @@ const tenantLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 100,
     keyGenerator: (req) => {
-        // Usar o tenant ID se disponível, senão o IP
         return req.tenantId || req.ip;
     },
     handler: (req, res) => {
@@ -938,14 +1094,12 @@ app.use('/api/', tenantLimiter);
 // ============================================================
 
 app.use((req, res) => {
-    // Se for uma requisição de API, retornar 404 JSON
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({
             success: false,
             error: 'Endpoint não encontrado'
         });
     }
-    // Para rotas HTML não encontradas, servir o index.html (SPA)
     const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
     res.sendFile(indexPath, (err) => {
         if (err) {
@@ -958,7 +1112,6 @@ app.use((req, res) => {
 //  INICIAR SERVIDOR
 // ============================================================
 
-// Testar conexão com o banco antes de iniciar
 testDatabaseConnection().then(() => {
     app.listen(PORT, () => {
         console.log(`🚀 Servidor Smart Delivery SaaS rodando em http://localhost:${PORT}`);
@@ -967,6 +1120,7 @@ testDatabaseConnection().then(() => {
         console.log('🏷️ Multi-tenant habilitado');
         console.log('⚡ Rate Limiting: 100 req/min por tenant');
         console.log('🔒 Conexão SSL com TiDB Cloud ativada');
+        console.log('☁️ Cloudinary integrado para upload de imagens');
         console.log('✅ Server ready!');
     });
 });
