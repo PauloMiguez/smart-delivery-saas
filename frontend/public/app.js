@@ -1,11 +1,39 @@
 // ============================================================
-//  CONFIGURAÇÃO
+//  CONFIGURAÇÃO - DETECÇÃO DE TENANT (CORRIGIDA)
 // ============================================================
-const API_URL = window.location.origin + '/api';
-const hostname = window.location.hostname;
-const subdomain = hostname.split('.')[0];
-const TENANT_ID = (subdomain === 'localhost' || subdomain === '127.0.0.1') ? 'firerburger' : subdomain;
+function getTenant() {
+    // 1. Tenta da URL (query param)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tenantFromUrl = urlParams.get('tenant');
+    if (tenantFromUrl) {
+        console.log('✅ Tenant da URL:', tenantFromUrl);
+        sessionStorage.setItem('tenant', tenantFromUrl);
+        return tenantFromUrl;
+    }
 
+    // 2. Tenta do sessionStorage
+    const tenantFromStorage = sessionStorage.getItem('tenant');
+    if (tenantFromStorage) {
+        console.log('✅ Tenant do sessionStorage:', tenantFromStorage);
+        return tenantFromStorage;
+    }
+
+    // 3. Tenta do subdomínio
+    const hostname = window.location.hostname;
+    const subdomain = hostname.split('.')[0];
+    if (subdomain && subdomain !== 'localhost' && subdomain !== '127.0.0.1' && subdomain !== 'smart-delivery-saas') {
+        console.log('✅ Tenant do subdomínio:', subdomain);
+        sessionStorage.setItem('tenant', subdomain);
+        return subdomain;
+    }
+
+    // 4. Fallback - redirecionar para login se não tiver tenant
+    console.error('❌ Nenhum tenant encontrado! Redirecionando para login...');
+    window.location.href = '/login.html';
+    return null;
+}
+
+const TENANT_ID = getTenant();
 console.log('🏷️ Tenant:', TENANT_ID);
 
 // ============================================================
