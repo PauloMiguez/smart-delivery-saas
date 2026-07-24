@@ -678,6 +678,11 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 // ============================================================
 
 // Obter configurações
+// ============================================================
+//  ROTAS DE CONFIGURAÇÕES (CORRIGIDAS - CHAVE-VALOR)
+// ============================================================
+
+// Obter configurações (converte chave-valor para objeto)
 app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -685,80 +690,80 @@ app.get('/api/config', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
         }
 
-        let [config] = await pool.query(
-            'SELECT * FROM config WHERE tenant_id = ?',
+        console.log('🔧 Buscando config para tenant:', tenantId);
+
+        const [rows] = await pool.query(
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
             [tenantId]
         );
 
-        if (config.length === 0) {
-            // Criar configurações padrão
-            await pool.query(
-                `INSERT INTO config (tenant_id, store_name, is_open) VALUES (?, 'Minha Loja', 'true')`,
-                [tenantId]
-            );
-            [config] = await pool.query(
-                'SELECT * FROM config WHERE tenant_id = ?',
-                [tenantId]
-            );
-        }
+        // Converter array de chave-valor para objeto
+        const config = {};
+        rows.forEach(row => {
+            config[row.config_key] = row.config_value;
+        });
 
-        res.json({ success: true, data: config[0] });
+        // Adicionar valores padrão se não existirem
+        const defaultConfig = {
+            store_name: 'Minha Loja',
+            is_open: 'true',
+            delivery_fee: '3.00',
+            open_time: '09:00',
+            close_time: '22:00',
+            store_address: '',
+            store_phone: '',
+            banner_image: '',
+            logo_image: ''
+        };
+
+        // Mesclar com valores do banco
+        const finalConfig = { ...defaultConfig, ...config };
+
+        console.log('✅ Config carregada:', finalConfig);
+        res.json({ success: true, data: finalConfig });
     } catch (error) {
-        console.error('Erro ao carregar configurações:', error);
+        console.error('❌ Erro ao carregar configurações:', error);
         res.status(500).json({ success: false, error: 'Erro ao carregar configurações' });
     }
 });
 
-// Atualizar configurações
+// Atualizar configurações (recebe objeto e converte para chave-valor)
 app.put('/api/config', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const {
-            store_name,
-            store_phone,
-            store_address,
-            delivery_fee,
-            open_time,
-            close_time,
-            is_open,
-            banner_image,
-            logo_image
-        } = req.body;
-
-        const [result] = await pool.query(
-            `UPDATE config SET
-                store_name = ?,
-                store_phone = ?,
-                store_address = ?,
-                delivery_fee = ?,
-                open_time = ?,
-                close_time = ?,
-                is_open = ?,
-                banner_image = ?,
-                logo_image = ?,
-                updated_at = NOW()
-             WHERE tenant_id = ?`,
-            [
-                store_name || null,
-                store_phone || null,
-                store_address || null,
-                delivery_fee || '0.00',
-                open_time || '09:00',
-                close_time || '22:00',
-                is_open || 'true',
-                banner_image || null,
-                logo_image || null,
-                tenantId
-            ]
-        );
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, error: 'Configurações não encontradas' });
+        if (!tenantId) {
+            return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
         }
 
-        res.json({ success: true, message: 'Configurações salvas com sucesso' });
+        const configData = req.body;
+        console.log('📝 Atualizando config para tenant:', tenantId, configData);
+
+        // Iniciar transação
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Para cada chave, atualizar ou inserir
+            for (const [key, value] of Object.entries(configData)) {
+                await connection.query(
+                    `INSERT INTO config (tenant_id, config_key, config_value) 
+                     VALUES (?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE config_value = ?`,
+                    [tenantId, key, value, value]
+                );
+            }
+
+            await connection.commit();
+            connection.release();
+
+            res.json({ success: true, message: 'Configurações salvas com sucesso' });
+        } catch (error) {
+            await connection.rollback();
+            connection.release();
+            throw error;
+        }
     } catch (error) {
-        console.error('Erro ao salvar configurações:', error);
+        console.error('❌ Erro ao salvar configurações:', error);
         res.status(500).json({ success: false, error: 'Erro ao salvar configurações' });
     }
 });
