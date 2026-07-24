@@ -503,7 +503,7 @@ function buildOrderSummary() {
 }
 
 // ============================================================
-//  ENVIAR PEDIDO - CORRIGIDO (COM VALIDAÇÃO DE ENDEREÇO)
+//  ENVIAR PEDIDO - CORRIGIDO (COM VALIDAÇÃO COMPLETA)
 // ============================================================
 async function submitOrder() {
     // 1. Validar carrinho
@@ -512,24 +512,32 @@ async function submitOrder() {
         return; 
     }
 
-    // 2. Validar endereço
+    // 2. Validar nome
+    if (!state.user.name || state.user.name.trim() === '' || state.user.name === 'Usuário') {
+        showToast('Por favor, preencha seu nome.', 'warning');
+        editUserField('name');
+        return;
+    }
+
+    // 3. Validar e-mail
+    if (!state.user.email || state.user.email.trim() === '' || state.user.email === 'usuario@email.com') {
+        showToast('Por favor, preencha seu e-mail.', 'warning');
+        editUserField('email');
+        return;
+    }
+
+    // 4. Validar telefone
+    const phoneClean = state.user.phone.replace(/\D/g, '');
+    if (phoneClean.length < 10 || state.user.phone === '(85) 99999-9999') {
+        showToast('Por favor, preencha um telefone válido (DDD + número).', 'warning');
+        editUserField('phone');
+        return;
+    }
+
+    // 5. Validar endereço
     if (!state.user.address || state.user.address.trim() === '') {
         showToast('Por favor, preencha o endereço de entrega.', 'warning');
-        // Abrir o modal de endereço
         openAddressModal();
-        return;
-    }
-
-    // 3. Validar telefone
-    const phoneClean = state.user.phone.replace(/\D/g, '');
-    if (phoneClean.length < 10) {
-        showToast('Por favor, preencha um telefone válido (DDD + número).', 'warning');
-        return;
-    }
-
-    // 4. Validar nome
-    if (!state.user.name || state.user.name.trim() === '') {
-        showToast('Por favor, preencha seu nome.', 'warning');
         return;
     }
 
@@ -543,9 +551,9 @@ async function submitOrder() {
         discountText = '\nDesconto (' + couponApplied.value + '%): -R$ ' + discount.toFixed(2);
     }
 
-    // Log dos dados para debug
     console.log('📦 Enviando pedido:', {
         customer_name: state.user.name,
+        customer_email: state.user.email,
         customer_phone: state.user.phone,
         customer_address: state.user.address,
         items: state.cart.length,
@@ -556,6 +564,7 @@ async function submitOrder() {
     try {
         const orderData = {
             customer_name: state.user.name,
+            customer_email: state.user.email,
             customer_phone: state.user.phone,
             customer_address: state.user.address,
             items: state.cart.map(item => ({
@@ -583,7 +592,7 @@ async function submitOrder() {
         // WhatsApp
         const phone = state.config.store_phone || '5511999999999';
         const cleanPhone = phone.replace(/\D/g, '');
-        const message = '🍽️ *NOVO PEDIDO*\nCliente: ' + state.user.name + '\nTelefone: ' + state.user.phone + '\nEndereço: ' + state.user.address + '\n\n*Itens:*\n' + state.cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') + '\n\nSubtotal: R$ ' + subtotal.toFixed(2) + discountText + '\nTaxa entrega: R$ ' + fee.toFixed(2) + '\n*Total: R$ ' + total.toFixed(2) + '*\nPagamento: ' + selectedPayment + '\nEntrega: ' + selectedSchedule;
+        const message = '🍽️ *NOVO PEDIDO*\nCliente: ' + state.user.name + '\nE-mail: ' + state.user.email + '\nTelefone: ' + state.user.phone + '\nEndereço: ' + state.user.address + '\n\n*Itens:*\n' + state.cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') + '\n\nSubtotal: R$ ' + subtotal.toFixed(2) + discountText + '\nTaxa entrega: R$ ' + fee.toFixed(2) + '\n*Total: R$ ' + total.toFixed(2) + '*\nPagamento: ' + selectedPayment + '\nEntrega: ' + selectedSchedule;
         window.open('https://wa.me/55' + cleanPhone + '?text=' + encodeURIComponent(message), '_blank');
 
         state.cart = [];
@@ -630,7 +639,11 @@ function renderProfile() {
 }
 
 function editUserField(field) {
-    const labels = { 'name': 'Nome completo', 'email': 'E-mail', 'phone': 'Telefone' };
+    const labels = { 
+        'name': 'Nome completo', 
+        'email': 'E-mail', 
+        'phone': 'Telefone' 
+    };
     editFieldName = field;
     document.getElementById('edit-modal-title').textContent = 'Editar ' + labels[field];
     document.getElementById('edit-modal-label').textContent = labels[field];
@@ -645,7 +658,10 @@ function closeEditModal() {
 
 async function saveEditField() {
     const newValue = document.getElementById('edit-modal-input').value.trim();
-    if (newValue === '') { showToast('O campo não pode ficar vazio.', 'warning'); return; }
+    if (newValue === '') { 
+        showToast('O campo não pode ficar vazio.', 'warning'); 
+        return; 
+    }
     closeEditModal();
     state.user[editFieldName] = newValue;
     
