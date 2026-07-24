@@ -515,21 +515,7 @@ async function submitOrder() {
     // 2. Validar endereço
     if (!state.user.address || state.user.address.trim() === '') {
         showToast('Por favor, preencha o endereço de entrega.', 'warning');
-        // Abrir o modal de endereço
         openAddressModal();
-        return;
-    }
-
-    // 3. Validar telefone
-    const phoneClean = state.user.phone.replace(/\D/g, '');
-    if (phoneClean.length < 10) {
-        showToast('Por favor, preencha um telefone válido (DDD + número).', 'warning');
-        return;
-    }
-
-    // 4. Validar nome
-    if (!state.user.name || state.user.name.trim() === '') {
-        showToast('Por favor, preencha seu nome.', 'warning');
         return;
     }
 
@@ -543,7 +529,6 @@ async function submitOrder() {
         discountText = '\nDesconto (' + couponApplied.value + '%): -R$ ' + discount.toFixed(2);
     }
 
-    // Log dos dados para debug
     console.log('📦 Enviando pedido:', {
         customer_name: state.user.name,
         customer_phone: state.user.phone,
@@ -599,20 +584,136 @@ async function submitOrder() {
 }
 
 // ============================================================
-//  CUPOM
+//  MODAL DE ENDEREÇO (COM CEP OPCIONAL)
 // ============================================================
-function applyCoupon() {
-    const code = document.getElementById('coupon-input').value.trim();
-    if (!code) { showToast('Digite um código de cupom.', 'warning'); return; }
-    if (code.toUpperCase() === 'FRANGO10') {
-        couponApplied = { code: 'FRANGO10', type: 'percent', value: 10 };
-        showToast('Cupom aplicado! 10% de desconto.', 'success');
-    } else {
-        couponApplied = null;
-        showToast('Cupom inválido.', 'error');
+function openAddressModal() {
+    const modal = document.getElementById('address-modal');
+    if (!modal) return;
+    
+    // Preencher campos com dados atuais
+    const address = state.user.address || '';
+    const parts = address.split(', ');
+    document.getElementById('user-street').value = parts[0] || '';
+    const numPart = parts[1] || '';
+    document.getElementById('user-number').value = numPart.split(' - ')[0] || '';
+    document.getElementById('user-complement').value = numPart.includes(' - ') ? numPart.split(' - ').slice(1).join(' - ') : '';
+    document.getElementById('user-neighborhood').value = parts[2] || '';
+    const cityState = parts[3] || '';
+    document.getElementById('user-city').value = cityState.split(' - ')[0] || '';
+    document.getElementById('user-state').value = cityState.split(' - ')[1] || '';
+    document.getElementById('user-cep').value = '';
+    
+    // Limpar mensagem de status do CEP
+    document.getElementById('cep-status').textContent = '';
+    document.getElementById('cep-status').className = '';
+    
+    modal.style.display = 'flex';
+    document.getElementById('user-street').focus();
+}
+
+function closeAddressModal() {
+    document.getElementById('address-modal').style.display = 'none';
+}
+
+// ============================================================
+//  CEP FUNCTIONS (COM BUSCA AUTOMÁTICA E MANUAL)
+// ============================================================
+function formatCep(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 5) value = value.substring(0, 5) + '-' + value.substring(5, 8);
+    input.value = value;
+    
+    // Limpar status quando o usuário digitar
+    const statusEl = document.getElementById('cep-status');
+    statusEl.textContent = '';
+    statusEl.className = '';
+}
+
+function buscarCep(cep) {
+    const cepClean = cep.replace(/\D/g, '');
+    const statusEl = document.getElementById('cep-status');
+    
+    // Se o CEP estiver vazio, apenas limpar os campos (usuário vai preencher manualmente)
+    if (cepClean.length === 0) {
+        statusEl.textContent = '💡 Preencha o endereço manualmente ou digite o CEP para busca automática.';
+        statusEl.className = 'info';
+        return;
     }
-    renderCart();
-    updateCheckoutTotals();
+    
+    if (cepClean.length !== 8) {
+        statusEl.textContent = '⚠️ Digite um CEP válido com 8 dígitos.';
+        statusEl.className = 'warning';
+        return;
+    }
+    
+    statusEl.textContent = '🔍 Buscando endereço...';
+    statusEl.className = 'loading';
+    
+    fetch('https://viacep.com.br/ws/' + cepClean + '/json/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.erro) {
+                statusEl.textContent = '❌ CEP não encontrado. Preencha o endereço manualmente.';
+                statusEl.className = 'error';
+                return;
+            }
+            
+            // Preencher campos com os dados do CEP
+            document.getElementById('user-street').value = data.logradouro || '';
+            document.getElementById('user-neighborhood').value = data.bairro || '';
+            document.getElementById('user-city').value = data.localidade || '';
+            document.getElementById('user-state').value = data.uf || '';
+            
+            statusEl.textContent = '✅ Endereço encontrado! Complete o número e complemento se necessário.';
+            statusEl.className = 'success';
+            
+            // Focar no número
+            document.getElementById('user-number').focus();
+        })
+        .catch(() => {
+            statusEl.textContent = '❌ Erro ao buscar CEP. Preencha o endereço manualmente.';
+            statusEl.className = 'error';
+        });
+}
+
+// ============================================================
+//  SALVAR ENDEREÇO
+// ============================================================
+async function saveUserAddress() {
+    const street = document.getElementById('user-street').value.trim();
+    const number = document.getElementById('user-number').value.trim();
+    const complement = document.getElementById('user-complement').value.trim();
+    const neighborhood = document.getElementById('user-neighborhood').value.trim();
+    const city = document.getElementById('user-city').value.trim();
+    const stateUf = document.getElementById('user-state').value.trim();
+
+    // Validar campos obrigatórios
+    if (!street || !number || !neighborhood || !city || !stateUf) {
+        showToast('Preencha todos os campos obrigatórios.', 'warning');
+        return;
+    }
+
+    let address = street + ', ' + number;
+    if (complement) address += ' - ' + complement;
+    address += ', ' + neighborhood + ', ' + city + ' - ' + stateUf;
+
+    // Salvar localmente
+    state.user.address = address;
+    
+    // Salvar no localStorage
+    try {
+        localStorage.setItem('user_address', address);
+        localStorage.setItem('user_name', state.user.name);
+        localStorage.setItem('user_phone', state.user.phone);
+        localStorage.setItem('user_email', state.user.email);
+    } catch (e) {
+        console.warn('Não foi possível salvar no localStorage:', e);
+    }
+    
+    renderProfile();
+    renderHeader();
+    closeAddressModal();
+    showToast('Endereço salvo com sucesso!', 'success');
 }
 
 // ============================================================
@@ -620,17 +721,21 @@ function applyCoupon() {
 // ============================================================
 function renderProfile() {
     const user = state.user;
-    document.getElementById('user-avatar').textContent = user.name.substring(0, 1).toUpperCase();
-    document.getElementById('user-name-display').textContent = user.name;
-    document.getElementById('user-email-display').textContent = user.email;
-    document.getElementById('user-name-value').textContent = user.name;
-    document.getElementById('user-email-value').textContent = user.email;
-    document.getElementById('user-phone-value').textContent = user.phone;
+    document.getElementById('user-avatar').textContent = user.name ? user.name.substring(0, 1).toUpperCase() : '?';
+    document.getElementById('user-name-display').textContent = user.name || 'Não definido';
+    document.getElementById('user-email-display').textContent = user.email || 'Não definido';
+    document.getElementById('user-name-value').textContent = user.name || 'Não definido';
+    document.getElementById('user-email-value').textContent = user.email || 'Não definido';
+    document.getElementById('user-phone-value').textContent = user.phone || 'Não definido';
     document.getElementById('user-address-value').textContent = user.address || 'Não cadastrado';
 }
 
 function editUserField(field) {
-    const labels = { 'name': 'Nome completo', 'email': 'E-mail', 'phone': 'Telefone' };
+    const labels = { 
+        'name': 'Nome completo', 
+        'email': 'E-mail', 
+        'phone': 'Telefone' 
+    };
     editFieldName = field;
     document.getElementById('edit-modal-title').textContent = 'Editar ' + labels[field];
     document.getElementById('edit-modal-label').textContent = labels[field];
@@ -645,7 +750,10 @@ function closeEditModal() {
 
 async function saveEditField() {
     const newValue = document.getElementById('edit-modal-input').value.trim();
-    if (newValue === '') { showToast('O campo não pode ficar vazio.', 'warning'); return; }
+    if (newValue === '') { 
+        showToast('O campo não pode ficar vazio.', 'warning'); 
+        return; 
+    }
     closeEditModal();
     state.user[editFieldName] = newValue;
     
@@ -706,96 +814,12 @@ function renderOrders() {
 }
 
 // ============================================================
-//  CEP FUNCTIONS
-// ============================================================
-function formatCep(input) {
-    let value = input.value.replace(/\D/g, '');
-    if (value.length > 5) value = value.substring(0, 5) + '-' + value.substring(5, 8);
-    input.value = value;
-}
-
-function buscarCep(cep, prefix) {
-    const cepClean = cep.replace(/\D/g, '');
-    if (cepClean.length !== 8) return;
-    fetch('https://viacep.com.br/ws/' + cepClean + '/json/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.erro) { showToast('CEP não encontrado.', 'warning'); return; }
-            document.getElementById(prefix + '-street').value = data.logradouro || '';
-            document.getElementById(prefix + '-neighborhood').value = data.bairro || '';
-            document.getElementById(prefix + '-city').value = data.localidade || '';
-            document.getElementById(prefix + '-state').value = data.uf || '';
-            document.getElementById(prefix + '-number').focus();
-        })
-        .catch(() => showToast('Erro ao buscar CEP.', 'error'));
-}
-
-function openAddressModal() {
-    const modal = document.getElementById('address-modal');
-    const address = state.user.address || '';
-    const parts = address.split(', ');
-    document.getElementById('user-street').value = parts[0] || '';
-    const numPart = parts[1] || '';
-    document.getElementById('user-number').value = numPart.split(' - ')[0] || '';
-    document.getElementById('user-complement').value = numPart.includes(' - ') ? numPart.split(' - ').slice(1).join(' - ') : '';
-    document.getElementById('user-neighborhood').value = parts[2] || '';
-    const cityState = parts[3] || '';
-    document.getElementById('user-city').value = cityState.split(' - ')[0] || '';
-    document.getElementById('user-state').value = cityState.split(' - ')[1] || '';
-    document.getElementById('user-cep').value = '';
-    modal.style.display = 'flex';
-}
-
-function closeAddressModal() {
-    document.getElementById('address-modal').style.display = 'none';
-}
-
-// ============================================================
-//  SALVAR ENDEREÇO - CORRIGIDO (SEM API)
-// ============================================================
-async function saveUserAddress() {
-    const street = document.getElementById('user-street').value.trim();
-    const number = document.getElementById('user-number').value.trim();
-    const complement = document.getElementById('user-complement').value.trim();
-    const neighborhood = document.getElementById('user-neighborhood').value.trim();
-    const city = document.getElementById('user-city').value.trim();
-    const stateUf = document.getElementById('user-state').value.trim();
-
-    if (!street || !number || !neighborhood || !city || !stateUf) {
-        showToast('Preencha todos os campos.', 'warning');
-        return;
-    }
-
-    let address = street + ', ' + number;
-    if (complement) address += ' - ' + complement;
-    address += ', ' + neighborhood + ', ' + city + ' - ' + stateUf;
-
-    // Salvar localmente (sem API)
-    state.user.address = address;
-    
-    // Salvar no localStorage para persistir
-    try {
-        localStorage.setItem('user_address', address);
-        localStorage.setItem('user_name', state.user.name);
-        localStorage.setItem('user_phone', state.user.phone);
-        localStorage.setItem('user_email', state.user.email);
-    } catch (e) {
-        console.warn('Não foi possível salvar no localStorage:', e);
-    }
-    
-    renderProfile();
-    renderHeader();
-    closeAddressModal();
-    showToast('Endereço salvo com sucesso!', 'success');
-}
-
-// ============================================================
 //  TOAST
 // ============================================================
 function showToast(message, type = 'success', duration = 3500) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    const icons = { success: '✅', error: '❌', warning: '⚠️' };
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `

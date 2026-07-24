@@ -247,18 +247,23 @@
     <div class="modal-overlay" id="address-modal">
         <div class="modal-box modal-address">
             <h3>📍 Editar Endereço</h3>
+            <p style="color:#888;font-size:14px;margin-bottom:16px;">Digite o CEP para preenchimento automático ou preencha manualmente.</p>
             <div class="address-form">
                 <div class="form-group full-width">
-                    <label>CEP</label>
-                    <input type="text" id="user-cep" placeholder="00000-000" maxlength="9" oninput="formatCep(this)" onblur="buscarCep(this.value, 'user')">
-                    <div class="cep-loading" id="user-cep-loading">🔍 Buscando endereço...</div>
+                    <label>CEP (opcional)</label>
+                    <input type="text" id="user-cep" placeholder="00000-000" maxlength="9" 
+                        oninput="formatCep(this)" onblur="buscarCep(this.value)">
+                    <small style="color:#888;font-size:12px;display:block;margin-top:4px;">Digite o CEP para busca automática ou deixe em branco para preencher manualmente.</small>
+                    
+                    <!-- STATUS DO CEP -->
+                    <div id="cep-status" class="cep-status"></div>
                 </div>
                 <div class="form-group full-width">
-                    <label>Rua</label>
-                    <input type="text" id="user-street" placeholder="Rua" disabled>
+                    <label>Rua *</label>
+                    <input type="text" id="user-street" placeholder="Rua">
                 </div>
                 <div class="form-group">
-                    <label>Número</label>
+                    <label>Número *</label>
                     <input type="text" id="user-number" placeholder="Número">
                 </div>
                 <div class="form-group">
@@ -266,21 +271,21 @@
                     <input type="text" id="user-complement" placeholder="Complemento">
                 </div>
                 <div class="form-group full-width">
-                    <label>Bairro</label>
-                    <input type="text" id="user-neighborhood" placeholder="Bairro" disabled>
+                    <label>Bairro *</label>
+                    <input type="text" id="user-neighborhood" placeholder="Bairro">
                 </div>
                 <div class="form-group">
-                    <label>Cidade</label>
-                    <input type="text" id="user-city" placeholder="Cidade" disabled>
+                    <label>Cidade *</label>
+                    <input type="text" id="user-city" placeholder="Cidade">
                 </div>
                 <div class="form-group">
-                    <label>Estado</label>
-                    <input type="text" id="user-state" placeholder="UF" disabled>
+                    <label>Estado *</label>
+                    <input type="text" id="user-state" placeholder="UF" maxlength="2">
                 </div>
             </div>
             <div class="form-actions">
                 <button class="btn btn-secondary" onclick="closeAddressModal()">Cancelar</button>
-                <button class="btn" onclick="saveUserAddress()">Salvar</button>
+                <button class="btn" onclick="saveUserAddress()">Salvar Endereço</button>
             </div>
         </div>
     </div>
