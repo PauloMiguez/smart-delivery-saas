@@ -10,14 +10,13 @@ function checkAuth() {
     return true;
 }
 
-// ============================================================
-//  CONFIGURAÇÃO - TENANT CORRETO
-// ============================================================
-const API_URL = window.location.origin + '/api';
+// No início do documento
+if (!checkAuth()) {
+    // O redirecionamento já acontece na função
+}
 
-// FUNÇÃO PARA DETECTAR TENANT
 // ============================================================
-//  DETECÇÃO DE TENANT (ADMIN - SEM FALLBACK)
+//  CONFIGURAÇÃO - ADMIN (COM DETECÇÃO DE TENANT)
 // ============================================================
 function getTenant() {
     // 1. Tenta da URL (query param)
@@ -36,7 +35,15 @@ function getTenant() {
         return tenantFromStorage;
     }
 
-    // 3. Tenta do subdomínio
+    // 3. Tenta do localStorage (salvo no login)
+    const tenantFromLocal = localStorage.getItem('tenant');
+    if (tenantFromLocal) {
+        console.log('✅ Tenant do localStorage:', tenantFromLocal);
+        sessionStorage.setItem('tenant', tenantFromLocal);
+        return tenantFromLocal;
+    }
+
+    // 4. Tenta do subdomínio
     const hostname = window.location.hostname;
     const subdomain = hostname.split('.')[0];
     if (subdomain && subdomain !== 'localhost' && subdomain !== '127.0.0.1' && subdomain !== 'smart-delivery-saas') {
@@ -45,37 +52,33 @@ function getTenant() {
         return subdomain;
     }
 
-    // 4. SEM FALLBACK! Redirecionar para login com mensagem
+    // 5. SEM FALLBACK! Redirecionar para login
     console.error('❌ Nenhum tenant encontrado!');
     showToast('Por favor, faça login novamente com seu subdomínio.', 'error');
-    
-    // Tentar obter da sessão de login
-    const loginTenant = localStorage.getItem('tenant');
-    if (loginTenant) {
-        console.log('✅ Tenant do localStorage:', loginTenant);
-        return loginTenant;
-    }
-    
-    // Redirecionar para login
-    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    window.location.href = '/login.html';
     return null;
 }
 
-// DEFINIR O TENANT (SEM FALLBACK)
-const TENANT = getTenant();
-console.log('🏷️ Admin Tenant:', TENANT);
+// DEFINIR O TENANT (MESMO NOME EM TODO O CÓDIGO)
+const TENANT_ID = getTenant();
+console.log('🏷️ Admin Tenant:', TENANT_ID);
 
 // Se não tiver tenant, parar a execução
-if (!TENANT) {
+if (!TENANT_ID) {
     throw new Error('Tenant não encontrado. Por favor, faça login novamente.');
 }
 
 // Forçar adição do tenant na URL
-if (TENANT && !window.location.search.includes('tenant=')) {
-    const newUrl = window.location.pathname + '?tenant=' + TENANT + window.location.hash;
+if (TENANT_ID && !window.location.search.includes('tenant=')) {
+    const newUrl = window.location.pathname + '?tenant=' + TENANT_ID + window.location.hash;
     window.history.replaceState({}, '', newUrl);
     console.log('🔄 URL atualizada com tenant:', newUrl);
 }
+
+// ============================================================
+//  API CONFIGURATION
+// ============================================================
+const API_URL = window.location.origin + '/api';
 
 // ============================================================
 //  ESTADO
@@ -101,18 +104,14 @@ async function apiRequest(endpoint, options = {}) {
     };
     const configOptions = { ...defaultOptions, ...options };
 
+    // Adicionar token se disponível
+    const token = localStorage.getItem('token');
+    if (token) {
+        configOptions.headers['Authorization'] = 'Bearer ' + token;
+    }
+
     try {
         const response = await fetch(url, configOptions);
-        
-        // Se for 404, tentar com tenant na URL
-        if (response.status === 404) {
-            const urlWithTenant = url + (url.includes('?') ? '&' : '?') + 'tenant=' + TENANT_ID;
-            const retryResponse = await fetch(urlWithTenant, configOptions);
-            if (retryResponse.ok) {
-                return await retryResponse.json();
-            }
-        }
-        
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.message || 'Erro na requisição');
@@ -685,8 +684,9 @@ document.querySelectorAll('.admin-tabs button').forEach(btn => {
 function logout() {
     if (confirm('Deseja realmente sair?')) {
         localStorage.removeItem('token');
-        localStorage.removeItem('admin_token');
-        window.location.href = '/';
+        localStorage.removeItem('tenant');
+        sessionStorage.removeItem('tenant');
+        window.location.href = '/login.html';
     }
 }
 
