@@ -41,15 +41,37 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 14px;
+            box-sizing: border-box;
         }
         .register-container .form-group input:focus {
             outline: none;
             border-color: #e67e22;
         }
+        .register-container .form-group small {
+            display: block;
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
         .register-container .btn {
             width: 100%;
             padding: 12px;
             margin-top: 8px;
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .register-container .btn:hover {
+            background: #d35400;
+        }
+        .register-container .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .register-container .login-link {
             text-align: center;
@@ -70,6 +92,48 @@
             right: 20px;
             z-index: 99999;
         }
+        .toast {
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid #27ae60;
+        }
+        .toast.error {
+            border-left-color: #e74c3c;
+        }
+        .toast.warning {
+            border-left-color: #f39c12;
+        }
+        .toast .toast-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 4px;
+            margin-left: auto;
+        }
+        .toast .toast-close:hover {
+            color: #333;
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -83,7 +147,7 @@
             <div class="form-group">
                 <label>Subdomínio *</label>
                 <input type="text" id="reg-subdomain" placeholder="firerburger" required>
-                <small style="color:#888;font-size:12px;">Ex: firerburger.smartdelivery.com</small>
+                <small>Ex: firerburger.smartdelivery.com</small>
             </div>
             <div class="form-group">
                 <label>Seu Nome *</label>
@@ -101,7 +165,7 @@
                 <label>Senha *</label>
                 <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
             </div>
-            <button type="submit" class="btn">Criar Conta</button>
+            <button type="submit" class="btn" id="register-btn">Criar Conta</button>
         </form>
         <div class="login-link">
             Já tem uma conta? <a href="login.html">Faça login</a>
@@ -115,13 +179,14 @@
         async function handleRegister(event) {
             event.preventDefault();
             
-            // Capturar os valores do formulário
-            const restaurantName = document.getElementById('restaurant-name').value.trim();
-            const subdomain = document.getElementById('subdomain').value.trim();
-            const ownerName = document.getElementById('owner-name').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const password = document.getElementById('password').value;
+            // Capturar os valores do formulário (IDs CORRETOS)
+            const restaurantName = document.getElementById('reg-tenant-name').value.trim();
+            const subdomain = document.getElementById('reg-subdomain').value.trim();
+            const ownerName = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const btn = document.getElementById('register-btn');
 
             // Validar campos obrigatórios
             if (!restaurantName || !subdomain || !ownerName || !email || !password) {
@@ -133,6 +198,10 @@
                 showToast('A senha deve ter no mínimo 6 caracteres.', 'warning');
                 return;
             }
+
+            // Desabilitar botão durante requisição
+            btn.disabled = true;
+            btn.textContent = 'Cadastrando...';
 
             try {
                 const response = await fetch('/api/auth/register', {
@@ -172,11 +241,16 @@
             } catch (error) {
                 console.error('❌ Erro no registro:', error);
                 showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Criar Conta';
             }
         }
 
-        function showToast(message, type = 'success') {
+        function showToast(message, type = 'success', duration = 3500) {
             const container = document.getElementById('toast-container');
+            if (!container) return;
+            
             const icons = { success: '✅', error: '❌', warning: '⚠️' };
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -186,12 +260,14 @@
                 <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
             `;
             container.appendChild(toast);
+            
             setTimeout(() => {
                 toast.classList.add('hide');
                 setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
-            }, 3500);
+            }, duration);
         }
 
+        // Verificar se já está logado
         if (localStorage.getItem('token')) {
             window.location.href = '/admin';
         }
