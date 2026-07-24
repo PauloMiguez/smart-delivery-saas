@@ -1,0 +1,46 @@
+.client-app {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.store-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.store-header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+.status {
+    font-size: 14px;
+    color: #888;
+}
+
+.products-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.product-item {
+    padding: 16px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.product-item h3 {
+    margin: 0 0 4px 0;
+}
+
+.product-item p {
+    margin: 4px 0;
+    color: #555;
+}

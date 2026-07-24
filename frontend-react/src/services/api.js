@@ -9,7 +9,6 @@ export const api = axios.create({
     }
 });
 
-// Função para obter tenant
 const getTenant = () => {
     const params = new URLSearchParams(window.location.search);
     const tenant = params.get('tenant');
@@ -20,7 +19,6 @@ const getTenant = () => {
     return sessionStorage.getItem('tenant') || null;
 };
 
-// Interceptor para adicionar tenant
 api.interceptors.request.use(config => {
     const tenant = getTenant();
     if (tenant) {
@@ -29,7 +27,6 @@ api.interceptors.request.use(config => {
     return config;
 });
 
-// Interceptor para tratamento de erros
 api.interceptors.response.use(
     response => response,
     error => {

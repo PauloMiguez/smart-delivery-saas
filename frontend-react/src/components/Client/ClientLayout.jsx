@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
-import ProductList from './ProductList';
-import Cart from './Cart';
 import './ClientLayout.css';
 
 const ClientLayout = () => {
     const { tenant, loading } = useTenant();
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
-    const [cart, setCart] = useState([]);
 
     useEffect(() => {
         if (!tenant) return;
@@ -21,7 +18,7 @@ const ClientLayout = () => {
                     api.get('/products?active_only=true')
                 ]);
                 setConfig(configRes.data.data);
-                setProducts(productsRes.data.data);
+                setProducts(productsRes.data.data || []);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
             }
@@ -47,9 +44,15 @@ const ClientLayout = () => {
                 </span>
             </header>
             
-            <ProductList products={products} cart={cart} setCart={setCart} />
-            
-            <Cart cart={cart} setCart={setCart} config={config} />
+            <div className="products-container">
+                {products.map(product => (
+                    <div key={product.id} className="product-item">
+                        <h3>{product.name}</h3>
+                        <p>{product.description}</p>
+                        <p>R$ {parseFloat(product.price).toFixed(2)}</p>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
