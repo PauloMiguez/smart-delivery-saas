@@ -12,6 +12,8 @@
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #e67e22, #d35400);
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .register-container {
             background: #fff;
@@ -20,11 +22,13 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             max-width: 450px;
             width: 100%;
+            margin: 20px;
         }
         .register-container h1 {
             color: #e67e22;
             text-align: center;
             margin-bottom: 24px;
+            font-size: 28px;
         }
         .register-container .form-group {
             margin-bottom: 14px;
@@ -34,6 +38,7 @@
             font-weight: 500;
             margin-bottom: 4px;
             color: #555;
+            font-size: 14px;
         }
         .register-container .form-group input {
             width: 100%;
@@ -42,10 +47,12 @@
             border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            transition: border-color 0.3s;
         }
         .register-container .form-group input:focus {
             outline: none;
             border-color: #e67e22;
+            box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
         }
         .register-container .form-group small {
             display: block;
@@ -77,6 +84,7 @@
             text-align: center;
             margin-top: 16px;
             color: #888;
+            font-size: 14px;
         }
         .register-container .login-link a {
             color: #e67e22;
@@ -134,6 +142,15 @@
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
+        @media (max-width: 480px) {
+            .register-container {
+                padding: 24px;
+                margin: 12px;
+            }
+            .register-container h1 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -141,28 +158,28 @@
         <h1>🚀 Criar Conta</h1>
         <form id="register-form" onsubmit="handleRegister(event)">
             <div class="form-group">
-                <label>Nome do Restaurante *</label>
-                <input type="text" id="reg-tenant-name" placeholder="Fire Burger" required>
+                <label for="reg-tenant-name">Nome do Restaurante *</label>
+                <input type="text" id="reg-tenant-name" placeholder="Fire Burger" required autofocus>
             </div>
             <div class="form-group">
-                <label>Subdomínio *</label>
+                <label for="reg-subdomain">Subdomínio *</label>
                 <input type="text" id="reg-subdomain" placeholder="firerburger" required>
                 <small>Ex: firerburger.smartdelivery.com</small>
             </div>
             <div class="form-group">
-                <label>Seu Nome *</label>
+                <label for="reg-name">Seu Nome *</label>
                 <input type="text" id="reg-name" placeholder="Seu nome completo" required>
             </div>
             <div class="form-group">
-                <label>E-mail *</label>
+                <label for="reg-email">E-mail *</label>
                 <input type="email" id="reg-email" placeholder="contato@firerburger.com" required>
             </div>
             <div class="form-group">
-                <label>Telefone</label>
+                <label for="reg-phone">Telefone</label>
                 <input type="text" id="reg-phone" placeholder="(85) 99999-9999">
             </div>
             <div class="form-group">
-                <label>Senha *</label>
+                <label for="reg-password">Senha *</label>
                 <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
             </div>
             <button type="submit" class="btn" id="register-btn">Criar Conta</button>
@@ -176,10 +193,13 @@
     <script>
         const API_URL = window.location.origin + '/api';
 
+        // ============================================================
+        //  HANDLE REGISTER
+        // ============================================================
         async function handleRegister(event) {
             event.preventDefault();
             
-            // Capturar os valores do formulário (IDs CORRETOS)
+            // Capturar os valores do formulário
             const restaurantName = document.getElementById('reg-tenant-name').value.trim();
             const subdomain = document.getElementById('reg-subdomain').value.trim();
             const ownerName = document.getElementById('reg-name').value.trim();
@@ -204,7 +224,9 @@
             btn.textContent = 'Cadastrando...';
 
             try {
-                const response = await fetch('/api/auth/register', {
+                console.log('📝 Enviando cadastro:', { restaurantName, subdomain, email });
+
+                const response = await fetch(API_URL + '/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -226,16 +248,22 @@
                 }
 
                 if (data.success) {
+                    // O backend retorna 'subdomain' - usar isso como tenant
+                    const tenantId = data.data.subdomain || data.data.tenantId || subdomain;
+                    
+                    console.log('✅ Cadastro realizado! Tenant:', tenantId);
+                    console.log('📦 Resposta completa:', data);
+                    
                     // Salvar token e tenant
                     localStorage.setItem('token', data.data.token);
-                    localStorage.setItem('tenant', data.data.tenantId);
-                    sessionStorage.setItem('tenant', data.data.tenantId);
+                    localStorage.setItem('tenant', tenantId);
+                    sessionStorage.setItem('tenant', tenantId);
                     
                     showToast('Restaurante cadastrado com sucesso!', 'success');
                     
                     // Redirecionar para o admin
                     setTimeout(() => {
-                        window.location.href = '/admin?tenant=' + data.data.tenantId;
+                        window.location.href = '/admin?tenant=' + encodeURIComponent(tenantId);
                     }, 1500);
                 }
             } catch (error) {
@@ -247,6 +275,9 @@
             }
         }
 
+        // ============================================================
+        //  TOAST NOTIFICATIONS
+        // ============================================================
         function showToast(message, type = 'success', duration = 3500) {
             const container = document.getElementById('toast-container');
             if (!container) return;
@@ -267,10 +298,65 @@
             }, duration);
         }
 
-        // Verificar se já está logado
-        if (localStorage.getItem('token')) {
-            window.location.href = '/admin';
+        // ============================================================
+        //  VERIFICAR SESSÃO EXISTENTE (CORRIGIDO)
+        // ============================================================
+        function checkExistingSession() {
+            const token = localStorage.getItem('token');
+            const tenant = localStorage.getItem('tenant');
+            
+            // Só redireciona se houver um token E um tenant válidos
+            if (token && token !== 'undefined' && tenant && tenant !== 'undefined') {
+                console.log('🔐 Sessão existente encontrada. Tenant:', tenant);
+                window.location.href = '/admin?tenant=' + encodeURIComponent(tenant);
+                return true;
+            }
+            return false;
         }
+
+        // ============================================================
+        //  INICIALIZAÇÃO
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página de cadastro carregada');
+            
+            // Verificar sessão antes de mostrar a página
+            if (checkExistingSession()) {
+                return;
+            }
+
+            // Limpar tokens inválidos se existirem
+            const token = localStorage.getItem('token');
+            const tenant = localStorage.getItem('tenant');
+            if (token === 'undefined' || tenant === 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('tenant');
+                sessionStorage.removeItem('tenant');
+            }
+
+            // Preencher subdomínio automaticamente se vier da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tenantFromUrl = urlParams.get('tenant');
+            if (tenantFromUrl) {
+                document.getElementById('reg-subdomain').value = tenantFromUrl;
+                console.log('📝 Subdomínio preenchido da URL:', tenantFromUrl);
+            }
+
+            // Suporte para Enter no campo de senha
+            document.getElementById('reg-password').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('register-form').dispatchEvent(new Event('submit'));
+                }
+            });
+        });
+
+        // ============================================================
+        //  EXPOSIÇÃO GLOBAL
+        // ============================================================
+        window.handleRegister = handleRegister;
+        window.showToast = showToast;
+
+        console.log('✅ Register page ready!');
     </script>
 </body>
 </html>
