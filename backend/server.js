@@ -592,7 +592,6 @@ app.get('/api/orders', async (req, res) => {
             [tenantId]
         );
 
-        // Processar items JSON
         const processedOrders = orders.map(o => ({
             ...o,
             items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
@@ -605,7 +604,7 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-// Criar pedido
+// Criar pedido - CORRIGIDO COM SUBTOTAL
 app.post('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -618,27 +617,43 @@ app.post('/api/orders', async (req, res) => {
             customer_phone,
             customer_address,
             items,
+            subtotal,
             total,
             delivery_fee = 0,
             payment_method = 'dinheiro'
         } = req.body;
 
+        console.log('📦 Pedido recebido:', { 
+            tenantId, 
+            customer_name, 
+            items: items?.length, 
+            subtotal,
+            total 
+        });
+
         if (!customer_name || !customer_address || !items || !total) {
+            console.log('❌ Dados faltando');
             return res.status(400).json({
                 success: false,
                 error: 'Nome, endereço, itens e total são obrigatórios'
             });
         }
 
-        // Gerar número do pedido
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'O pedido deve conter pelo menos um item'
+            });
+        }
+
         const orderNumber = '#' + Date.now().toString().slice(-6);
 
         const [result] = await pool.query(
             `INSERT INTO orders (
                 tenant_id, order_number, customer_name, customer_phone, 
-                customer_address, items, total, delivery_fee, 
+                customer_address, items, subtotal, total, delivery_fee, 
                 payment_method, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
             [
                 tenantId,
                 orderNumber,
@@ -646,11 +661,14 @@ app.post('/api/orders', async (req, res) => {
                 customer_phone || null,
                 customer_address,
                 JSON.stringify(items),
-                total,
-                delivery_fee,
+                parseFloat(subtotal || 0),
+                parseFloat(total),
+                parseFloat(delivery_fee),
                 payment_method
             ]
         );
+
+        console.log('✅ Pedido criado:', orderNumber);
 
         res.status(201).json({
             success: true,
@@ -658,8 +676,11 @@ app.post('/api/orders', async (req, res) => {
             message: 'Pedido criado com sucesso!'
         });
     } catch (error) {
-        console.error('Erro ao criar pedido:', error);
-        res.status(500).json({ success: false, error: 'Erro ao criar pedido' });
+        console.error('❌ Erro ao criar pedido:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao criar pedido: ' + error.message 
+        });
     }
 });
 
