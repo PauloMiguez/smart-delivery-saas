@@ -536,7 +536,7 @@ function clearImage(type) {
 }
 
 // ============================================================
-//  SALVAR CONFIGURAÇÕES (COM CLOUDINARY)
+//  SALVAR CONFIGURAÇÕES (COM CLOUDINARY - CORRIGIDO)
 // ============================================================
 async function saveConfig() {
     const btn = document.querySelector('#config-save-btn');
@@ -550,26 +550,30 @@ async function saveConfig() {
         let bannerUrl = config.banner_image || '';
 
         if (bannerFile) {
-            showToast('Enviando banner...', 'info');
+            showToast('Enviando banner para o Cloudinary...', 'info');
             const formData = new FormData();
             formData.append('image', bannerFile);
             
-            const response = await fetch(`${API_URL}/upload/banner`, {
+            const response = await fetch(`${API_URL}/upload/banner?tenant=${TENANT_ID}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                    'X-Tenant-ID': TENANT_ID
                 },
                 body: formData
             });
             
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro no upload do banner');
+            }
+            
             if (data.success) {
                 bannerUrl = data.data.url;
-                // Salvar public_id para futura remoção
                 config.banner_public_id = data.data.public_id;
                 showToast('Banner enviado com sucesso!', 'success');
             } else {
-                throw new Error(data.error || 'Erro no upload do banner');
+                throw new Error(data.error || 'Erro desconhecido no upload do banner');
             }
         }
 
@@ -579,25 +583,30 @@ async function saveConfig() {
         let logoUrl = config.logo_image || '';
 
         if (logoFile) {
-            showToast('Enviando logo...', 'info');
+            showToast('Enviando logo para o Cloudinary...', 'info');
             const formData = new FormData();
             formData.append('image', logoFile);
             
-            const response = await fetch(`${API_URL}/upload/logo`, {
+            const response = await fetch(`${API_URL}/upload/logo?tenant=${TENANT_ID}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                    'X-Tenant-ID': TENANT_ID
                 },
                 body: formData
             });
             
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro no upload do logo');
+            }
+            
             if (data.success) {
                 logoUrl = data.data.url;
                 config.logo_public_id = data.data.public_id;
                 showToast('Logo enviado com sucesso!', 'success');
             } else {
-                throw new Error(data.error || 'Erro no upload do logo');
+                throw new Error(data.error || 'Erro desconhecido no upload do logo');
             }
         }
 
@@ -637,7 +646,6 @@ async function saveConfig() {
         
         await loadData();
         
-        // Limpar os inputs de file
         bannerInput.value = '';
         logoInput.value = '';
         
