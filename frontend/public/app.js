@@ -98,6 +98,17 @@ async function loadData() {
     try {
         console.log('🔄 Carregando dados...');
 
+        // Carregar dados do usuário do localStorage
+        const savedAddress = localStorage.getItem('user_address');
+        const savedName = localStorage.getItem('user_name');
+        const savedPhone = localStorage.getItem('user_phone');
+        const savedEmail = localStorage.getItem('user_email');
+        
+        if (savedAddress) state.user.address = savedAddress;
+        if (savedName) state.user.name = savedName;
+        if (savedPhone) state.user.phone = savedPhone;
+        if (savedEmail) state.user.email = savedEmail;
+
         const configRes = await apiRequest('/config');
         state.config = configRes.data || {};
         console.log('✅ Configurações carregadas');
@@ -637,26 +648,30 @@ async function saveEditField() {
     if (newValue === '') { showToast('O campo não pode ficar vazio.', 'warning'); return; }
     closeEditModal();
     state.user[editFieldName] = newValue;
+    
+    // Salvar no localStorage
     try {
-        const result = await apiRequest('/users/' + encodeURIComponent(state.user.email), {
-            method: 'PUT',
-            body: JSON.stringify(state.user)
-        });
-        if (result.success) {
-            state.user = result.data;
-            renderProfile();
-            renderHeader();
-            const labelMap = { 'name': 'Nome', 'email': 'E-mail', 'phone': 'Telefone' };
-            showToast(labelMap[editFieldName] + ' atualizado com sucesso!', 'success');
-        }
-    } catch (error) {
-        showToast('Erro ao salvar: ' + error.message, 'error');
+        localStorage.setItem('user_name', state.user.name);
+        localStorage.setItem('user_email', state.user.email);
+        localStorage.setItem('user_phone', state.user.phone);
+    } catch (e) {
+        console.warn('Não foi possível salvar no localStorage:', e);
     }
+    
+    renderProfile();
+    renderHeader();
+    const labelMap = { 'name': 'Nome', 'email': 'E-mail', 'phone': 'Telefone' };
+    showToast(labelMap[editFieldName] + ' atualizado com sucesso!', 'success');
 }
 
 function clearUserData() {
     if (confirm('Deseja resetar os dados do usuário?')) {
         state.user = { name: 'Usuário', email: 'usuario@email.com', phone: '(85) 99999-9999', address: '' };
+        // Limpar localStorage
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
+        localStorage.removeItem('user_phone');
+        localStorage.removeItem('user_address');
         renderProfile();
         showToast('Dados resetados.', 'success');
     }
@@ -735,6 +750,9 @@ function closeAddressModal() {
     document.getElementById('address-modal').style.display = 'none';
 }
 
+// ============================================================
+//  SALVAR ENDEREÇO - CORRIGIDO (SEM API)
+// ============================================================
 async function saveUserAddress() {
     const street = document.getElementById('user-street').value.trim();
     const number = document.getElementById('user-number').value.trim();
@@ -752,22 +770,23 @@ async function saveUserAddress() {
     if (complement) address += ' - ' + complement;
     address += ', ' + neighborhood + ', ' + city + ' - ' + stateUf;
 
+    // Salvar localmente (sem API)
     state.user.address = address;
+    
+    // Salvar no localStorage para persistir
     try {
-        const result = await apiRequest('/users/' + encodeURIComponent(state.user.email), {
-            method: 'PUT',
-            body: JSON.stringify(state.user)
-        });
-        if (result.success) {
-            state.user = result.data;
-            renderProfile();
-            renderHeader();
-            closeAddressModal();
-            showToast('Endereço atualizado com sucesso!', 'success');
-        }
-    } catch (error) {
-        showToast('Erro ao salvar endereço: ' + error.message, 'error');
+        localStorage.setItem('user_address', address);
+        localStorage.setItem('user_name', state.user.name);
+        localStorage.setItem('user_phone', state.user.phone);
+        localStorage.setItem('user_email', state.user.email);
+    } catch (e) {
+        console.warn('Não foi possível salvar no localStorage:', e);
     }
+    
+    renderProfile();
+    renderHeader();
+    closeAddressModal();
+    showToast('Endereço salvo com sucesso!', 'success');
 }
 
 // ============================================================
