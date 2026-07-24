@@ -50,9 +50,9 @@ let state = {
     cart: [],
     config: {},
     user: {
-        name: 'Usuário',
-        email: 'usuario@email.com',
-        phone: '(85) 99999-9999',
+        name: '',
+        email: '',
+        phone: '',
         address: ''
     },
     orders: [],
@@ -63,7 +63,6 @@ let couponApplied = null;
 let selectedPayment = 'Dinheiro';
 let selectedSchedule = 'Pedir agora (60-75min)';
 let checkoutStep = 1;
-let editFieldName = '';
 
 // ============================================================
 //  FUNÇÕES DE API
@@ -512,34 +511,32 @@ async function submitOrder() {
         return; 
     }
 
-    // 2. Validar nome
-    if (!state.user.name || state.user.name.trim() === '' || state.user.name === 'Usuário') {
+    // 2. Validar nome (obrigatório)
+    if (!state.user.name || state.user.name.trim() === '') {
         showToast('Por favor, preencha seu nome.', 'warning');
-        editUserField('name');
+        openUserDataModal();
         return;
     }
 
-    // 3. Validar e-mail
-    if (!state.user.email || state.user.email.trim() === '' || state.user.email === 'usuario@email.com') {
-        showToast('Por favor, preencha seu e-mail.', 'warning');
-        editUserField('email');
-        return;
-    }
-
-    // 4. Validar telefone
+    // 3. Validar telefone (obrigatório)
     const phoneClean = state.user.phone.replace(/\D/g, '');
-    if (phoneClean.length < 10 || state.user.phone === '(85) 99999-9999') {
+    if (phoneClean.length < 10) {
         showToast('Por favor, preencha um telefone válido (DDD + número).', 'warning');
-        editUserField('phone');
+        openUserDataModal();
         return;
     }
 
-    // 5. Validar endereço
+    // 4. Validar endereço (obrigatório)
     if (!state.user.address || state.user.address.trim() === '') {
         showToast('Por favor, preencha o endereço de entrega.', 'warning');
-        openAddressModal();
+        openUserDataModal();
         return;
     }
+
+    // 5. E-mail é opcional - se vazio, usar um padrão
+    const customerEmail = state.user.email && state.user.email.trim() !== '' 
+        ? state.user.email 
+        : 'cliente@email.com';
 
     const subtotal = state.cart.reduce((acc, i) => acc + i.price * i.qty, 0);
     const fee = parseFloat(state.config.delivery_fee) || 0;
@@ -553,7 +550,7 @@ async function submitOrder() {
 
     console.log('📦 Enviando pedido:', {
         customer_name: state.user.name,
-        customer_email: state.user.email,
+        customer_email: customerEmail,
         customer_phone: state.user.phone,
         customer_address: state.user.address,
         items: state.cart.length,
@@ -564,7 +561,7 @@ async function submitOrder() {
     try {
         const orderData = {
             customer_name: state.user.name,
-            customer_email: state.user.email,
+            customer_email: customerEmail,
             customer_phone: state.user.phone,
             customer_address: state.user.address,
             items: state.cart.map(item => ({
@@ -592,7 +589,7 @@ async function submitOrder() {
         // WhatsApp
         const phone = state.config.store_phone || '5511999999999';
         const cleanPhone = phone.replace(/\D/g, '');
-        const message = '🍽️ *NOVO PEDIDO*\nCliente: ' + state.user.name + '\nE-mail: ' + state.user.email + '\nTelefone: ' + state.user.phone + '\nEndereço: ' + state.user.address + '\n\n*Itens:*\n' + state.cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') + '\n\nSubtotal: R$ ' + subtotal.toFixed(2) + discountText + '\nTaxa entrega: R$ ' + fee.toFixed(2) + '\n*Total: R$ ' + total.toFixed(2) + '*\nPagamento: ' + selectedPayment + '\nEntrega: ' + selectedSchedule;
+        const message = '🍽️ *NOVO PEDIDO*\nCliente: ' + state.user.name + '\nE-mail: ' + customerEmail + '\nTelefone: ' + state.user.phone + '\nEndereço: ' + state.user.address + '\n\n*Itens:*\n' + state.cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') + '\n\nSubtotal: R$ ' + subtotal.toFixed(2) + discountText + '\nTaxa entrega: R$ ' + fee.toFixed(2) + '\n*Total: R$ ' + total.toFixed(2) + '*\nPagamento: ' + selectedPayment + '\nEntrega: ' + selectedSchedule;
         window.open('https://wa.me/55' + cleanPhone + '?text=' + encodeURIComponent(message), '_blank');
 
         state.cart = [];
@@ -605,6 +602,126 @@ async function submitOrder() {
         console.error('❌ Erro ao enviar pedido:', error);
         showToast('Erro ao enviar pedido: ' + error.message, 'error');
     }
+}
+
+// ============================================================
+//  MODAL ÚNICO DE DADOS DO USUÁRIO
+// ============================================================
+function openUserDataModal() {
+    const modal = document.getElementById('user-data-modal');
+    if (!modal) return;
+    
+    // Preencher campos com dados atuais
+    document.getElementById('user-modal-name').value = state.user.name || '';
+    document.getElementById('user-modal-email').value = state.user.email || '';
+    document.getElementById('user-modal-phone').value = state.user.phone || '';
+    
+    // Preencher endereço
+    const address = state.user.address || '';
+    const parts = address.split(', ');
+    document.getElementById('user-modal-street').value = parts[0] || '';
+    const numPart = parts[1] || '';
+    document.getElementById('user-modal-number').value = numPart.split(' - ')[0] || '';
+    document.getElementById('user-modal-complement').value = numPart.includes(' - ') ? numPart.split(' - ').slice(1).join(' - ') : '';
+    document.getElementById('user-modal-neighborhood').value = parts[2] || '';
+    const cityState = parts[3] || '';
+    document.getElementById('user-modal-city').value = cityState.split(' - ')[0] || '';
+    document.getElementById('user-modal-state').value = cityState.split(' - ')[1] || '';
+    document.getElementById('user-modal-cep').value = '';
+    
+    modal.style.display = 'flex';
+    document.getElementById('user-modal-name').focus();
+}
+
+function closeUserDataModal() {
+    document.getElementById('user-data-modal').style.display = 'none';
+}
+
+function saveUserData() {
+    const name = document.getElementById('user-modal-name').value.trim();
+    const email = document.getElementById('user-modal-email').value.trim();
+    const phone = document.getElementById('user-modal-phone').value.trim();
+    const street = document.getElementById('user-modal-street').value.trim();
+    const number = document.getElementById('user-modal-number').value.trim();
+    const complement = document.getElementById('user-modal-complement').value.trim();
+    const neighborhood = document.getElementById('user-modal-neighborhood').value.trim();
+    const city = document.getElementById('user-modal-city').value.trim();
+    const stateUf = document.getElementById('user-modal-state').value.trim();
+
+    // Validar campos obrigatórios
+    if (!name) {
+        showToast('Por favor, preencha seu nome.', 'warning');
+        document.getElementById('user-modal-name').focus();
+        return;
+    }
+
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+        showToast('Por favor, preencha um telefone válido.', 'warning');
+        document.getElementById('user-modal-phone').focus();
+        return;
+    }
+
+    if (!street || !number || !neighborhood || !city || !stateUf) {
+        showToast('Preencha todos os campos do endereço.', 'warning');
+        return;
+    }
+
+    // Montar endereço
+    let address = street + ', ' + number;
+    if (complement) address += ' - ' + complement;
+    address += ', ' + neighborhood + ', ' + city + ' - ' + stateUf;
+
+    // Salvar no estado
+    state.user.name = name;
+    state.user.email = email;
+    state.user.phone = phone;
+    state.user.address = address;
+
+    // Salvar no localStorage
+    try {
+        localStorage.setItem('user_name', name);
+        localStorage.setItem('user_email', email);
+        localStorage.setItem('user_phone', phone);
+        localStorage.setItem('user_address', address);
+    } catch (e) {
+        console.warn('Não foi possível salvar no localStorage:', e);
+    }
+
+    closeUserDataModal();
+    renderProfile();
+    renderHeader();
+    showToast('Dados salvos com sucesso!', 'success');
+}
+
+// ============================================================
+//  CEP FUNCTIONS (MODAL ÚNICO)
+// ============================================================
+function formatCep(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 5) value = value.substring(0, 5) + '-' + value.substring(5, 8);
+    input.value = value;
+}
+
+function buscarCepModal(cep) {
+    const cepClean = cep.replace(/\D/g, '');
+    if (cepClean.length !== 8) return;
+    
+    showToast('Buscando endereço...', 'info');
+    fetch('https://viacep.com.br/ws/' + cepClean + '/json/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.erro) { 
+                showToast('CEP não encontrado.', 'warning'); 
+                return; 
+            }
+            document.getElementById('user-modal-street').value = data.logradouro || '';
+            document.getElementById('user-modal-neighborhood').value = data.bairro || '';
+            document.getElementById('user-modal-city').value = data.localidade || '';
+            document.getElementById('user-modal-state').value = data.uf || '';
+            document.getElementById('user-modal-number').focus();
+            showToast('Endereço encontrado!', 'success');
+        })
+        .catch(() => showToast('Erro ao buscar CEP.', 'error'));
 }
 
 // ============================================================
@@ -629,66 +746,29 @@ function applyCoupon() {
 // ============================================================
 function renderProfile() {
     const user = state.user;
-    document.getElementById('user-avatar').textContent = user.name.substring(0, 1).toUpperCase();
-    document.getElementById('user-name-display').textContent = user.name;
-    document.getElementById('user-email-display').textContent = user.email;
-    document.getElementById('user-name-value').textContent = user.name;
-    document.getElementById('user-email-value').textContent = user.email;
-    document.getElementById('user-phone-value').textContent = user.phone;
+    document.getElementById('user-avatar').textContent = user.name ? user.name.substring(0, 1).toUpperCase() : '?';
+    document.getElementById('user-name-display').textContent = user.name || 'Não definido';
+    document.getElementById('user-email-display').textContent = user.email || 'Não definido';
+    document.getElementById('user-name-value').textContent = user.name || 'Não definido';
+    document.getElementById('user-email-value').textContent = user.email || 'Não definido';
+    document.getElementById('user-phone-value').textContent = user.phone || 'Não definido';
     document.getElementById('user-address-value').textContent = user.address || 'Não cadastrado';
 }
 
 function editUserField(field) {
-    const labels = { 
-        'name': 'Nome completo', 
-        'email': 'E-mail', 
-        'phone': 'Telefone' 
-    };
-    editFieldName = field;
-    document.getElementById('edit-modal-title').textContent = 'Editar ' + labels[field];
-    document.getElementById('edit-modal-label').textContent = labels[field];
-    document.getElementById('edit-modal-input').value = state.user[field] || '';
-    document.getElementById('edit-modal').style.display = 'flex';
-    document.getElementById('edit-modal-input').focus();
-}
-
-function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
-
-async function saveEditField() {
-    const newValue = document.getElementById('edit-modal-input').value.trim();
-    if (newValue === '') { 
-        showToast('O campo não pode ficar vazio.', 'warning'); 
-        return; 
-    }
-    closeEditModal();
-    state.user[editFieldName] = newValue;
-    
-    // Salvar no localStorage
-    try {
-        localStorage.setItem('user_name', state.user.name);
-        localStorage.setItem('user_email', state.user.email);
-        localStorage.setItem('user_phone', state.user.phone);
-    } catch (e) {
-        console.warn('Não foi possível salvar no localStorage:', e);
-    }
-    
-    renderProfile();
-    renderHeader();
-    const labelMap = { 'name': 'Nome', 'email': 'E-mail', 'phone': 'Telefone' };
-    showToast(labelMap[editFieldName] + ' atualizado com sucesso!', 'success');
+    // Redirecionar para o modal único
+    openUserDataModal();
 }
 
 function clearUserData() {
     if (confirm('Deseja resetar os dados do usuário?')) {
-        state.user = { name: 'Usuário', email: 'usuario@email.com', phone: '(85) 99999-9999', address: '' };
-        // Limpar localStorage
+        state.user = { name: '', email: '', phone: '', address: '' };
         localStorage.removeItem('user_name');
         localStorage.removeItem('user_email');
         localStorage.removeItem('user_phone');
         localStorage.removeItem('user_address');
         renderProfile();
+        renderHeader();
         showToast('Dados resetados.', 'success');
     }
 }
@@ -722,87 +802,26 @@ function renderOrders() {
 }
 
 // ============================================================
-//  CEP FUNCTIONS
+//  CEP FUNCTIONS (ADDRESS MODAL - LEGADO)
 // ============================================================
-function formatCep(input) {
-    let value = input.value.replace(/\D/g, '');
-    if (value.length > 5) value = value.substring(0, 5) + '-' + value.substring(5, 8);
-    input.value = value;
-}
-
-function buscarCep(cep, prefix) {
-    const cepClean = cep.replace(/\D/g, '');
-    if (cepClean.length !== 8) return;
-    fetch('https://viacep.com.br/ws/' + cepClean + '/json/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.erro) { showToast('CEP não encontrado.', 'warning'); return; }
-            document.getElementById(prefix + '-street').value = data.logradouro || '';
-            document.getElementById(prefix + '-neighborhood').value = data.bairro || '';
-            document.getElementById(prefix + '-city').value = data.localidade || '';
-            document.getElementById(prefix + '-state').value = data.uf || '';
-            document.getElementById(prefix + '-number').focus();
-        })
-        .catch(() => showToast('Erro ao buscar CEP.', 'error'));
-}
-
 function openAddressModal() {
-    const modal = document.getElementById('address-modal');
-    const address = state.user.address || '';
-    const parts = address.split(', ');
-    document.getElementById('user-street').value = parts[0] || '';
-    const numPart = parts[1] || '';
-    document.getElementById('user-number').value = numPart.split(' - ')[0] || '';
-    document.getElementById('user-complement').value = numPart.includes(' - ') ? numPart.split(' - ').slice(1).join(' - ') : '';
-    document.getElementById('user-neighborhood').value = parts[2] || '';
-    const cityState = parts[3] || '';
-    document.getElementById('user-city').value = cityState.split(' - ')[0] || '';
-    document.getElementById('user-state').value = cityState.split(' - ')[1] || '';
-    document.getElementById('user-cep').value = '';
-    modal.style.display = 'flex';
+    // Redirecionar para o modal único
+    openUserDataModal();
 }
 
 function closeAddressModal() {
-    document.getElementById('address-modal').style.display = 'none';
+    // Fechar o modal único
+    closeUserDataModal();
 }
 
-// ============================================================
-//  SALVAR ENDEREÇO - CORRIGIDO (SEM API)
-// ============================================================
 async function saveUserAddress() {
-    const street = document.getElementById('user-street').value.trim();
-    const number = document.getElementById('user-number').value.trim();
-    const complement = document.getElementById('user-complement').value.trim();
-    const neighborhood = document.getElementById('user-neighborhood').value.trim();
-    const city = document.getElementById('user-city').value.trim();
-    const stateUf = document.getElementById('user-state').value.trim();
+    // Redirecionar para o saveUserData
+    saveUserData();
+}
 
-    if (!street || !number || !neighborhood || !city || !stateUf) {
-        showToast('Preencha todos os campos.', 'warning');
-        return;
-    }
-
-    let address = street + ', ' + number;
-    if (complement) address += ' - ' + complement;
-    address += ', ' + neighborhood + ', ' + city + ' - ' + stateUf;
-
-    // Salvar localmente (sem API)
-    state.user.address = address;
-    
-    // Salvar no localStorage para persistir
-    try {
-        localStorage.setItem('user_address', address);
-        localStorage.setItem('user_name', state.user.name);
-        localStorage.setItem('user_phone', state.user.phone);
-        localStorage.setItem('user_email', state.user.email);
-    } catch (e) {
-        console.warn('Não foi possível salvar no localStorage:', e);
-    }
-    
-    renderProfile();
-    renderHeader();
-    closeAddressModal();
-    showToast('Endereço salvo com sucesso!', 'success');
+function buscarCep(cep, prefix) {
+    // Redirecionar para a função do modal
+    buscarCepModal(cep);
 }
 
 // ============================================================
@@ -811,7 +830,7 @@ async function saveUserAddress() {
 function showToast(message, type = 'success', duration = 3500) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    const icons = { success: '✅', error: '❌', warning: '⚠️' };
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
@@ -857,14 +876,16 @@ window.setDeliveryNow = setDeliveryNow;
 window.setDeliverySchedule = setDeliverySchedule;
 window.submitOrder = submitOrder;
 window.editUserField = editUserField;
-window.closeEditModal = closeEditModal;
-window.saveEditField = saveEditField;
 window.clearUserData = clearUserData;
 window.openAddressModal = openAddressModal;
 window.closeAddressModal = closeAddressModal;
 window.saveUserAddress = saveUserAddress;
+window.openUserDataModal = openUserDataModal;
+window.closeUserDataModal = closeUserDataModal;
+window.saveUserData = saveUserData;
 window.formatCep = formatCep;
 window.buscarCep = buscarCep;
+window.buscarCepModal = buscarCepModal;
 window.scrollToCategory = scrollToCategory;
 window.changeQty = changeQty;
 window.removeFromCart = removeFromCart;
