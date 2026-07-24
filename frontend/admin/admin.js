@@ -535,17 +535,85 @@ function clearImage(type) {
     }
 }
 
+// ============================================================
+//  SALVAR CONFIGURAÇÕES (COM CLOUDINARY)
+// ============================================================
 async function saveConfig() {
+    const btn = document.querySelector('#config-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
     try {
+        // 1. Upload do Banner (se houver novo arquivo)
+        const bannerInput = document.getElementById('banner-upload');
+        const bannerFile = bannerInput.files[0];
+        let bannerUrl = config.banner_image || '';
+
+        if (bannerFile) {
+            showToast('Enviando banner...', 'info');
+            const formData = new FormData();
+            formData.append('image', bannerFile);
+            
+            const response = await fetch(`${API_URL}/upload/banner`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                bannerUrl = data.data.url;
+                // Salvar public_id para futura remoção
+                config.banner_public_id = data.data.public_id;
+                showToast('Banner enviado com sucesso!', 'success');
+            } else {
+                throw new Error(data.error || 'Erro no upload do banner');
+            }
+        }
+
+        // 2. Upload do Logo (se houver novo arquivo)
+        const logoInput = document.getElementById('logo-upload');
+        const logoFile = logoInput.files[0];
+        let logoUrl = config.logo_image || '';
+
+        if (logoFile) {
+            showToast('Enviando logo...', 'info');
+            const formData = new FormData();
+            formData.append('image', logoFile);
+            
+            const response = await fetch(`${API_URL}/upload/logo`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                logoUrl = data.data.url;
+                config.logo_public_id = data.data.public_id;
+                showToast('Logo enviado com sucesso!', 'success');
+            } else {
+                throw new Error(data.error || 'Erro no upload do logo');
+            }
+        }
+
+        // 3. Montar dados de configuração (apenas texto)
         const data = {
             store_name: document.getElementById('config-store-name').value.trim(),
             store_phone: document.getElementById('config-phone').value.trim(),
             delivery_fee: document.getElementById('config-delivery-fee').value,
             open_time: document.getElementById('config-open').value,
             close_time: document.getElementById('config-close').value,
-            is_open: document.getElementById('config-status').checked ? 'true' : 'false'
+            is_open: document.getElementById('config-status').checked ? 'true' : 'false',
+            banner_image: bannerUrl,
+            logo_image: logoUrl
         };
 
+        // 4. Endereço
         const street = document.getElementById('config-street').value.trim();
         const number = document.getElementById('config-number').value.trim();
         const complement = document.getElementById('config-complement').value.trim();
@@ -560,20 +628,27 @@ async function saveConfig() {
             data.store_address = address;
         }
 
-        const bannerPreview = document.getElementById('banner-preview');
-        if (bannerPreview && bannerPreview.src && bannerPreview.src.startsWith('data:image')) {
-            data.banner_image = bannerPreview.src;
-        }
-        const logoPreview = document.getElementById('logo-preview');
-        if (logoPreview && logoPreview.src && logoPreview.src.startsWith('data:image')) {
-            data.logo_image = logoPreview.src;
-        }
-
-        await apiRequest('/config', { method: 'PUT', body: JSON.stringify(data) });
+        // 5. Salvar configurações
+        showToast('Salvando configurações...', 'info');
+        await apiRequest('/config', { 
+            method: 'PUT', 
+            body: JSON.stringify(data) 
+        });
+        
         await loadData();
+        
+        // Limpar os inputs de file
+        bannerInput.value = '';
+        logoInput.value = '';
+        
         showToast('Configurações salvas com sucesso!', 'success');
+
     } catch (error) {
-        showToast('Erro ao salvar configurações: ' + error.message, 'error');
+        console.error('❌ Erro ao salvar configurações:', error);
+        showToast('Erro ao salvar: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Configurações';
     }
 }
 
