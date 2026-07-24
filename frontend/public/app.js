@@ -193,7 +193,10 @@ function renderHeader() {
 
 function renderCategories() {
     const container = document.getElementById('category-tabs');
-    const activeCategories = state.categories.filter(cat => state.products.some(p => p.category === cat && p.active));
+    // Filtrar categorias que têm produtos ativos
+    const activeCategories = state.categories.filter(cat => 
+        state.products.some(p => p.category === cat && (p.active === 1 || p.active === true))
+    );
     if (activeCategories.length === 0) {
         container.innerHTML = '<button style="background:transparent;color:#888;cursor:default;padding:8px 16px;">Nenhuma categoria</button>';
         return;
@@ -204,18 +207,22 @@ function renderCategories() {
 }
 
 function scrollToCategory(category) {
-    const el = document.getElementById('category-' + category);
+    const el = document.getElementById('category-' + category.replace(/\s+/g, '-'));
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     document.querySelectorAll('.category-tabs button').forEach(btn => {
         btn.classList.toggle('active', btn.textContent === category);
     });
 }
 
+// ============================================================
+//  RENDER MENU - CORRIGIDO
+// ============================================================
 function renderMenu() {
     const container = document.getElementById('products-container');
-    const activeCategories = state.categories.filter(cat => state.products.some(p => p.category === cat && p.active));
+    if (!container) return;
 
-    if (activeCategories.length === 0 || state.products.length === 0) {
+    // Verificar se há produtos
+    if (!state.products || state.products.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="big-icon">🍽️</div>
@@ -225,22 +232,53 @@ function renderMenu() {
         return;
     }
 
+    // Filtrar produtos ativos (active = 1 ou true)
+    const activeProducts = state.products.filter(p => p.active === 1 || p.active === true);
+    
+    if (activeProducts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="big-icon">🍽️</div>
+                <p>Nenhum produto ativo no momento.</p>
+                <p style="font-size:13px;color:#888;">Ative os produtos no painel administrativo.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Obter categorias que têm produtos ativos
+    const activeCategories = state.categories.filter(cat => 
+        activeProducts.some(p => p.category === cat)
+    );
+
+    if (activeCategories.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="big-icon">🏷️</div>
+                <p>Nenhuma categoria com produtos disponíveis.</p>
+                <p style="font-size:13px;color:#888;">Categorize seus produtos no painel administrativo.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Renderizar produtos por categoria
     container.innerHTML = activeCategories.map(cat => {
-        const items = state.products.filter(p => p.category === cat && p.active);
+        const items = activeProducts.filter(p => p.category === cat);
         return `
-            <div class="category-section" id="category-${cat}">
+            <div class="category-section" id="category-${cat.replace(/\s+/g, '-')}">
                 <div class="category-title">${cat}</div>
                 ${items.map(p => `
-                    <div class="product-item">
+                    <div class="product-item" data-product-id="${p.id}">
                         <div class="product-info">
                             <div class="product-name">${p.name}</div>
                             <div class="product-desc">${p.description || ''}</div>
                             <div class="product-price">R$ ${parseFloat(p.price).toFixed(2)}</div>
                         </div>
                         <div class="product-actions">
-                            <button onclick="changeQty(${p.id}, -1)">−</button>
+                            <button onclick="changeQty(${p.id}, -1)" aria-label="Remover item">−</button>
                             <span class="qty" id="qty-${p.id}">${getCartQty(p.id)}</span>
-                            <button onclick="changeQty(${p.id}, 1)">+</button>
+                            <button onclick="changeQty(${p.id}, 1)" aria-label="Adicionar item">+</button>
                         </div>
                     </div>
                 `).join('')}
