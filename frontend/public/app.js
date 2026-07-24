@@ -191,11 +191,16 @@ function renderHeader() {
     document.getElementById('checkout-fee-display').textContent = 'R$ ' + (parseFloat(config.delivery_fee) || 0).toFixed(2);
 }
 
+// ============================================================
+//  RENDER CATEGORIES - CORRIGIDO
+// ============================================================
 function renderCategories() {
     const container = document.getElementById('category-tabs');
+    // Obter nomes das categorias
+    const categoryNames = state.categories.map(c => c.name);
     // Filtrar categorias que têm produtos ativos
-    const activeCategories = state.categories.filter(cat => 
-        state.products.some(p => p.category === cat && (p.active === 1 || p.active === true))
+    const activeCategories = categoryNames.filter(cat => 
+        state.products.some(p => (p.category === cat) && (p.active === 1 || p.active === true))
     );
     if (activeCategories.length === 0) {
         container.innerHTML = '<button style="background:transparent;color:#888;cursor:default;padding:8px 16px;">Nenhuma categoria</button>';
@@ -215,13 +220,12 @@ function scrollToCategory(category) {
 }
 
 // ============================================================
-//  RENDER MENU - CORRIGIDO
+//  RENDER MENU - CORRIGIDO (COMPARAÇÃO CORRETA)
 // ============================================================
 function renderMenu() {
     const container = document.getElementById('products-container');
     if (!container) return;
 
-    // Verificar se há produtos
     if (!state.products || state.products.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -232,7 +236,6 @@ function renderMenu() {
         return;
     }
 
-    // Filtrar produtos ativos (active = 1 ou true)
     const activeProducts = state.products.filter(p => p.active === 1 || p.active === true);
     
     if (activeProducts.length === 0) {
@@ -240,31 +243,37 @@ function renderMenu() {
             <div class="empty-state">
                 <div class="big-icon">🍽️</div>
                 <p>Nenhum produto ativo no momento.</p>
-                <p style="font-size:13px;color:#888;">Ative os produtos no painel administrativo.</p>
             </div>
         `;
         return;
     }
 
-    // Obter categorias que têm produtos ativos
-    const activeCategories = state.categories.filter(cat => 
-        activeProducts.some(p => p.category === cat)
-    );
+    // Obter nomes das categorias
+    const categoryNames = state.categories.map(c => c.name);
+    
+    // Agrupar produtos por categoria (incluindo "Sem categoria")
+    const productMap = {};
+    activeProducts.forEach(p => {
+        // Verificar se a categoria do produto existe na lista de categorias
+        const cat = categoryNames.includes(p.category) ? p.category : 'Sem categoria';
+        if (!productMap[cat]) productMap[cat] = [];
+        productMap[cat].push(p);
+    });
 
-    if (activeCategories.length === 0) {
+    const categories = Object.keys(productMap);
+
+    if (categories.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="big-icon">🏷️</div>
                 <p>Nenhuma categoria com produtos disponíveis.</p>
-                <p style="font-size:13px;color:#888;">Categorize seus produtos no painel administrativo.</p>
             </div>
         `;
         return;
     }
 
-    // Renderizar produtos por categoria
-    container.innerHTML = activeCategories.map(cat => {
-        const items = activeProducts.filter(p => p.category === cat);
+    container.innerHTML = categories.map(cat => {
+        const items = productMap[cat];
         return `
             <div class="category-section" id="category-${cat.replace(/\s+/g, '-')}">
                 <div class="category-title">${cat}</div>
