@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
 import ProductModal from './ProductModal';
+import CategoryModal from './CategoryModal';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
@@ -11,8 +12,10 @@ const AdminLayout = () => {
     const [categories, setCategories] = useState([]);
     const [orders, setOrders] = useState([]);
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [editingCategory, setEditingCategory] = useState(null);
 
     const loadData = async () => {
         try {
@@ -36,18 +39,17 @@ const AdminLayout = () => {
         loadData();
     }, [tenant]);
 
+    // === PRODUTOS ===
     const handleSaveProduct = async (productData) => {
         try {
             if (editingProduct) {
-                // Editar
                 await api.put(`/products/${editingProduct.id}`, productData);
             } else {
-                // Criar
                 await api.post('/products', productData);
             }
             await loadData();
             setEditingProduct(null);
-            setIsModalOpen(false);
+            setIsProductModalOpen(false);
         } catch (error) {
             console.error('Erro ao salvar produto:', error);
             throw error;
@@ -55,24 +57,66 @@ const AdminLayout = () => {
     };
 
     const handleDeleteProduct = async (id) => {
-        if (!confirm('Tem certeza que deseja remover este produto?')) return;
+    if (!confirm('Tem certeza que deseja remover este produto?')) return;
+    try {
+        // Buscar o produto para obter a URL da imagem
+        const product = products.find(p => p.id === id);
+        
+        // Se tiver imagem, deletar do Cloudinary
+        if (product?.image_url) {
+            try {
+                // Extrair public_id da URL
+                const urlParts = product.image_url.split('/');
+                const filename = urlParts[urlParts.length - 1].split('.')[0];
+                const folder = urlParts[urlParts.length - 2];
+                const publicId = `${folder}/${filename}`;
+                
+                await api.post('/upload/delete', { 
+                    public_id: publicId,
+                    config_key: null // Não é uma configuração
+                });
+                console.log('🗑️ Imagem deletada do Cloudinary');
+            } catch (imgError) {
+                console.warn('⚠️ Erro ao deletar imagem do Cloudinary:', imgError);
+                // Continua mesmo se a imagem não for deletada
+            }
+        }
+        
+        // Deletar o produto do banco
+        await api.delete(`/products/${id}`);
+        await loadData();
+    } catch (error) {
+        console.error('Erro ao deletar produto:', error);
+        alert('Erro ao deletar produto.');
+    }
+};
+
+    // === CATEGORIAS ===
+    const handleSaveCategory = async (categoryData) => {
         try {
-            await api.delete(`/products/${id}`);
+            if (editingCategory) {
+                await api.put(`/categories/${editingCategory.id}`, categoryData);
+            } else {
+                await api.post('/categories', categoryData);
+            }
             await loadData();
+            setEditingCategory(null);
+            setIsCategoryModalOpen(false);
         } catch (error) {
-            console.error('Erro ao deletar produto:', error);
-            alert('Erro ao deletar produto.');
+            console.error('Erro ao salvar categoria:', error);
+            throw error;
         }
     };
 
-    const handleEditProduct = (product) => {
-        setEditingProduct(product);
-        setIsModalOpen(true);
-    };
-
-    const handleAddProduct = () => {
-        setEditingProduct(null);
-        setIsModalOpen(true);
+    const handleDeleteCategory = async (id) => {
+        if (!confirm('Tem certeza que deseja remover esta categoria?')) return;
+        try {
+            await api.delete(`/categories/${id}`);
+            await loadData();
+        } catch (error) {
+            console.error('Erro ao deletar categoria:', error);
+            alert('Erro ao deletar categoria.');
+        }
     };
 
     const updateOrderStatus = async (orderId, status) => {
@@ -109,6 +153,12 @@ const AdminLayout = () => {
                     📦 Produtos
                 </button>
                 <button 
+                    className={activeTab === 'categories' ? 'active' : ''}
+                    onClick={() => setActiveTab('categories')}
+                >
+                    🏷️ Categorias
+                </button>
+                <button 
                     className={activeTab === 'orders' ? 'active' : ''}
                     onClick={() => setActiveTab('orders')}
                 >
@@ -117,6 +167,7 @@ const AdminLayout = () => {
             </nav>
 
             <div className="admin-content">
+                {/* DASHBOARD */}
                 {activeTab === 'dashboard' && (
                     <div className="dashboard-grid">
                         <div className="dashboard-card">
@@ -138,11 +189,15 @@ const AdminLayout = () => {
                     </div>
                 )}
 
+                {/* PRODUTOS */}
                 {activeTab === 'products' && (
                     <div className="products-admin">
                         <div className="products-header">
                             <h2>📦 Produtos</h2>
-                            <button className="btn-add" onClick={handleAddProduct}>
+                            <button className="btn-add" onClick={() => {
+                                setEditingProduct(null);
+                                setIsProductModalOpen(true);
+                            }}>
                                 + Adicionar
                             </button>
                         </div>
@@ -166,7 +221,10 @@ const AdminLayout = () => {
                                         </span>
                                     </div>
                                     <div className="product-actions">
-                                        <button className="btn-edit" onClick={() => handleEditProduct(p)}>
+                                        <button className="btn-edit" onClick={() => {
+                                            setEditingProduct(p);
+                                            setIsProductModalOpen(true);
+                                        }}>
                                             ✏️
                                         </button>
                                         <button className="btn-delete" onClick={() => handleDeleteProduct(p.id)}>
@@ -179,6 +237,45 @@ const AdminLayout = () => {
                     </div>
                 )}
 
+                {/* CATEGORIAS */}
+                {activeTab === 'categories' && (
+                    <div className="categories-admin">
+                        <div className="categories-header">
+                            <h2>🏷️ Categorias</h2>
+                            <button className="btn-add" onClick={() => {
+                                setEditingCategory(null);
+                                setIsCategoryModalOpen(true);
+                            }}>
+                                + Nova Categoria
+                            </button>
+                        </div>
+                        {categories.length === 0 ? (
+                            <p>Nenhuma categoria cadastrada.</p>
+                        ) : (
+                            categories.map(c => (
+                                <div key={c.id} className="category-item-admin">
+                                    <div className="category-info">
+                                        <span className="category-name">{c.name}</span>
+                                        <span className="category-order">Ordem: {c.display_order || 1}</span>
+                                    </div>
+                                    <div className="category-actions">
+                                        <button className="btn-edit" onClick={() => {
+                                            setEditingCategory(c);
+                                            setIsCategoryModalOpen(true);
+                                        }}>
+                                            ✏️
+                                        </button>
+                                        <button className="btn-delete" onClick={() => handleDeleteCategory(c.id)}>
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
+
+                {/* PEDIDOS */}
                 {activeTab === 'orders' && (
                     <div className="orders-admin">
                         <h2>📋 Pedidos</h2>
@@ -240,16 +337,26 @@ const AdminLayout = () => {
                 )}
             </div>
 
-            {/* MODAL DE PRODUTO */}
+            {/* MODAIS */}
             <ProductModal
-                isOpen={isModalOpen}
+                isOpen={isProductModalOpen}
                 onClose={() => {
-                    setIsModalOpen(false);
+                    setIsProductModalOpen(false);
                     setEditingProduct(null);
                 }}
                 onSave={handleSaveProduct}
                 product={editingProduct}
                 categories={categories}
+            />
+
+            <CategoryModal
+                isOpen={isCategoryModalOpen}
+                onClose={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                }}
+                onSave={handleSaveCategory}
+                category={editingCategory}
             />
         </div>
     );

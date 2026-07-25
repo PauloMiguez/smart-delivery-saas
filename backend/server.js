@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 
 // ============================================================
 //  IMPORTS CLOUDINARY
@@ -19,9 +20,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================================
-//  MIDDLEWARES
+//  MIDDLEWARES - CORS CONFIGURADO UMA VEZ
 // ============================================================
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://smart-delivery-saas.onrender.com', 'http://localhost:3000'],
+    credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
@@ -721,23 +725,48 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR)
+//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR) - CORRIGIDA
 // ============================================================
 
 // Obter configurações
 app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
+        console.log('🔧 [CONFIG] Tenant recebido:', tenantId);
+        
         if (!tenantId) {
-            return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
+            console.log('❌ [CONFIG] Tenant não encontrado');
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Tenant não encontrado' 
+            });
         }
 
-        console.log('🔧 Buscando config para tenant:', tenantId);
+        // Verificar se o tenant existe
+        console.log('🔍 [CONFIG] Verificando tenant no banco...');
+        const [tenant] = await pool.query(
+            'SELECT id FROM tenants WHERE id = ?',
+            [tenantId]
+        );
 
+        if (tenant.length === 0) {
+            console.log('❌ [CONFIG] Tenant não existe:', tenantId);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Tenant não encontrado' 
+            });
+        }
+
+        console.log('✅ [CONFIG] Tenant encontrado:', tenantId);
+
+        // Buscar configurações
+        console.log('🔍 [CONFIG] Buscando configurações...');
         const [rows] = await pool.query(
             'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
             [tenantId]
         );
+
+        console.log('📊 [CONFIG] Linhas encontradas:', rows.length);
 
         // Converter array de chave-valor para objeto
         const config = {};
@@ -761,11 +790,15 @@ app.get('/api/config', async (req, res) => {
         // Mesclar com valores do banco
         const finalConfig = { ...defaultConfig, ...config };
 
-        console.log('✅ Config carregada:', finalConfig);
+        console.log('✅ [CONFIG] Config carregada com sucesso!');
         res.json({ success: true, data: finalConfig });
     } catch (error) {
-        console.error('❌ Erro ao carregar configurações:', error);
-        res.status(500).json({ success: false, error: 'Erro ao carregar configurações' });
+        console.error('❌ [CONFIG] Erro detalhado:', error);
+        console.error('❌ [CONFIG] Stack:', error.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao carregar configurações: ' + error.message 
+        });
     }
 });
 
@@ -920,37 +953,6 @@ app.post('/api/upload/product', verifyToken, uploadProduct.single('image'), asyn
     } catch (error) {
         console.error('❌ Erro no upload da imagem do produto:', error);
         res.status(500).json({ success: false, error: 'Erro ao enviar imagem do produto' });
-    }
-});
-
-// Deletar imagem
-app.post('/api/upload/delete', verifyToken, async (req, res) => {
-    try {
-        const { public_id, config_key } = req.body;
-        const tenantId = req.tenantId;
-
-        if (!public_id) {
-            return res.status(400).json({ success: false, error: 'public_id é obrigatório' });
-        }
-
-        console.log('🗑️ Deletando imagem:', public_id);
-
-        // Deletar do Cloudinary
-        await deleteImage(public_id);
-
-        // Remover do banco (se tiver config_key)
-        if (config_key) {
-            await pool.query(
-                `UPDATE config SET config_value = NULL 
-                 WHERE tenant_id = ? AND config_key = ?`,
-                [tenantId, config_key]
-            );
-        }
-
-        res.json({ success: true, message: 'Imagem removida com sucesso!' });
-    } catch (error) {
-        console.error('❌ Erro ao deletar imagem:', error);
-        res.status(500).json({ success: false, error: 'Erro ao deletar imagem' });
     }
 });
 
@@ -1127,6 +1129,53 @@ app.use((req, res) => {
             res.status(404).send('Página não encontrada');
         }
     });
+});
+
+// ============================================================
+//  SERVE REACT BUILD (SE EXISTIR)
+// ============================================================
+const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
+if (fs.existsSync(REACT_BUILD_PATH)) {
+    console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
+    app.use(express.static(REACT_BUILD_PATH));
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api/') && !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
+            res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
+        }
+    });
+}
+
+// ============================================================
+//  ROTA DE DELETE DE IMAGEM (CORRIGIDA - ÚNICA VERSÃO)
+// ============================================================
+app.post('/api/upload/delete', verifyToken, async (req, res) => {
+    try {
+        const { public_id, config_key } = req.body;
+        const tenantId = req.tenantId;
+
+        if (!public_id) {
+            return res.status(400).json({ success: false, error: 'public_id é obrigatório' });
+        }
+
+        console.log('🗑️ Deletando imagem:', public_id);
+
+        // Deletar do Cloudinary usando a função do upload.js
+        await deleteImage(public_id);
+
+        // Remover do banco (se tiver config_key)
+        if (config_key) {
+            await pool.query(
+                `UPDATE config SET config_value = NULL 
+                 WHERE tenant_id = ? AND config_key = ?`,
+                [tenantId, config_key]
+            );
+        }
+
+        res.json({ success: true, message: 'Imagem removida com sucesso!' });
+    } catch (error) {
+        console.error('❌ Erro ao deletar imagem:', error);
+        res.status(500).json({ success: false, error: 'Erro ao deletar imagem: ' + error.message });
+    }
 });
 
 // ============================================================

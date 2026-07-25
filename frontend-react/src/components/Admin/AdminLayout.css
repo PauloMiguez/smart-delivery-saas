@@ -228,6 +228,67 @@
 }
 
 /* ============================================================
+   CATEGORIAS - ESTILOS COMPLETOS
+   ============================================================ */
+.categories-admin {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.categories-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.categories-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.category-item-admin {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 8px;
+    border-bottom: 1px solid #f5f5f5;
+    gap: 12px;
+}
+
+.category-item-admin:last-child {
+    border-bottom: none;
+}
+
+.category-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.category-name {
+    font-weight: 500;
+    color: #333;
+    font-size: 15px;
+}
+
+.category-order {
+    font-size: 13px;
+    color: #888;
+}
+
+.category-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ============================================================
    PEDIDOS - ESTILOS COMPLETOS
    ============================================================ */
 .orders-admin {
@@ -410,17 +471,20 @@
         font-size: 24px;
     }
 
-    .product-item-admin {
+    .product-item-admin,
+    .category-item-admin {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
 
-    .product-info {
+    .product-info,
+    .category-info {
         width: 100%;
     }
 
-    .product-actions {
+    .product-actions,
+    .category-actions {
         width: 100%;
         justify-content: flex-end;
     }

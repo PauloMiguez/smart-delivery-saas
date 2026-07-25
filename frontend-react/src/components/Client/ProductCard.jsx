@@ -13,6 +13,18 @@ const ProductCard = ({ product }) => {
 
     return (
         <div className="product-card">
+            {product.image_url && (
+                <div className="product-image">
+                    <img 
+                        src={product.image_url} 
+                        alt={product.name} 
+                        loading="lazy"
+                        onError={(e) => {
+                            e.target.style.display = 'none';
+                        }}
+                    />
+                </div>
+            )}
             <div className="product-info">
                 <h3>{product.name}</h3>
                 <p className="product-desc">{product.description}</p>

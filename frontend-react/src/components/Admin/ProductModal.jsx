@@ -53,14 +53,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Validar tipo
         const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (!validTypes.includes(file.type)) {
             setError('Formato inválido. Use JPG, PNG, GIF ou WEBP.');
             return;
         }
 
-        // Validar tamanho (5MB)
         if (file.size > 5 * 1024 * 1024) {
             setError('Imagem muito grande. Máximo 5MB.');
             return;
@@ -69,12 +67,32 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         setImageFile(file);
         setError('');
 
-        // Preview local
         const reader = new FileReader();
         reader.onload = (e) => {
             setImagePreview(e.target.result);
         };
         reader.readAsDataURL(file);
+    };
+
+    // === FUNÇÃO removeImage (APENAS UMA VEZ!) ===
+    const removeImage = () => {
+        // Se for edição e tiver imagem, perguntar se quer remover
+        if (product?.image_url) {
+            if (confirm('Deseja remover a imagem atual?')) {
+                setImagePreview('');
+                setImageFile(null);
+                // Marcar que a imagem deve ser removida
+                setFormData(prev => ({ ...prev, _removeImage: true }));
+                // Limpar o input file
+                const input = document.getElementById('product-image-input');
+                if (input) input.value = '';
+            }
+        } else {
+            setImagePreview('');
+            setImageFile(null);
+            const input = document.getElementById('product-image-input');
+            if (input) input.value = '';
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -83,7 +101,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         setError('');
 
         try {
-            // Validar campos
             if (!formData.name || !formData.price || !formData.category) {
                 setError('Preencha todos os campos obrigatórios.');
                 setLoading(false);
@@ -92,8 +109,10 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
 
             let imageUrl = product?.image_url || '';
 
-            // Upload da imagem se houver novo arquivo
-            if (imageFile) {
+            // Verificar se deve remover a imagem
+            if (formData._removeImage) {
+                imageUrl = null;
+            } else if (imageFile) {
                 const uploadFormData = new FormData();
                 uploadFormData.append('image', imageFile);
 
@@ -118,6 +137,9 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                 active: formData.active ? 1 : 0
             };
 
+            // Remover o campo _removeImage antes de enviar
+            delete productData._removeImage;
+
             await onSave(productData);
             onClose();
         } catch (error) {
@@ -126,13 +148,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const removeImage = () => {
-        setImagePreview('');
-        setImageFile(null);
-        const input = document.getElementById('product-image-input');
-        if (input) input.value = '';
     };
 
     return (
