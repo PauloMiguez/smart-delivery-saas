@@ -1,0 +1,79 @@
+.product-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fff;
+    margin-bottom: 8px;
+}
+
+.product-info {
+    flex: 1;
+}
+
+.product-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+}
+
+.product-desc {
+    margin: 0 0 4px 0;
+    color: #888;
+    font-size: 14px;
+}
+
+.product-price {
+    margin: 0;
+    font-weight: 600;
+    font-size: 16px;
+    color: #e67e22;
+}
+
+.product-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qty-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qty-control button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.qty-control button:hover {
+    background: #f5f5f5;
+}
+
+.qty-control span {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.btn-add {
+    padding: 8px 16px;
+    background: #e67e22;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.btn-add:hover {
+    background: #d35400;
+}
