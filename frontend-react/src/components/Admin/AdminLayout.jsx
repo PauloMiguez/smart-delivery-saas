@@ -3,6 +3,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
 import ProductModal from './ProductModal';
 import CategoryModal from './CategoryModal';
+import Config from './Config';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
@@ -57,39 +58,38 @@ const AdminLayout = () => {
     };
 
     const handleDeleteProduct = async (id) => {
-    if (!confirm('Tem certeza que deseja remover este produto?')) return;
-    try {
-        // Buscar o produto para obter a URL da imagem
-        const product = products.find(p => p.id === id);
-        
-        // Se tiver imagem, deletar do Cloudinary
-        if (product?.image_url) {
-            try {
-                // Extrair public_id da URL
-                const urlParts = product.image_url.split('/');
-                const filename = urlParts[urlParts.length - 1].split('.')[0];
-                const folder = urlParts[urlParts.length - 2];
-                const publicId = `${folder}/${filename}`;
-                
-                await api.post('/upload/delete', { 
-                    public_id: publicId,
-                    config_key: null // Não é uma configuração
-                });
-                console.log('🗑️ Imagem deletada do Cloudinary');
-            } catch (imgError) {
-                console.warn('⚠️ Erro ao deletar imagem do Cloudinary:', imgError);
-                // Continua mesmo se a imagem não for deletada
+        if (!confirm('Tem certeza que deseja remover este produto?')) return;
+        try {
+            // Buscar o produto para obter a URL da imagem
+            const product = products.find(p => p.id === id);
+            
+            // Se tiver imagem, deletar do Cloudinary
+            if (product?.image_url) {
+                try {
+                    // Extrair public_id da URL
+                    const urlParts = product.image_url.split('/');
+                    const filename = urlParts[urlParts.length - 1].split('.')[0];
+                    const folder = urlParts[urlParts.length - 2];
+                    const publicId = `${folder}/${filename}`;
+                    
+                    await api.post('/upload/delete', { 
+                        public_id: publicId,
+                        config_key: null
+                    });
+                    console.log('🗑️ Imagem deletada do Cloudinary');
+                } catch (imgError) {
+                    console.warn('⚠️ Erro ao deletar imagem do Cloudinary:', imgError);
+                }
             }
+            
+            // Deletar o produto do banco
+            await api.delete(`/products/${id}`);
+            await loadData();
+        } catch (error) {
+            console.error('Erro ao deletar produto:', error);
+            alert('Erro ao deletar produto.');
         }
-        
-        // Deletar o produto do banco
-        await api.delete(`/products/${id}`);
-        await loadData();
-    } catch (error) {
-        console.error('Erro ao deletar produto:', error);
-        alert('Erro ao deletar produto.');
-    }
-};
+    };
 
     // === CATEGORIAS ===
     const handleSaveCategory = async (categoryData) => {
@@ -119,6 +119,7 @@ const AdminLayout = () => {
         }
     };
 
+    // === PEDIDOS ===
     const updateOrderStatus = async (orderId, status) => {
         try {
             await api.put(`/orders/${orderId}/status`, { status });
@@ -163,6 +164,12 @@ const AdminLayout = () => {
                     onClick={() => setActiveTab('orders')}
                 >
                     📋 Pedidos
+                </button>
+                <button 
+                    className={activeTab === 'config' ? 'active' : ''}
+                    onClick={() => setActiveTab('config')}
+                >
+                    ⚙️ Configurações
                 </button>
             </nav>
 
@@ -335,6 +342,9 @@ const AdminLayout = () => {
                         )}
                     </div>
                 )}
+
+                {/* CONFIGURAÇÕES */}
+                {activeTab === 'config' && <Config />}
             </div>
 
             {/* MODAIS */}
