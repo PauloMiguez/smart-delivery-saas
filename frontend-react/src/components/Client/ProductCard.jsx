@@ -1,6 +1,81 @@
 import React, { useState } from 'react';
+import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
-import './ProductCard.css';
+import { Card, Button, Flex } from '../Shared/Container';
+
+const ProductImage = styled.div`
+    width: 100%;
+    height: 180px;
+    background: ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+    overflow: hidden;
+    margin-bottom: ${props => props.theme.spacing.md};
+    
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    
+    &:hover img {
+        transform: scale(1.05);
+    }
+`;
+
+const ProductName = styled.h3`
+    font-size: 16px;
+    font-weight: 600;
+    color: ${props => props.theme.colors.text};
+    margin-bottom: 4px;
+`;
+
+const ProductDesc = styled.p`
+    font-size: 14px;
+    color: ${props => props.theme.colors.textLight};
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+`;
+
+const ProductPrice = styled.div`
+    font-size: 20px;
+    font-weight: 700;
+    color: ${props => props.theme.colors.primary};
+    margin-bottom: ${props => props.theme.spacing.md};
+`;
+
+const QtyControl = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    button {
+        width: 32px;
+        height: 32px;
+        border: 1px solid ${props => props.theme.colors.border};
+        border-radius: ${props => props.theme.borderRadius.round};
+        background: #fff;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s ease;
+        
+        &:hover {
+            background: ${props => props.theme.colors.primary};
+            color: #fff;
+            border-color: ${props => props.theme.colors.primary};
+        }
+    }
+    
+    span {
+        min-width: 24px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 16px;
+    }
+`;
 
 const ProductCard = ({ product }) => {
     const { addToCart } = useCart();
@@ -12,33 +87,30 @@ const ProductCard = ({ product }) => {
     };
 
     return (
-        <div className="product-card">
+        <Card>
             {product.image_url && (
-                <div className="product-image">
-                    <img 
-                        src={product.image_url} 
-                        alt={product.name} 
-                        loading="lazy"
-                        onError={(e) => {
-                            e.target.style.display = 'none';
-                        }}
-                    />
-                </div>
+                <ProductImage>
+                    <img src={product.image_url} alt={product.name} loading="lazy" />
+                </ProductImage>
             )}
-            <div className="product-info">
-                <h3>{product.name}</h3>
-                <p className="product-desc">{product.description}</p>
-                <p className="product-price">R$ {parseFloat(product.price).toFixed(2)}</p>
-            </div>
-            <div className="product-actions">
-                <div className="qty-control">
+            
+            <ProductName>{product.name}</ProductName>
+            {product.description && (
+                <ProductDesc>{product.description}</ProductDesc>
+            )}
+            <ProductPrice>R$ {parseFloat(product.price).toFixed(2)}</ProductPrice>
+            
+            <Flex between>
+                <QtyControl>
                     <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
                     <span>{qty}</span>
                     <button onClick={() => setQty(qty + 1)}>+</button>
-                </div>
-                <button className="btn-add" onClick={handleAdd}>Adicionar</button>
-            </div>
-        </div>
+                </QtyControl>
+                <Button primary small onClick={handleAdd}>
+                    Adicionar
+                </Button>
+            </Flex>
+        </Card>
     );
 };
 

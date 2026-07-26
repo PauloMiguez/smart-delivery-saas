@@ -1,7 +1,176 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
-import './Config.css';
+import styled from 'styled-components';
+import { Button, Input, Card } from '../Shared/Container';
+
+const ConfigContainer = styled.div`
+    max-width: 800px;
+    margin: 0 auto;
+`;
+
+const ConfigTitle = styled.h2`
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: ${props => props.theme.colors.text};
+`;
+
+const ConfigSection = styled(Card)`
+    margin-bottom: 20px;
+    padding: 20px;
+
+    h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: ${props => props.theme.colors.text};
+        margin: 0 0 16px 0;
+        padding-bottom: 12px;
+        border-bottom: 1px solid ${props => props.theme.colors.border};
+    }
+`;
+
+const FormGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+
+    label {
+        font-weight: 600;
+        font-size: 14px;
+        color: ${props => props.theme.colors.textLight};
+    }
+
+    small {
+        color: ${props => props.theme.colors.textMuted};
+        font-size: 12px;
+    }
+`;
+
+const FormRow = styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 480px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const CheckboxGroup = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    label {
+        font-weight: 400;
+        cursor: pointer;
+        color: ${props => props.theme.colors.text};
+    }
+
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: ${props => props.theme.colors.primary};
+    }
+`;
+
+const ImageUploadArea = styled.div`
+    border: 2px dashed ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.3s;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+
+    &:hover {
+        border-color: ${props => props.theme.colors.primary};
+    }
+`;
+
+const ImageDropArea = styled.div`
+    position: relative;
+    cursor: pointer;
+    width: 100%;
+    padding: 20px;
+
+    span {
+        color: ${props => props.theme.colors.textMuted};
+        font-size: 14px;
+    }
+
+    input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+`;
+
+const ImagePreviewContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+`;
+
+const ImagePreview = styled.img`
+    max-width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    border-radius: ${props => props.theme.borderRadius.md};
+    border: 1px solid ${props => props.theme.colors.border};
+`;
+
+const RemoveImageButton = styled.button`
+    background: ${props => props.theme.colors.danger};
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: ${props => props.theme.borderRadius.sm};
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+
+    &:hover {
+        background: #c0392b;
+    }
+`;
+
+const SaveButton = styled(Button)`
+    padding: 14px 28px;
+    font-size: 16px;
+    width: 100%;
+`;
+
+const Message = styled.div`
+    padding: 12px 16px;
+    border-radius: ${props => props.theme.borderRadius.md};
+    font-weight: 500;
+    margin-bottom: 16px;
+
+    ${props => props.success && `
+        background: #eafaf1;
+        color: ${props.theme.colors.success};
+        border-left: 3px solid ${props.theme.colors.success};
+    `}
+
+    ${props => props.error && `
+        background: #fdedec;
+        color: ${props.theme.colors.danger};
+        border-left: 3px solid ${props.theme.colors.danger};
+    `}
+`;
 
 const Config = () => {
     const { tenant } = useTenant();
@@ -17,7 +186,7 @@ const Config = () => {
         logo_image: ''
     });
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState(null);
     const [bannerFile, setBannerFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [bannerPreview, setBannerPreview] = useState('');
@@ -63,19 +232,13 @@ const Config = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            setMessage({ type: 'error', text: 'Formato inválido. Use JPG, PNG, GIF ou WEBP.' });
-            return;
-        }
-
         if (file.size > 5 * 1024 * 1024) {
             setMessage({ type: 'error', text: 'Imagem muito grande. Máximo 5MB.' });
             return;
         }
 
         setBannerFile(file);
-        setMessage('');
+        setMessage(null);
 
         const reader = new FileReader();
         reader.onload = (e) => setBannerPreview(e.target.result);
@@ -86,19 +249,13 @@ const Config = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            setMessage({ type: 'error', text: 'Formato inválido. Use JPG, PNG, GIF ou WEBP.' });
-            return;
-        }
-
         if (file.size > 5 * 1024 * 1024) {
             setMessage({ type: 'error', text: 'Imagem muito grande. Máximo 5MB.' });
             return;
         }
 
         setLogoFile(file);
-        setMessage('');
+        setMessage(null);
 
         const reader = new FileReader();
         reader.onload = (e) => setLogoPreview(e.target.result);
@@ -122,13 +279,12 @@ const Config = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage('');
+        setMessage(null);
 
         try {
             let bannerUrl = config.banner_image;
             let logoUrl = config.logo_image;
 
-            // Upload do banner se houver novo arquivo
             if (bannerFile) {
                 const formData = new FormData();
                 formData.append('image', bannerFile);
@@ -143,7 +299,6 @@ const Config = () => {
                 }
             }
 
-            // Upload do logo se houver novo arquivo
             if (logoFile) {
                 const formData = new FormData();
                 formData.append('image', logoFile);
@@ -182,22 +337,22 @@ const Config = () => {
     };
 
     return (
-        <div className="config-container">
-            <h2>⚙️ Configurações da Loja</h2>
+        <ConfigContainer>
+            <ConfigTitle>⚙️ Configurações da Loja</ConfigTitle>
 
             {message && (
-                <div className={`config-message ${message.type}`}>
+                <Message success={message.type === 'success'} error={message.type === 'error'}>
                     {message.text}
-                </div>
+                </Message>
             )}
 
-            <form onSubmit={handleSubmit} className="config-form">
-                <div className="config-section">
+            <form onSubmit={handleSubmit}>
+                <ConfigSection>
                     <h3>Informações Básicas</h3>
                     
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Nome da Loja *</label>
-                        <input
+                        <Input
                             type="text"
                             name="store_name"
                             value={config.store_name}
@@ -205,11 +360,11 @@ const Config = () => {
                             placeholder="Ex: Fire Burger"
                             required
                         />
-                    </div>
+                    </FormGroup>
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Telefone (WhatsApp)</label>
-                        <input
+                        <Input
                             type="text"
                             name="store_phone"
                             value={config.store_phone}
@@ -217,11 +372,11 @@ const Config = () => {
                             placeholder="(XX) XXXXX-XXXX"
                         />
                         <small>Número para receber notificações de pedidos.</small>
-                    </div>
+                    </FormGroup>
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Taxa de Entrega (R$)</label>
-                        <input
+                        <Input
                             type="number"
                             name="delivery_fee"
                             value={config.delivery_fee}
@@ -229,75 +384,69 @@ const Config = () => {
                             step="0.01"
                             min="0"
                         />
-                    </div>
+                    </FormGroup>
 
-                    <div className="form-row">
-                        <div className="form-group">
+                    <FormRow>
+                        <FormGroup>
                             <label>Horário de Abertura</label>
-                            <input
+                            <Input
                                 type="time"
                                 name="open_time"
                                 value={config.open_time}
                                 onChange={handleChange}
                             />
-                        </div>
-                        <div className="form-group">
+                        </FormGroup>
+                        <FormGroup>
                             <label>Horário de Fechamento</label>
-                            <input
+                            <Input
                                 type="time"
                                 name="close_time"
                                 value={config.close_time}
                                 onChange={handleChange}
                             />
-                        </div>
-                    </div>
+                        </FormGroup>
+                    </FormRow>
 
-                    <div className="form-group checkbox-group">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                name="is_open"
-                                checked={config.is_open}
-                                onChange={handleChange}
-                            />
-                            Loja aberta para pedidos
-                        </label>
-                    </div>
-                </div>
-
-                <div className="config-section">
-                    <h3>📍 Endereço</h3>
-                    <div className="form-group">
-                        <label>Endereço completo</label>
+                    <CheckboxGroup>
                         <input
+                            type="checkbox"
+                            name="is_open"
+                            checked={config.is_open}
+                            onChange={handleChange}
+                        />
+                        <label>Loja aberta para pedidos</label>
+                    </CheckboxGroup>
+                </ConfigSection>
+
+                <ConfigSection>
+                    <h3>📍 Endereço</h3>
+                    <FormGroup>
+                        <label>Endereço completo</label>
+                        <Input
                             type="text"
                             name="store_address"
                             value={config.store_address}
                             onChange={handleChange}
                             placeholder="Rua, número, bairro, cidade - UF"
                         />
-                    </div>
-                </div>
+                    </FormGroup>
+                </ConfigSection>
 
-                <div className="config-section">
+                <ConfigSection>
                     <h3>🖼️ Imagens da Loja</h3>
                     
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Banner (topo da página)</label>
-                        <div className="image-upload-area">
+                        <ImageUploadArea>
                             {bannerPreview ? (
-                                <div className="image-preview-container">
-                                    <img src={bannerPreview} alt="Banner" className="image-preview" />
-                                    <button
-                                        type="button"
-                                        className="btn-remove-image"
-                                        onClick={removeBanner}
-                                    >
+                                <ImagePreviewContainer>
+                                    <ImagePreview src={bannerPreview} alt="Banner" />
+                                    <RemoveImageButton type="button" onClick={removeBanner}>
                                         ✕ Remover
-                                    </button>
-                                </div>
+                                    </RemoveImageButton>
+                                </ImagePreviewContainer>
                             ) : (
-                                <div className="image-drop-area">
+                                <ImageDropArea>
                                     <span>📸 Clique para selecionar um banner</span>
                                     <input
                                         id="banner-upload"
@@ -305,28 +454,24 @@ const Config = () => {
                                         accept="image/*"
                                         onChange={handleBannerChange}
                                     />
-                                </div>
+                                </ImageDropArea>
                             )}
-                            <small className="image-hint">Tamanho recomendado: 1200x400px</small>
-                        </div>
-                    </div>
+                        </ImageUploadArea>
+                        <small>Tamanho recomendado: 1200x400px</small>
+                    </FormGroup>
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Logo (redonda)</label>
-                        <div className="image-upload-area">
+                        <ImageUploadArea>
                             {logoPreview ? (
-                                <div className="image-preview-container">
-                                    <img src={logoPreview} alt="Logo" className="image-preview logo-preview" />
-                                    <button
-                                        type="button"
-                                        className="btn-remove-image"
-                                        onClick={removeLogo}
-                                    >
+                                <ImagePreviewContainer>
+                                    <ImagePreview src={logoPreview} alt="Logo" style={{ maxWidth: 150, maxHeight: 150, borderRadius: '50%' }} />
+                                    <RemoveImageButton type="button" onClick={removeLogo}>
                                         ✕ Remover
-                                    </button>
-                                </div>
+                                    </RemoveImageButton>
+                                </ImagePreviewContainer>
                             ) : (
-                                <div className="image-drop-area">
+                                <ImageDropArea>
                                     <span>📸 Clique para selecionar um logo</span>
                                     <input
                                         id="logo-upload"
@@ -334,18 +479,18 @@ const Config = () => {
                                         accept="image/*"
                                         onChange={handleLogoChange}
                                     />
-                                </div>
+                                </ImageDropArea>
                             )}
-                            <small className="image-hint">Tamanho recomendado: 200x200px</small>
-                        </div>
-                    </div>
-                </div>
+                        </ImageUploadArea>
+                        <small>Tamanho recomendado: 200x200px</small>
+                    </FormGroup>
+                </ConfigSection>
 
-                <button type="submit" className="btn-save-config" disabled={loading}>
+                <SaveButton primary disabled={loading}>
                     {loading ? 'Salvando...' : '💾 Salvar Configurações'}
-                </button>
+                </SaveButton>
             </form>
-        </div>
+        </ConfigContainer>
     );
 };
 

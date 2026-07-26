@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import './ProductModal.css';
+import {
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalClose,
+    ModalForm,
+    FormGroup,
+    FormRow,
+    Input,
+    Select,
+    CheckboxGroup,
+    ModalActions,
+    Button,
+    ErrorMessage,
+    ImageUploadArea,
+    ImageDropArea,
+    ImagePreviewContainer,
+    ImagePreview,
+    RemoveImageButton
+} from '../Shared/Modal.styled';
 
 const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
     const [formData, setFormData] = useState({
@@ -53,12 +72,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            setError('Formato inválido. Use JPG, PNG, GIF ou WEBP.');
-            return;
-        }
-
         if (file.size > 5 * 1024 * 1024) {
             setError('Imagem muito grande. Máximo 5MB.');
             return;
@@ -68,31 +81,15 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
         setError('');
 
         const reader = new FileReader();
-        reader.onload = (e) => {
-            setImagePreview(e.target.result);
-        };
+        reader.onload = (e) => setImagePreview(e.target.result);
         reader.readAsDataURL(file);
     };
 
-    // === FUNÇÃO removeImage (APENAS UMA VEZ!) ===
     const removeImage = () => {
-        // Se for edição e tiver imagem, perguntar se quer remover
-        if (product?.image_url) {
-            if (confirm('Deseja remover a imagem atual?')) {
-                setImagePreview('');
-                setImageFile(null);
-                // Marcar que a imagem deve ser removida
-                setFormData(prev => ({ ...prev, _removeImage: true }));
-                // Limpar o input file
-                const input = document.getElementById('product-image-input');
-                if (input) input.value = '';
-            }
-        } else {
-            setImagePreview('');
-            setImageFile(null);
-            const input = document.getElementById('product-image-input');
-            if (input) input.value = '';
-        }
+        setImagePreview('');
+        setImageFile(null);
+        document.getElementById('product-image-input').value = '';
+        setFormData(prev => ({ ...prev, _removeImage: true }));
     };
 
     const handleSubmit = async (e) => {
@@ -109,7 +106,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
 
             let imageUrl = product?.image_url || '';
 
-            // Verificar se deve remover a imagem
             if (formData._removeImage) {
                 imageUrl = null;
             } else if (imageFile) {
@@ -137,7 +133,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                 active: formData.active ? 1 : 0
             };
 
-            // Remover o campo _removeImage antes de enviar
             delete productData._removeImage;
 
             await onSave(productData);
@@ -151,19 +146,19 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
+        <ModalOverlay onClick={onClose}>
+            <ModalContent onClick={(e) => e.stopPropagation()}>
+                <ModalHeader>
                     <h2>{product ? '✏️ Editar Produto' : '➕ Adicionar Produto'}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
-                </div>
+                    <ModalClose onClick={onClose}>✕</ModalClose>
+                </ModalHeader>
 
-                <form onSubmit={handleSubmit} className="modal-form">
-                    {error && <div className="form-error">{error}</div>}
+                <ModalForm onSubmit={handleSubmit}>
+                    {error && <ErrorMessage>{error}</ErrorMessage>}
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Nome do produto *</label>
-                        <input
+                        <Input
                             type="text"
                             name="name"
                             value={formData.name}
@@ -171,23 +166,23 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                             placeholder="Ex: X-Burguer"
                             required
                         />
-                    </div>
+                    </FormGroup>
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Descrição</label>
-                        <input
+                        <Input
                             type="text"
                             name="description"
                             value={formData.description}
                             onChange={handleChange}
                             placeholder="Breve descrição do produto"
                         />
-                    </div>
+                    </FormGroup>
 
-                    <div className="form-row">
-                        <div className="form-group">
+                    <FormRow>
+                        <FormGroup>
                             <label>Preço (R$) *</label>
-                            <input
+                            <Input
                                 type="number"
                                 name="price"
                                 value={formData.price}
@@ -197,11 +192,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                                 min="0"
                                 required
                             />
-                        </div>
+                        </FormGroup>
 
-                        <div className="form-group">
+                        <FormGroup>
                             <label>Categoria *</label>
-                            <select
+                            <Select
                                 name="category"
                                 value={formData.category}
                                 onChange={handleChange}
@@ -216,26 +211,22 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                                         </option>
                                     ))
                                 )}
-                            </select>
-                        </div>
-                    </div>
+                            </Select>
+                        </FormGroup>
+                    </FormRow>
 
-                    <div className="form-group">
+                    <FormGroup>
                         <label>Imagem do produto</label>
-                        <div className="image-upload-area">
+                        <ImageUploadArea>
                             {imagePreview ? (
-                                <div className="image-preview-container">
-                                    <img src={imagePreview} alt="Preview" className="image-preview" />
-                                    <button
-                                        type="button"
-                                        className="btn-remove-image"
-                                        onClick={removeImage}
-                                    >
+                                <ImagePreviewContainer>
+                                    <ImagePreview src={imagePreview} alt="Preview" />
+                                    <RemoveImageButton type="button" onClick={removeImage}>
                                         ✕ Remover
-                                    </button>
-                                </div>
+                                    </RemoveImageButton>
+                                </ImagePreviewContainer>
                             ) : (
-                                <div className="image-drop-area">
+                                <ImageDropArea>
                                     <span>📸 Clique para selecionar uma imagem</span>
                                     <input
                                         id="product-image-input"
@@ -243,35 +234,33 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                                         accept="image/*"
                                         onChange={handleImageChange}
                                     />
-                                </div>
+                                </ImageDropArea>
                             )}
-                            <small className="image-hint">Formatos: JPG, PNG, GIF, WEBP (máx. 5MB)</small>
-                        </div>
-                    </div>
+                        </ImageUploadArea>
+                        <small>Formatos: JPG, PNG, GIF, WEBP (máx. 5MB)</small>
+                    </FormGroup>
 
-                    <div className="form-group checkbox-group">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                name="active"
-                                checked={formData.active}
-                                onChange={handleChange}
-                            />
-                            Produto disponível
-                        </label>
-                    </div>
+                    <CheckboxGroup>
+                        <input
+                            type="checkbox"
+                            name="active"
+                            checked={formData.active}
+                            onChange={handleChange}
+                        />
+                        <label>Produto disponível</label>
+                    </CheckboxGroup>
 
-                    <div className="modal-actions">
-                        <button type="button" className="btn-cancel" onClick={onClose}>
+                    <ModalActions>
+                        <Button secondary type="button" onClick={onClose}>
                             Cancelar
-                        </button>
-                        <button type="submit" className="btn-save" disabled={loading}>
+                        </Button>
+                        <Button primary disabled={loading}>
                             {loading ? 'Salvando...' : (product ? 'Atualizar' : 'Adicionar')}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                        </Button>
+                    </ModalActions>
+                </ModalForm>
+            </ModalContent>
+        </ModalOverlay>
     );
 };
 

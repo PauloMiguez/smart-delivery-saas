@@ -1,15 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
+import {
+    AdminContainer,
+    Sidebar,
+    SidebarBrand,
+    NavItem,
+    MainContent,
+    PageHeader,
+    StatsGrid,
+    StatCard,
+    Table,
+    Badge,
+    ActionButton,
+    MobileToggle,
+    Overlay
+} from './AdminLayout.styled';
 import ProductModal from './ProductModal';
 import CategoryModal from './CategoryModal';
 import Config from './Config';
-import './AdminLayout.css';
+import ProductFilters from './ProductFilters';
+import Pagination from '../Shared/Pagination';
 
 const AdminLayout = () => {
     const { tenant, loading } = useTenant();
+    const { showToast } = useToast();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [orders, setOrders] = useState([]);
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -17,6 +37,18 @@ const AdminLayout = () => {
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [editingCategory, setEditingCategory] = useState(null);
+    
+    // Paginação
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+
+    // Filtros
+    const [filters, setFilters] = useState({
+        search: '',
+        category: '',
+        status: ''
+    });
 
     const loadData = async () => {
         try {
@@ -28,10 +60,13 @@ const AdminLayout = () => {
             ]);
             setStats(statsRes.data.data);
             setProducts(productsRes.data.data || []);
+            setFilteredProducts(productsRes.data.data || []);
             setCategories(categoriesRes.data.data || []);
             setOrders(ordersRes.data.data || []);
+            setCurrentPage(1);
         } catch (error) {
             console.error('Erro ao carregar dados do admin:', error);
+            showToast('Erro ao carregar dados.', 'error');
         }
     };
 
@@ -40,19 +75,80 @@ const AdminLayout = () => {
         loadData();
     }, [tenant]);
 
+    // Aplicar filtros
+    useEffect(() => {
+        applyFilters();
+    }, [products, filters]);
+
+    // Atualizar total de páginas
+    useEffect(() => {
+        setTotalPages(Math.ceil(filteredProducts.length / itemsPerPage) || 1);
+        if (currentPage > Math.ceil(filteredProducts.length / itemsPerPage)) {
+            setCurrentPage(1);
+        }
+    }, [filteredProducts, itemsPerPage]);
+
+    const applyFilters = () => {
+        let filtered = [...products];
+        
+        if (filters.search) {
+            const searchLower = filters.search.toLowerCase();
+            filtered = filtered.filter(p => 
+                p.name.toLowerCase().includes(searchLower) ||
+                (p.description && p.description.toLowerCase().includes(searchLower))
+            );
+        }
+        
+        if (filters.category) {
+            filtered = filtered.filter(p => p.category === filters.category);
+        }
+        
+        if (filters.status) {
+            const isActive = filters.status === 'active';
+            filtered = filtered.filter(p => p.active === isActive);
+        }
+        
+        setFilteredProducts(filtered);
+        setCurrentPage(1);
+    };
+
+    const handleFilter = (newFilters) => {
+        setFilters(newFilters);
+    };
+
+    // Paginação
+    const getCurrentItems = () => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredProducts.slice(startIndex, endIndex);
+    };
+
+    const handlePageChange = (page) => {
+        if (page < 1 || page > totalPages) return;
+        setCurrentPage(page);
+        // Scroll para o topo da lista
+        const productList = document.querySelector('.products-admin');
+        if (productList) {
+            productList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     // === PRODUTOS ===
     const handleSaveProduct = async (productData) => {
         try {
             if (editingProduct) {
                 await api.put(`/products/${editingProduct.id}`, productData);
+                showToast('Produto atualizado com sucesso!', 'success');
             } else {
                 await api.post('/products', productData);
+                showToast('Produto criado com sucesso!', 'success');
             }
             await loadData();
             setEditingProduct(null);
             setIsProductModalOpen(false);
         } catch (error) {
             console.error('Erro ao salvar produto:', error);
+            showToast('Erro ao salvar produto.', 'error');
             throw error;
         }
     };
@@ -60,13 +156,10 @@ const AdminLayout = () => {
     const handleDeleteProduct = async (id) => {
         if (!confirm('Tem certeza que deseja remover este produto?')) return;
         try {
-            // Buscar o produto para obter a URL da imagem
             const product = products.find(p => p.id === id);
             
-            // Se tiver imagem, deletar do Cloudinary
             if (product?.image_url) {
                 try {
-                    // Extrair public_id da URL
                     const urlParts = product.image_url.split('/');
                     const filename = urlParts[urlParts.length - 1].split('.')[0];
                     const folder = urlParts[urlParts.length - 2];
@@ -82,12 +175,12 @@ const AdminLayout = () => {
                 }
             }
             
-            // Deletar o produto do banco
             await api.delete(`/products/${id}`);
+            showToast('Produto removido com sucesso!', 'success');
             await loadData();
         } catch (error) {
             console.error('Erro ao deletar produto:', error);
-            alert('Erro ao deletar produto.');
+            showToast('Erro ao deletar produto.', 'error');
         }
     };
 
@@ -96,14 +189,17 @@ const AdminLayout = () => {
         try {
             if (editingCategory) {
                 await api.put(`/categories/${editingCategory.id}`, categoryData);
+                showToast('Categoria atualizada com sucesso!', 'success');
             } else {
                 await api.post('/categories', categoryData);
+                showToast('Categoria criada com sucesso!', 'success');
             }
             await loadData();
             setEditingCategory(null);
             setIsCategoryModalOpen(false);
         } catch (error) {
             console.error('Erro ao salvar categoria:', error);
+            showToast('Erro ao salvar categoria.', 'error');
             throw error;
         }
     };
@@ -112,10 +208,11 @@ const AdminLayout = () => {
         if (!confirm('Tem certeza que deseja remover esta categoria?')) return;
         try {
             await api.delete(`/categories/${id}`);
+            showToast('Categoria removida com sucesso!', 'success');
             await loadData();
         } catch (error) {
             console.error('Erro ao deletar categoria:', error);
-            alert('Erro ao deletar categoria.');
+            showToast('Erro ao deletar categoria.', 'error');
         }
     };
 
@@ -123,229 +220,325 @@ const AdminLayout = () => {
     const updateOrderStatus = async (orderId, status) => {
         try {
             await api.put(`/orders/${orderId}/status`, { status });
+            showToast(`Pedido atualizado para: ${status}`, 'success');
             await loadData();
         } catch (error) {
             console.error('Erro ao atualizar status:', error);
-            alert('Erro ao atualizar status do pedido.');
+            showToast('Erro ao atualizar status do pedido.', 'error');
         }
     };
 
-    if (loading) return <div className="admin-loader">Carregando...</div>;
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'products', label: 'Produtos', icon: '📦' },
+        { id: 'categories', label: 'Categorias', icon: '🏷️' },
+        { id: 'orders', label: 'Pedidos', icon: '📋' },
+        { id: 'config', label: 'Configurações', icon: '⚙️' }
+    ];
+
+    if (loading) return <div className="loader">Carregando...</div>;
     if (!tenant) return <div>Tenant não encontrado</div>;
 
+    const currentItems = getCurrentItems();
+
     return (
-        <div className="admin-container">
-            <header className="admin-header">
-                <h1>⚙️ Painel Administrativo</h1>
-                <span className="admin-tenant">🏷️ {tenant}</span>
-            </header>
+        <AdminContainer>
+            <Overlay $open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
+            
+            <Sidebar $open={sidebarOpen}>
+                <SidebarBrand>
+                    <h1>⚙️ <span>Smart</span>Delivery</h1>
+                    <p>Painel Administrativo</p>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '8px' }}>
+                        🏷️ {tenant}
+                    </p>
+                </SidebarBrand>
 
-            <nav className="admin-nav">
-                <button 
-                    className={activeTab === 'dashboard' ? 'active' : ''}
-                    onClick={() => setActiveTab('dashboard')}
-                >
-                    📊 Dashboard
-                </button>
-                <button 
-                    className={activeTab === 'products' ? 'active' : ''}
-                    onClick={() => setActiveTab('products')}
-                >
-                    📦 Produtos
-                </button>
-                <button 
-                    className={activeTab === 'categories' ? 'active' : ''}
-                    onClick={() => setActiveTab('categories')}
-                >
-                    🏷️ Categorias
-                </button>
-                <button 
-                    className={activeTab === 'orders' ? 'active' : ''}
-                    onClick={() => setActiveTab('orders')}
-                >
-                    📋 Pedidos
-                </button>
-                <button 
-                    className={activeTab === 'config' ? 'active' : ''}
-                    onClick={() => setActiveTab('config')}
-                >
-                    ⚙️ Configurações
-                </button>
-            </nav>
+                {navItems.map(item => (
+                    <NavItem
+                        key={item.id}
+                        $active={activeTab === item.id}
+                        onClick={() => {
+                            setActiveTab(item.id);
+                            setSidebarOpen(false);
+                        }}
+                    >
+                        <span className="icon">{item.icon}</span>
+                        {item.label}
+                    </NavItem>
+                ))}
+            </Sidebar>
 
-            <div className="admin-content">
+            <MainContent>
+                <PageHeader>
+                    <h2>{navItems.find(i => i.id === activeTab)?.label || 'Dashboard'}</h2>
+                    <MobileToggle onClick={() => setSidebarOpen(true)}>
+                        ☰
+                    </MobileToggle>
+                </PageHeader>
+
                 {/* DASHBOARD */}
                 {activeTab === 'dashboard' && (
-                    <div className="dashboard-grid">
-                        <div className="dashboard-card">
+                    <StatsGrid>
+                        <StatCard>
                             <div className="number">{stats?.total || 0}</div>
                             <div className="label">Total de Pedidos</div>
-                        </div>
-                        <div className="dashboard-card">
+                        </StatCard>
+                        <StatCard>
                             <div className="number">R$ {stats?.todayRevenue?.toFixed(2) || '0,00'}</div>
                             <div className="label">Faturamento Hoje</div>
-                        </div>
-                        <div className="dashboard-card">
+                        </StatCard>
+                        <StatCard>
                             <div className="number">R$ {stats?.avgTicket?.toFixed(2) || '0,00'}</div>
                             <div className="label">Ticket Médio</div>
-                        </div>
-                        <div className="dashboard-card">
+                        </StatCard>
+                        <StatCard>
                             <div className="number">{stats?.pending || 0}</div>
                             <div className="label">Pedidos Pendentes</div>
-                        </div>
-                    </div>
+                        </StatCard>
+                    </StatsGrid>
                 )}
 
                 {/* PRODUTOS */}
                 {activeTab === 'products' && (
                     <div className="products-admin">
-                        <div className="products-header">
+                        <PageHeader>
                             <h2>📦 Produtos</h2>
-                            <button className="btn-add" onClick={() => {
-                                setEditingProduct(null);
-                                setIsProductModalOpen(true);
-                            }}>
+                            <ActionButton 
+                                $variant="confirm" 
+                                onClick={() => {
+                                    setEditingProduct(null);
+                                    setIsProductModalOpen(true);
+                                }}
+                            >
                                 + Adicionar
-                            </button>
-                        </div>
-                        {products.length === 0 ? (
-                            <p>Nenhum produto cadastrado.</p>
+                            </ActionButton>
+                        </PageHeader>
+                        
+                        <ProductFilters 
+                            categories={categories}
+                            onFilter={handleFilter}
+                        />
+                        
+                        {filteredProducts.length === 0 ? (
+                            <p style={{ color: '#888', padding: '20px 0' }}>
+                                {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado com os filtros aplicados.'}
+                            </p>
                         ) : (
-                            products.map(p => (
-                                <div key={p.id} className="product-item-admin">
-                                    <div className="product-info">
-                                        {p.image_url && (
-                                            <img 
-                                                src={p.image_url} 
-                                                alt={p.name} 
-                                                className="product-thumb"
-                                            />
-                                        )}
-                                        <span className="product-name">{p.name}</span>
-                                        <span className="product-price">R$ {parseFloat(p.price).toFixed(2)}</span>
-                                        <span className="product-status">
-                                            {p.active ? '🟢 Ativo' : '🔴 Inativo'}
-                                        </span>
-                                    </div>
-                                    <div className="product-actions">
-                                        <button className="btn-edit" onClick={() => {
-                                            setEditingProduct(p);
-                                            setIsProductModalOpen(true);
-                                        }}>
-                                            ✏️
-                                        </button>
-                                        <button className="btn-delete" onClick={() => handleDeleteProduct(p.id)}>
-                                            🗑️
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                            <>
+                                <Table>
+                                    <thead>
+                                        <tr>
+                                            <th>Imagem</th>
+                                            <th>Nome</th>
+                                            <th>Preço</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentItems.map(p => (
+                                            <tr key={p.id}>
+                                                <td>
+                                                    {p.image_url ? (
+                                                        <img 
+                                                            src={p.image_url} 
+                                                            alt={p.name} 
+                                                            style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
+                                                        />
+                                                    ) : (
+                                                        <span style={{ color: '#ccc', fontSize: 20 }}>📦</span>
+                                                    )}
+                                                </td>
+                                                <td><strong>{p.name}</strong></td>
+                                                <td>R$ {parseFloat(p.price).toFixed(2)}</td>
+                                                <td>
+                                                    <Badge $status={p.active ? 'active' : 'inactive'}>
+                                                        {p.active ? '🟢 Ativo' : '🔴 Inativo'}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    <ActionButton 
+                                                        $variant="edit" 
+                                                        onClick={() => {
+                                                            setEditingProduct(p);
+                                                            setIsProductModalOpen(true);
+                                                        }}
+                                                    >
+                                                        ✏️
+                                                    </ActionButton>
+                                                    <ActionButton 
+                                                        $variant="delete" 
+                                                        style={{ marginLeft: 4 }}
+                                                        onClick={() => handleDeleteProduct(p.id)}
+                                                    >
+                                                        🗑️
+                                                    </ActionButton>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                                
+                                <Pagination 
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={handlePageChange}
+                                />
+                            </>
                         )}
                     </div>
                 )}
 
                 {/* CATEGORIAS */}
                 {activeTab === 'categories' && (
-                    <div className="categories-admin">
-                        <div className="categories-header">
+                    <>
+                        <PageHeader>
                             <h2>🏷️ Categorias</h2>
-                            <button className="btn-add" onClick={() => {
-                                setEditingCategory(null);
-                                setIsCategoryModalOpen(true);
-                            }}>
+                            <ActionButton 
+                                $variant="confirm" 
+                                onClick={() => {
+                                    setEditingCategory(null);
+                                    setIsCategoryModalOpen(true);
+                                }}
+                            >
                                 + Nova Categoria
-                            </button>
-                        </div>
+                            </ActionButton>
+                        </PageHeader>
                         {categories.length === 0 ? (
-                            <p>Nenhuma categoria cadastrada.</p>
+                            <p style={{ color: '#888', padding: '20px 0' }}>Nenhuma categoria cadastrada.</p>
                         ) : (
-                            categories.map(c => (
-                                <div key={c.id} className="category-item-admin">
-                                    <div className="category-info">
-                                        <span className="category-name">{c.name}</span>
-                                        <span className="category-order">Ordem: {c.display_order || 1}</span>
-                                    </div>
-                                    <div className="category-actions">
-                                        <button className="btn-edit" onClick={() => {
-                                            setEditingCategory(c);
-                                            setIsCategoryModalOpen(true);
-                                        }}>
-                                            ✏️
-                                        </button>
-                                        <button className="btn-delete" onClick={() => handleDeleteCategory(c.id)}>
-                                            🗑️
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                            <Table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Ordem</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {categories.map(c => (
+                                        <tr key={c.id}>
+                                            <td><strong>{c.name}</strong></td>
+                                            <td>{c.display_order || 1}</td>
+                                            <td>
+                                                <ActionButton 
+                                                    $variant="edit" 
+                                                    onClick={() => {
+                                                        setEditingCategory(c);
+                                                        setIsCategoryModalOpen(true);
+                                                    }}
+                                                >
+                                                    ✏️
+                                                </ActionButton>
+                                                <ActionButton 
+                                                    $variant="delete" 
+                                                    style={{ marginLeft: 4 }}
+                                                    onClick={() => handleDeleteCategory(c.id)}
+                                                >
+                                                    🗑️
+                                                </ActionButton>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
                         )}
-                    </div>
+                    </>
                 )}
 
                 {/* PEDIDOS */}
                 {activeTab === 'orders' && (
-                    <div className="orders-admin">
+                    <>
                         <h2>📋 Pedidos</h2>
                         {orders.length === 0 ? (
-                            <p>Nenhum pedido recebido.</p>
+                            <p style={{ color: '#888', padding: '20px 0' }}>Nenhum pedido recebido.</p>
                         ) : (
-                            orders.map(o => {
-                                let items = o.items;
-                                if (typeof items === 'string') {
-                                    try { items = JSON.parse(items); } catch (e) { items = []; }
-                                }
-                                if (!Array.isArray(items)) items = [];
+                            <Table>
+                                <thead>
+                                    <tr>
+                                        <th>Pedido</th>
+                                        <th>Cliente</th>
+                                        <th>Itens</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orders.map(o => {
+                                        let items = o.items;
+                                        if (typeof items === 'string') {
+                                            try { items = JSON.parse(items); } catch (e) { items = []; }
+                                        }
+                                        if (!Array.isArray(items)) items = [];
 
-                                const statusMap = {
-                                    'pending': '🟡 Pendente',
-                                    'confirmado': '🟢 Confirmado',
-                                    'entregue': '✅ Entregue',
-                                    'cancelado': '❌ Cancelado'
-                                };
-                                const statusClass = o.status || 'pending';
+                                        const statusMap = {
+                                            'pending': 'pending',
+                                            'confirmado': 'confirmed',
+                                            'entregue': 'delivered',
+                                            'cancelado': 'cancelled'
+                                        };
 
-                                return (
-                                    <div key={o.id} className="order-item-admin">
-                                        <div className="order-header">
-                                            <strong>#{o.order_number || o.id}</strong>
-                                            <span className={`status-badge ${statusClass}`}>
-                                                {statusMap[statusClass] || statusClass}
-                                            </span>
-                                        </div>
-                                        <div className="order-details">
-                                            <span className="customer-name">{o.customer_name || 'Cliente'}</span>
-                                            <span className="order-items">
-                                                {items.map(i => `${i.qty}x ${i.name}`).join(', ')}
-                                            </span>
-                                            <span className="order-total">R$ {parseFloat(o.total).toFixed(2)}</span>
-                                        </div>
-                                        <div className="order-actions">
-                                            {statusClass === 'pending' && (
-                                                <>
-                                                    <button className="btn-confirm" onClick={() => updateOrderStatus(o.id, 'confirmado')}>
-                                                        ✅ Confirmar
-                                                    </button>
-                                                    <button className="btn-cancel" onClick={() => updateOrderStatus(o.id, 'cancelado')}>
-                                                        ❌ Cancelar
-                                                    </button>
-                                                </>
-                                            )}
-                                            {statusClass === 'confirmado' && (
-                                                <button className="btn-deliver" onClick={() => updateOrderStatus(o.id, 'entregue')}>
-                                                    📦 Entregue
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })
+                                        const statusLabels = {
+                                            'pending': '🟡 Pendente',
+                                            'confirmado': '🟢 Confirmado',
+                                            'entregue': '✅ Entregue',
+                                            'cancelado': '❌ Cancelado'
+                                        };
+
+                                        return (
+                                            <tr key={o.id}>
+                                                <td>#{o.order_number || o.id}</td>
+                                                <td>{o.customer_name || 'Cliente'}</td>
+                                                <td>
+                                                    {items.map(i => `${i.qty}x ${i.name}`).join(', ')}
+                                                </td>
+                                                <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
+                                                <td>
+                                                    <Badge $status={statusMap[o.status] || 'pending'}>
+                                                        {statusLabels[o.status] || o.status}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    {o.status === 'pending' && (
+                                                        <>
+                                                            <ActionButton 
+                                                                $variant="confirm" 
+                                                                onClick={() => updateOrderStatus(o.id, 'confirmado')}
+                                                            >
+                                                                ✅
+                                                            </ActionButton>
+                                                            <ActionButton 
+                                                                $variant="cancel" 
+                                                                style={{ marginLeft: 4 }}
+                                                                onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                            >
+                                                                ❌
+                                                            </ActionButton>
+                                                        </>
+                                                    )}
+                                                    {o.status === 'confirmado' && (
+                                                        <ActionButton 
+                                                            $variant="deliver" 
+                                                            onClick={() => updateOrderStatus(o.id, 'entregue')}
+                                                        >
+                                                            📦
+                                                        </ActionButton>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </Table>
                         )}
-                    </div>
+                    </>
                 )}
 
                 {/* CONFIGURAÇÕES */}
                 {activeTab === 'config' && <Config />}
-            </div>
+            </MainContent>
 
             {/* MODAIS */}
             <ProductModal
@@ -368,7 +561,7 @@ const AdminLayout = () => {
                 onSave={handleSaveCategory}
                 category={editingCategory}
             />
-        </div>
+        </AdminContainer>
     );
 };
 

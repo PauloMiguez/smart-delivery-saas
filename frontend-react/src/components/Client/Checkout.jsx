@@ -1,9 +1,101 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
-import './Checkout.css';
+import { Container, Button, Card, Input, Flex } from '../Shared/Container';
+
+const CheckoutContainer = styled(Container)`
+    padding-top: 16px;
+    padding-bottom: 40px;
+`;
+
+const BackButton = styled.button`
+    background: none;
+    border: none;
+    color: ${props => props.theme.colors.textLight};
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 0;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &:hover {
+        color: ${props => props.theme.colors.text};
+    }
+`;
+
+const Title = styled.h2`
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: ${props => props.theme.colors.text};
+`;
+
+const SummaryCard = styled(Card)`
+    background: ${props => props.theme.colors.background};
+    margin-bottom: 20px;
+`;
+
+const SummaryItem = styled.div`
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    color: ${props => props.theme.colors.textLight};
+
+    .name {
+        color: ${props => props.theme.colors.text};
+    }
+`;
+
+const TotalRow = styled.div`
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0 0 0;
+    margin-top: 8px;
+    border-top: 2px solid ${props => props.theme.colors.border};
+    font-size: 18px;
+    font-weight: 700;
+    color: ${props => props.theme.colors.text};
+`;
+
+const Form = styled.form`
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+`;
+
+const FormGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+        font-weight: 600;
+        font-size: 14px;
+        color: ${props => props.theme.colors.textLight};
+    }
+
+    small {
+        color: ${props => props.theme.colors.textMuted};
+        font-size: 12px;
+    }
+`;
+
+const SubmitButton = styled(Button)`
+    padding: 14px;
+    font-size: 18px;
+    margin-top: 8px;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+`;
 
 const Checkout = () => {
     const navigate = useNavigate();
@@ -31,7 +123,6 @@ const Checkout = () => {
         };
         loadConfig();
 
-        // Carregar dados salvos do localStorage
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
         const savedAddress = localStorage.getItem('user_address');
@@ -41,24 +132,11 @@ const Checkout = () => {
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
     }, [tenant]);
 
-    // Salvar dados no localStorage quando mudar
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         localStorage.setItem(`user_${name}`, value);
     };
-
-    if (cart.length === 0) {
-        return (
-            <div className="checkout-empty">
-                <h2>🛒 Sacola vazia</h2>
-                <p>Adicione itens ao carrinho antes de finalizar o pedido.</p>
-                <button className="btn-back" onClick={() => navigate('/')}>
-                    Voltar para o cardápio
-                </button>
-            </div>
-        );
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -68,7 +146,6 @@ const Checkout = () => {
             return;
         }
 
-        // Validar telefone
         const phoneClean = formData.phone.replace(/\D/g, '');
         if (phoneClean.length < 10) {
             alert('Por favor, insira um telefone válido (DDD + número).');
@@ -98,8 +175,6 @@ const Checkout = () => {
                 delivery_type: 'delivery'
             };
 
-            console.log('📦 Enviando pedido:', orderData);
-
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
 
@@ -120,88 +195,119 @@ const Checkout = () => {
         }
     };
 
+    if (cart.length === 0) {
+        return (
+            <CheckoutContainer>
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>🛒</div>
+                    <h2 style={{ color: '#555' }}>Sacola vazia</h2>
+                    <p style={{ color: '#888', marginBottom: 20 }}>
+                        Adicione itens ao carrinho antes de finalizar o pedido.
+                    </p>
+                    <Button primary onClick={() => navigate('/')}>
+                        Voltar para o cardápio
+                    </Button>
+                </div>
+            </CheckoutContainer>
+        );
+    }
+
     const deliveryFee = parseFloat(config?.delivery_fee) || 0;
     const total = subtotal + deliveryFee;
 
     return (
-        <div className="checkout-container">
-            <button className="btn-back" onClick={() => navigate('/')}>
+        <CheckoutContainer>
+            <BackButton onClick={() => navigate('/')}>
                 ← Voltar
-            </button>
+            </BackButton>
 
-            <h2>📋 Finalizar Pedido</h2>
+            <Title>📋 Finalizar Pedido</Title>
 
-            <div className="checkout-summary">
-                <h3>Resumo do pedido</h3>
+            <SummaryCard>
+                <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>Resumo do pedido</h3>
                 {cart.map(item => (
-                    <div key={item.id} className="checkout-item">
-                        <span>{item.qty}x {item.name}</span>
+                    <SummaryItem key={item.id}>
+                        <span className="name">{item.qty}x {item.name}</span>
                         <span>R$ {(item.price * item.qty).toFixed(2)}</span>
-                    </div>
+                    </SummaryItem>
                 ))}
-                <div className="checkout-total">
-                    <div><span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span></div>
-                    <div><span>Taxa de entrega</span><span>R$ {deliveryFee.toFixed(2)}</span></div>
-                    <div className="total"><span>Total</span><span>R$ {total.toFixed(2)}</span></div>
-                </div>
-            </div>
+                <SummaryItem>
+                    <span className="name">Subtotal</span>
+                    <span>R$ {subtotal.toFixed(2)}</span>
+                </SummaryItem>
+                <SummaryItem>
+                    <span className="name">Taxa de entrega</span>
+                    <span>R$ {deliveryFee.toFixed(2)}</span>
+                </SummaryItem>
+                <TotalRow>
+                    <span>Total</span>
+                    <span>R$ {total.toFixed(2)}</span>
+                </TotalRow>
+            </SummaryCard>
 
-            <form onSubmit={handleSubmit} className="checkout-form">
-                <div className="form-group">
+            <Form onSubmit={handleSubmit}>
+                <FormGroup>
                     <label>Nome completo *</label>
-                    <input
+                    <Input
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        required
                         placeholder="Seu nome"
+                        required
                     />
-                </div>
+                </FormGroup>
 
-                <div className="form-group">
+                <FormGroup>
                     <label>Telefone *</label>
-                    <input
+                    <Input
                         type="text"
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        required
                         placeholder="(85) 99999-9999"
+                        required
                     />
-                </div>
+                </FormGroup>
 
-                <div className="form-group">
+                <FormGroup>
                     <label>Endereço de entrega *</label>
-                    <input
+                    <Input
                         type="text"
                         name="address"
                         value={formData.address}
                         onChange={handleChange}
-                        required
                         placeholder="Rua, número, bairro, cidade - UF"
+                        required
                     />
-                </div>
+                </FormGroup>
 
-                <div className="form-group">
+                <FormGroup>
                     <label>Forma de pagamento</label>
                     <select
                         name="paymentMethod"
                         value={formData.paymentMethod}
                         onChange={handleChange}
+                        style={{
+                            padding: '10px 12px',
+                            border: '1px solid #dfe6e9',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            background: '#fff'
+                        }}
                     >
                         <option value="Dinheiro">💰 Dinheiro</option>
                         <option value="Pix">📲 Pix</option>
                         <option value="Crédito">💳 Cartão de Crédito</option>
                         <option value="Débito">💳 Cartão de Débito</option>
                     </select>
-                </div>
+                </FormGroup>
 
-                <button type="submit" className="btn-submit" disabled={loading}>
+                <SubmitButton primary disabled={loading}>
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
-                </button>
-            </form>
-        </div>
+                </SubmitButton>
+            </Form>
+        </CheckoutContainer>
     );
 };
 
