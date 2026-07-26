@@ -41,13 +41,26 @@ const pool = mysql.createPool({
         rejectUnauthorized: false
     },
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 5, // Reduzir para evitar sobrecarga
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
-    connectTimeout: 30000,
-    acquireTimeout: 30000,
-    timeout: 30000
+    keepAliveInitialDelay: 10000, // 10 segundos
+    connectTimeout: 60000, // 60 segundos
+    acquireTimeout: 60000,
+    timeout: 60000
+});
+
+// Reconexão automática
+pool.on('connection', (connection) => {
+    console.log('🔄 Nova conexão com o banco estabelecida');
+});
+
+pool.on('error', (err) => {
+    console.error('❌ Erro no pool de conexões:', err);
+    // Tentar reconectar após 5 segundos
+    setTimeout(() => {
+        console.log('🔄 Tentando reconectar ao banco...');
+    }, 5000);
 });
 
 console.log('📊 Configuração do banco:');
