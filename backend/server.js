@@ -41,11 +41,11 @@ const pool = mysql.createPool({
         rejectUnauthorized: false
     },
     waitForConnections: true,
-    connectionLimit: 5, // Reduzir para evitar sobrecarga
+    connectionLimit: 5,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 10000, // 10 segundos
-    connectTimeout: 60000, // 60 segundos
+    keepAliveInitialDelay: 10000,
+    connectTimeout: 60000,
     acquireTimeout: 60000,
     timeout: 60000
 });
@@ -57,7 +57,6 @@ pool.on('connection', (connection) => {
 
 pool.on('error', (err) => {
     console.error('❌ Erro no pool de conexões:', err);
-    // Tentar reconectar após 5 segundos
     setTimeout(() => {
         console.log('🔄 Tentando reconectar ao banco...');
     }, 5000);
@@ -89,27 +88,23 @@ async function testDatabaseConnection() {
 //  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
-    // Ignorar rotas públicas
     const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/register', '/api/test-db'];
     if (publicRoutes.includes(req.path)) {
         return next();
     }
 
-    // 1. Tentar da query string
     if (req.query.tenant) {
         req.tenantId = req.query.tenant;
         console.log('🏷️ Tenant da query:', req.tenantId);
         return next();
     }
 
-    // 2. Tentar do header
     if (req.headers['x-tenant-id']) {
         req.tenantId = req.headers['x-tenant-id'];
         console.log('🏷️ Tenant do header:', req.tenantId);
         return next();
     }
 
-    // 3. Tentar do subdomínio
     const host = req.get('host');
     if (host) {
         const parts = host.split('.');
@@ -123,12 +118,10 @@ app.use((req, res, next) => {
         }
     }
 
-    // 4. Para requisições de arquivos estáticos, passar sem tenant
     if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
         return next();
     }
 
-    // 5. Fallback - retornar erro para rotas de API
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ 
             success: false, 
@@ -177,12 +170,10 @@ app.get('/api/test-db', async (req, res) => {
 // ============================================================
 const JWT_SECRET = process.env.JWT_SECRET || 'smart_delivery_super_secret_key_change_in_production_2024';
 
-// Gerar token JWT
 function generateToken(userId, tenantId) {
     return jwt.sign({ userId, tenantId }, JWT_SECRET, { expiresIn: '7d' });
 }
 
-// Middleware para verificar token
 async function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -201,10 +192,9 @@ async function verifyToken(req, res, next) {
 }
 
 // ============================================================
-//  ROTAS DE AUTENTICAÇÃO (CORRIGIDAS - COLUNA 'password')
+//  ROTAS DE AUTENTICAÇÃO
 // ============================================================
 
-// Login
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -231,8 +221,6 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const user = users[0];
-        
-        // USANDO 'password' (NÃO 'password_hash')
         const validPassword = await bcrypt.compare(password, user.password);
         
         if (!validPassword) {
@@ -268,7 +256,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Registro
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { 
@@ -280,7 +267,6 @@ app.post('/api/auth/register', async (req, res) => {
             password 
         } = req.body;
 
-        // Validações
         if (!restaurantName || !subdomain || !ownerName || !email || !password) {
             return res.status(400).json({ 
                 success: false, 
@@ -297,7 +283,6 @@ app.post('/api/auth/register', async (req, res) => {
 
         console.log('📝 Registro:', email, 'Subdomínio:', subdomain);
 
-        // Verificar se subdomínio já existe
         const [existingTenant] = await pool.query(
             'SELECT * FROM tenants WHERE subdomain = ?',
             [subdomain]
@@ -310,7 +295,6 @@ app.post('/api/auth/register', async (req, res) => {
             });
         }
 
-        // Verificar se email já está cadastrado
         const [existingEmail] = await pool.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
@@ -323,30 +307,25 @@ app.post('/api/auth/register', async (req, res) => {
             });
         }
 
-        // Hash da senha
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // INICIAR TRANSAÇÃO
         const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         try {
-            // 1. Criar o tenant
             await connection.query(
                 `INSERT INTO tenants (id, name, subdomain, email, phone, plan, status) 
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [subdomain, restaurantName, subdomain, email, phone || null, 'free', 'active']
             );
 
-            // 2. Inserir o usuário
             const [result] = await connection.query(
                 `INSERT INTO users (tenant_id, name, email, phone, password, role) 
                  VALUES (?, ?, ?, ?, ?, 'admin')`,
                 [subdomain, ownerName, email, phone || null, passwordHash]
             );
 
-            // 3. Criar configurações padrão (usando config_key / config_value)
             await connection.query(
                 `INSERT INTO config (tenant_id, config_key, config_value) 
                  VALUES 
@@ -393,7 +372,6 @@ app.post('/api/auth/register', async (req, res) => {
 //  ROTAS DE PRODUTOS
 // ============================================================
 
-// Listar produtos
 app.get('/api/products', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -413,7 +391,6 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// Criar produto
 app.post('/api/products', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -440,7 +417,6 @@ app.post('/api/products', verifyToken, async (req, res) => {
     }
 });
 
-// Atualizar produto
 app.put('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -469,7 +445,6 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Deletar produto
 app.delete('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -495,7 +470,6 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
 //  ROTAS DE CATEGORIAS
 // ============================================================
 
-// Listar categorias
 app.get('/api/categories', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -515,7 +489,6 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
-// Criar categoria
 app.post('/api/categories', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -542,7 +515,6 @@ app.post('/api/categories', verifyToken, async (req, res) => {
     }
 });
 
-// Atualizar categoria
 app.put('/api/categories/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -570,7 +542,6 @@ app.put('/api/categories/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Deletar categoria
 app.delete('/api/categories/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -596,7 +567,6 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 //  ROTAS DE PEDIDOS
 // ============================================================
 
-// Listar pedidos
 app.get('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -621,7 +591,6 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-// Criar pedido - CORRIGIDO COM SUBTOTAL
 app.post('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -701,7 +670,6 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-// Atualizar status do pedido
 app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -741,7 +709,6 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 //  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR) - CORRIGIDA
 // ============================================================
 
-// Obter configurações
 app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -755,7 +722,6 @@ app.get('/api/config', async (req, res) => {
             });
         }
 
-        // Verificar se o tenant existe
         console.log('🔍 [CONFIG] Verificando tenant no banco...');
         const [tenant] = await pool.query(
             'SELECT id FROM tenants WHERE id = ?',
@@ -772,7 +738,6 @@ app.get('/api/config', async (req, res) => {
 
         console.log('✅ [CONFIG] Tenant encontrado:', tenantId);
 
-        // Buscar configurações
         console.log('🔍 [CONFIG] Buscando configurações...');
         const [rows] = await pool.query(
             'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
@@ -781,13 +746,11 @@ app.get('/api/config', async (req, res) => {
 
         console.log('📊 [CONFIG] Linhas encontradas:', rows.length);
 
-        // Converter array de chave-valor para objeto
         const config = {};
         rows.forEach(row => {
             config[row.config_key] = row.config_value;
         });
 
-        // Adicionar valores padrão se não existirem
         const defaultConfig = {
             store_name: 'Minha Loja',
             is_open: 'true',
@@ -800,7 +763,6 @@ app.get('/api/config', async (req, res) => {
             logo_image: ''
         };
 
-        // Mesclar com valores do banco
         const finalConfig = { ...defaultConfig, ...config };
 
         console.log('✅ [CONFIG] Config carregada com sucesso!');
@@ -815,7 +777,6 @@ app.get('/api/config', async (req, res) => {
     }
 });
 
-// Atualizar configurações
 app.put('/api/config', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -831,7 +792,6 @@ app.put('/api/config', verifyToken, async (req, res) => {
 
         try {
             for (const [key, value] of Object.entries(configData)) {
-                // Converter booleanos para string
                 const stringValue = typeof value === 'boolean' ? String(value) : value;
                 await connection.query(
                     `INSERT INTO config (tenant_id, config_key, config_value) 
@@ -860,7 +820,6 @@ app.put('/api/config', verifyToken, async (req, res) => {
 //  ROTAS DE UPLOAD DE IMAGENS (CLOUDINARY)
 // ============================================================
 
-// Upload de Banner
 app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async (req, res) => {
     try {
         if (!req.file) {
@@ -880,7 +839,6 @@ app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async 
             [tenantId, imageUrl, imageUrl]
         );
 
-        // Salvar também o public_id para futura remoção
         await pool.query(
             `INSERT INTO config (tenant_id, config_key, config_value) 
              VALUES (?, 'banner_public_id', ?) 
@@ -902,7 +860,6 @@ app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async 
     }
 });
 
-// Upload de Logo
 app.post('/api/upload/logo', verifyToken, uploadLogo.single('image'), async (req, res) => {
     try {
         if (!req.file) {
@@ -943,7 +900,6 @@ app.post('/api/upload/logo', verifyToken, uploadLogo.single('image'), async (req
     }
 });
 
-// Upload de Imagem de Produto
 app.post('/api/upload/product', verifyToken, uploadProduct.single('image'), async (req, res) => {
     try {
         if (!req.file) {
@@ -1048,7 +1004,7 @@ app.get('/api/tenant', (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS (VERSÃO RENDER)
+//  ROTAS DE ARQUIVOS ESTÁTICOS (VERSÃO RENDER - CORRIGIDA)
 // ============================================================
 
 const PROJECT_ROOT = path.join(__dirname, '..');
@@ -1056,13 +1012,30 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
 console.log('📁 __dirname:', __dirname);
 
-// Servir arquivos estáticos do frontend (cliente)
+// ============================================================
+//  SERVE REACT BUILD (PRIMEIRO - PRIORIDADE MÁXIMA)
+// ============================================================
+const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
+if (fs.existsSync(REACT_BUILD_PATH)) {
+    console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
+    app.use(express.static(REACT_BUILD_PATH));
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api/') && !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
+            res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
+        }
+    });
+}
+
+// ============================================================
+//  ROTAS DE ARQUIVOS ESTÁTICOS (VANILLA - FALLBACK)
+// ============================================================
+// Servir arquivos estáticos do frontend (cliente) - VANILLA
 app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
 
-// Servir arquivos estáticos do admin
+// Servir arquivos estáticos do admin - VANILLA
 app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
-// Rota para admin (com e sem barra)
+// Rotas específicas do Vanilla (fallback)
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
 });
@@ -1071,7 +1044,6 @@ app.get('/admin/', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
 });
 
-// Rota para login.html
 app.get('/login', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
 });
@@ -1080,7 +1052,6 @@ app.get('/login.html', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
 });
 
-// Rota para register.html
 app.get('/register', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
 });
@@ -1089,12 +1060,10 @@ app.get('/register.html', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
 });
 
-// Rota para index.html (cliente)
 app.get('/', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
 });
 
-// Rota para qualquer outra página HTML (fallback)
 app.get('/*.html', (req, res) => {
     const fileName = req.path.split('/').pop();
     const filePath = path.join(PROJECT_ROOT, 'frontend/public', fileName);
@@ -1106,7 +1075,7 @@ app.get('/*.html', (req, res) => {
 });
 
 // ============================================================
-//  RATE LIMITING (CORRIGIDO)
+//  RATE LIMITING
 // ============================================================
 
 const tenantLimiter = rateLimit({
@@ -1136,38 +1105,19 @@ app.use((req, res) => {
             error: 'Endpoint não encontrado'
         });
     }
-    const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            res.status(404).send('Página não encontrada');
-        }
-    });
+    // Se não for API, tentar servir o React novamente (SPA)
+    const reactIndexPath = path.join(__dirname, '../frontend-react/dist/index.html');
+    if (fs.existsSync(reactIndexPath)) {
+        res.sendFile(reactIndexPath);
+    } else {
+        const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
+        res.sendFile(indexPath, (err) => {
+            if (err) {
+                res.status(404).send('Página não encontrada');
+            }
+        });
+    }
 });
-
-// ============================================================
-//  SERVE REACT BUILD (PRIMEIRO)
-// ============================================================
-const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
-if (fs.existsSync(REACT_BUILD_PATH)) {
-    console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
-    app.use(express.static(REACT_BUILD_PATH));
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api/') && !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
-            res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
-        }
-    });
-}
-
-// ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS (VANILLA - FALLBACK)
-// ============================================================
-const PROJECT_ROOT = path.join(__dirname, '..');
-
-// Servir arquivos estáticos do frontend (cliente) - VANILLA
-app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
-
-// Servir arquivos estáticos do admin - VANILLA
-app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
 // ============================================================
 //  ROTA DE DELETE DE IMAGEM (CORRIGIDA - ÚNICA VERSÃO)
@@ -1183,10 +1133,8 @@ app.post('/api/upload/delete', verifyToken, async (req, res) => {
 
         console.log('🗑️ Deletando imagem:', public_id);
 
-        // Deletar do Cloudinary usando a função do upload.js
         await deleteImage(public_id);
 
-        // Remover do banco (se tiver config_key)
         if (config_key) {
             await pool.query(
                 `UPDATE config SET config_value = NULL 
