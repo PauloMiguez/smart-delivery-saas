@@ -1145,7 +1145,7 @@ app.use((req, res) => {
 });
 
 // ============================================================
-//  SERVE REACT BUILD (SE EXISTIR)
+//  SERVE REACT BUILD (PRIMEIRO)
 // ============================================================
 const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
 if (fs.existsSync(REACT_BUILD_PATH)) {
@@ -1157,6 +1157,17 @@ if (fs.existsSync(REACT_BUILD_PATH)) {
         }
     });
 }
+
+// ============================================================
+//  ROTAS DE ARQUIVOS ESTÁTICOS (VANILLA - FALLBACK)
+// ============================================================
+const PROJECT_ROOT = path.join(__dirname, '..');
+
+// Servir arquivos estáticos do frontend (cliente) - VANILLA
+app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
+
+// Servir arquivos estáticos do admin - VANILLA
+app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
 // ============================================================
 //  ROTA DE DELETE DE IMAGEM (CORRIGIDA - ÚNICA VERSÃO)
