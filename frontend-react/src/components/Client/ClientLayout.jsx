@@ -13,38 +13,31 @@ import CartDrawer from './CartDrawer';
 const isStoreOpen = (openTime, closeTime) => {
     if (!openTime || !closeTime) return false;
     
-    // Horário atual no fuso horário do Brasil (UTC-3)
     const now = new Date();
-    const brasilOffset = -3;
-    const localTime = new Date(now.getTime() + (brasilOffset * 60 * 60 * 1000));
+    const currentHour = String(now.getHours()).padStart(2, '0');
+    const currentMinute = String(now.getMinutes()).padStart(2, '0');
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
-    // Extrair horas e minutos atuais
-    const currentHour = localTime.getHours();
-    const currentMinute = localTime.getMinutes();
-    const currentMinutes = currentHour * 60 + currentMinute;
+    console.log(`🕐 Horário atual: ${currentHour}:${currentMinute}`);
+    console.log(`📅 Horário de funcionamento: ${openTime} - ${closeTime}`);
     
-    // Converter horários de funcionamento para minutos
     const [openHour, openMinute] = openTime.split(':').map(Number);
     const [closeHour, closeMinute] = closeTime.split(':').map(Number);
     
     const openMinutes = openHour * 60 + openMinute;
     let closeMinutes = closeHour * 60 + closeMinute;
     
-    // Se fechar após meia-noite (ex: 00:00, 01:00)
     if (closeMinutes <= openMinutes) {
         closeMinutes += 24 * 60;
-        // Se o horário atual for antes do horário de abertura, ajustar
-        if (currentMinutes < openMinutes) {
-            return false;
-        }
-        // Se o horário atual for depois do horário de fechamento (considerando 24h)
-        if (currentMinutes >= closeMinutes) {
-            return false;
-        }
+        console.log(`🔄 Fecha após meia-noite: ${closeMinutes} minutos`);
+        if (currentMinutes < openMinutes) return false;
+        if (currentMinutes >= closeMinutes) return false;
         return true;
     }
     
-    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+    const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+    console.log(`🔴 Status: ${isOpen ? 'ABERTO' : 'FECHADO'}`);
+    return isOpen;
 };
 
 // ============================================================
