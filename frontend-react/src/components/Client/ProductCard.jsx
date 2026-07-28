@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
-import { Card, Button, Flex } from '../Shared/Container';
+import { Card, Flex } from '../Shared/Container';
 
 const ProductImage = styled.div`
     width: 100%;
@@ -50,30 +50,71 @@ const ProductPrice = styled.div`
 const QtyControl = styled.div`
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     
     button {
-        width: 32px;
-        height: 32px;
-        border: 1px solid ${props => props.theme.colors.border};
+        width: 36px;
+        height: 36px;
+        border: 1.5px solid ${props => props.theme.colors.border};
         border-radius: ${props => props.theme.borderRadius.round};
         background: #fff;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 20px;
+        font-weight: 700;
+        color: ${props => props.theme.colors.text};
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        touch-action: manipulation;
+        line-height: 1;
         
         &:hover {
             background: ${props => props.theme.colors.primary};
             color: #fff;
             border-color: ${props => props.theme.colors.primary};
         }
+        
+        &:active {
+            transform: scale(0.92);
+        }
+        
+        /* Garantir que o símbolo seja visível em todos os dispositivos */
+        &::before {
+            display: block;
+        }
     }
     
     span {
-        min-width: 24px;
+        min-width: 28px;
         text-align: center;
         font-weight: 600;
-        font-size: 16px;
+        font-size: 18px;
+        color: ${props => props.theme.colors.text};
+    }
+`;
+
+const AddButton = styled.button`
+    padding: 8px 20px;
+    background: ${props => props.theme.colors.primary};
+    color: #fff;
+    border: none;
+    border-radius: ${props => props.theme.borderRadius.md};
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    
+    &:hover {
+        background: ${props => props.theme.colors.primaryDark};
+    }
+    
+    &:active {
+        transform: scale(0.95);
     }
 `;
 
@@ -100,15 +141,25 @@ const ProductCard = ({ product }) => {
             )}
             <ProductPrice>R$ {parseFloat(product.price).toFixed(2)}</ProductPrice>
             
-            <Flex between>
+            <Flex between gap={8}>
                 <QtyControl>
-                    <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
+                    <button 
+                        onClick={() => setQty(Math.max(1, qty - 1))}
+                        aria-label="Diminuir quantidade"
+                    >
+                        −
+                    </button>
                     <span>{qty}</span>
-                    <button onClick={() => setQty(qty + 1)}>+</button>
+                    <button 
+                        onClick={() => setQty(qty + 1)}
+                        aria-label="Aumentar quantidade"
+                    >
+                        +
+                    </button>
                 </QtyControl>
-                <Button primary small onClick={handleAdd}>
+                <AddButton onClick={handleAdd}>
                     Adicionar
-                </Button>
+                </AddButton>
             </Flex>
         </Card>
     );
