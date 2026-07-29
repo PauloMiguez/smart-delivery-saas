@@ -1013,37 +1013,7 @@ console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
 console.log('📁 __dirname:', __dirname);
 
 // ============================================================
-//  1. SERVER ARQUIVOS HTML DO FRONTEND (PRIORIDADE MÁXIMA)
-// ============================================================
-app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
-
-// ============================================================
-//  2. ROTAS HTML ESPECÍFICAS (ANTES DO REACT)
-// ============================================================
-app.get('/register.html', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
-});
-
-app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
-});
-
-app.get('/index.html', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
-});
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
-});
-
-// ============================================================
-//  3. ADMIN - SERVIR PELO REACT (NÃO PELO VANILLA)
-// ============================================================
-// IMPORTANTE: NÃO usar app.use('/admin', express.static(...)) para o Vanilla
-// O React vai servir o admin via SPA
-
-// ============================================================
-//  4. SERVE REACT BUILD (SPA - FALLBACK)
+//  1. SERVE REACT BUILD (PRIORIDADE MÁXIMA)
 // ============================================================
 const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
 if (fs.existsSync(REACT_BUILD_PATH)) {
@@ -1055,27 +1025,65 @@ if (fs.existsSync(REACT_BUILD_PATH)) {
         res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
     });
     
-    // Fallback para SPA (React Router) - APENAS para rotas não encontradas
+    // Rota específica para a raiz (React)
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
+    });
+    
+    // Fallback para SPA (React Router)
     app.get('*', (req, res) => {
-        // Ignorar arquivos estáticos e APIs
         if (!req.path.startsWith('/api/') && 
             !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
             res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
         }
     });
+} else {
+    console.log('⚠️ Build do React não encontrado. Servindo Vanilla.');
 }
 
 // ============================================================
-//  5. FALLBACK FINAL (SE NADA FUNCIONAR)
+//  2. ROTAS HTML ESPECÍFICAS DO VANILLA (FALLBACK)
+// ============================================================
+app.get('/register.html', (req, res) => {
+    const filePath = path.join(PROJECT_ROOT, 'frontend/public/register.html');
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Página não encontrada');
+    }
+});
+
+app.get('/login.html', (req, res) => {
+    const filePath = path.join(PROJECT_ROOT, 'frontend/public/login.html');
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Página não encontrada');
+    }
+});
+
+// ============================================================
+//  3. SERVER ARQUIVOS ESTÁTICOS DO VANILLA (FALLBACK FINAL)
+// ============================================================
+app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
+app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
+
+// ============================================================
+//  4. FALLBACK FINAL (SE NADA FUNCIONAR)
 // ============================================================
 app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ success: false, error: 'Endpoint não encontrado' });
     }
-    const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
-    res.sendFile(indexPath, (err) => {
-        if (err) res.status(404).send('Página não encontrada');
-    });
+    const reactIndexPath = path.join(REACT_BUILD_PATH, 'index.html');
+    if (fs.existsSync(reactIndexPath)) {
+        res.sendFile(reactIndexPath);
+    } else {
+        const vanillaPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
+        res.sendFile(vanillaPath, (err) => {
+            if (err) res.status(404).send('Página não encontrada');
+        });
+    }
 });
 
 // ============================================================
