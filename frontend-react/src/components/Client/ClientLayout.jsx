@@ -133,16 +133,39 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  CATEGORIAS - MENU DE NAVEGAÇÃO
+//  CATEGORIAS - MENU DE NAVEGAÇÃO (CORRIGIDO)
 // ============================================================
+const CategoryWrapper = styled.div`
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 4px;
+    
+    @media (max-width: 480px) {
+        &::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 30px;
+            background: linear-gradient(to right, transparent, #f8f9fa);
+            pointer-events: none;
+            z-index: 1;
+        }
+    }
+`;
+
 const CategoryNav = styled.div`
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding: 8px 0 16px 0;
-    margin-bottom: 8px;
+    overflow-y: hidden;
+    padding: 8px 4px 16px 4px;
+    margin: 0 -4px;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
     
     &::-webkit-scrollbar {
         display: none;
@@ -162,6 +185,8 @@ const CategoryNav = styled.div`
         white-space: nowrap;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
+        scroll-snap-align: start;
+        min-width: fit-content;
         
         &:hover {
             border-color: #e67e22;
@@ -392,7 +417,9 @@ const ClientLayout = () => {
         return orderedGrouped;
     };
 
-    // Atualizar status a cada minuto
+    // ============================================================
+    //  ATUALIZAR STATUS A CADA MINUTO
+    // ============================================================
     useEffect(() => {
         if (!config) return;
         
@@ -471,17 +498,19 @@ const ClientLayout = () => {
 
                 {/* MENU DE CATEGORIAS */}
                 {categoryNames.length > 1 && (
-                    <CategoryNav>
-                        {categoryNames.map(cat => (
-                            <button
-                                key={cat}
-                                active={activeCategory === cat}
-                                onClick={() => scrollToCategory(cat)}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </CategoryNav>
+                    <CategoryWrapper>
+                        <CategoryNav>
+                            {categoryNames.map(cat => (
+                                <button
+                                    key={cat}
+                                    active={activeCategory === cat}
+                                    onClick={() => scrollToCategory(cat)}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </CategoryNav>
+                    </CategoryWrapper>
                 )}
 
                 {/* CARDÁPIO POR CATEGORIA */}
