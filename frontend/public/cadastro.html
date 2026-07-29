@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Smart Delivery SaaS</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .register-container {
+            background: #fff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 450px;
+            width: 100%;
+            margin: 20px;
+        }
+        .register-container h1 {
+            color: #e67e22;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 28px;
+        }
+        .register-container .form-group {
+            margin-bottom: 14px;
+        }
+        .register-container .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #555;
+            font-size: 14px;
+        }
+        .register-container .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .register-container .form-group input:focus {
+            outline: none;
+            border-color: #e67e22;
+            box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+        }
+        .register-container .form-group small {
+            display: block;
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .register-container .btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .register-container .btn:hover {
+            background: #d35400;
+        }
+        .register-container .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .register-container .login-link {
+            text-align: center;
+            margin-top: 16px;
+            color: #888;
+            font-size: 14px;
+        }
+        .register-container .login-link a {
+            color: #e67e22;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .register-container .login-link a:hover {
+            text-decoration: underline;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+        }
+        .toast {
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid #27ae60;
+        }
+        .toast.error {
+            border-left-color: #e74c3c;
+        }
+        .toast.warning {
+            border-left-color: #f39c12;
+        }
+        .toast .toast-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 4px;
+            margin-left: auto;
+        }
+        .toast .toast-close:hover {
+            color: #333;
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        @media (max-width: 480px) {
+            .register-container {
+                padding: 24px;
+                margin: 12px;
+            }
+            .register-container h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>🚀 Criar Conta</h1>
+        <form id="register-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="reg-tenant-name">Nome do Restaurante *</label>
+                <input type="text" id="reg-tenant-name" placeholder="Fire Burger" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="reg-subdomain">Subdomínio *</label>
+                <input type="text" id="reg-subdomain" placeholder="firerburger" required>
+                <small>Ex: firerburger.smartdelivery.com</small>
+            </div>
+            <div class="form-group">
+                <label for="reg-name">Seu Nome *</label>
+                <input type="text" id="reg-name" placeholder="Seu nome completo" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-email">E-mail *</label>
+                <input type="email" id="reg-email" placeholder="contato@firerburger.com" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-phone">Telefone</label>
+                <input type="text" id="reg-phone" placeholder="(85) 99999-9999">
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Senha *</label>
+                <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            </div>
+            <button type="submit" class="btn" id="register-btn">Criar Conta</button>
+        </form>
+        <div class="login-link">
+            Já tem uma conta? <a href="login.html">Faça login</a>
+        </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        const API_URL = window.location.origin + '/api';
+
+        // ============================================================
+        //  HANDLE REGISTER
+        // ============================================================
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            // Capturar os valores do formulário
+            const restaurantName = document.getElementById('reg-tenant-name').value.trim();
+            const subdomain = document.getElementById('reg-subdomain').value.trim();
+            const ownerName = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const btn = document.getElementById('register-btn');
+
+            // Validar campos obrigatórios
+            if (!restaurantName || !subdomain || !ownerName || !email || !password) {
+                showToast('Preencha todos os campos obrigatórios.', 'warning');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('A senha deve ter no mínimo 6 caracteres.', 'warning');
+                return;
+            }
+
+            // Desabilitar botão durante requisição
+            btn.disabled = true;
+            btn.textContent = 'Cadastrando...';
+
+            try {
+                console.log('📝 Enviando cadastro:', { restaurantName, subdomain, email });
+
+                const response = await fetch(API_URL + '/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        restaurantName,
+                        subdomain,
+                        ownerName,
+                        email,
+                        phone,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao cadastrar');
+                }
+
+                if (data.success) {
+                    // O backend retorna 'subdomain' - usar isso como tenant
+                    const tenantId = data.data.subdomain || data.data.tenantId || subdomain;
+                    
+                    console.log('✅ Cadastro realizado! Tenant:', tenantId);
+                    console.log('📦 Resposta completa:', data);
+                    
+                    // Salvar token e tenant
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('tenant', tenantId);
+                    sessionStorage.setItem('tenant', tenantId);
+                    
+                    showToast('Restaurante cadastrado com sucesso!', 'success');
+                    
+                    // Redirecionar para o admin
+                    setTimeout(() => {
+                        window.location.href = '/admin?tenant=' + encodeURIComponent(tenantId);
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('❌ Erro no registro:', error);
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Criar Conta';
+            }
+        }
+
+        // ============================================================
+        //  TOAST NOTIFICATIONS
+        // ============================================================
+        function showToast(message, type = 'success', duration = 3500) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const icons = { success: '✅', error: '❌', warning: '⚠️' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || '📢'}</span>
+                <span>${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
+            }, duration);
+        }
+
+        // ============================================================
+        //  VERIFICAR SESSÃO EXISTENTE (CORRIGIDO)
+        // ============================================================
+        function checkExistingSession() {
+            const token = localStorage.getItem('token');
+            const tenant = localStorage.getItem('tenant');
+            
+            // Só redireciona se houver um token E um tenant válidos
+            if (token && token !== 'undefined' && tenant && tenant !== 'undefined') {
+                console.log('🔐 Sessão existente encontrada. Tenant:', tenant);
+                window.location.href = '/admin?tenant=' + encodeURIComponent(tenant);
+                return true;
+            }
+            return false;
+        }
+
+        // ============================================================
+        //  INICIALIZAÇÃO
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página de cadastro carregada');
+            
+            // Verificar sessão antes de mostrar a página
+            if (checkExistingSession()) {
+                return;
+            }
+
+            // Limpar tokens inválidos se existirem
+            const token = localStorage.getItem('token');
+            const tenant = localStorage.getItem('tenant');
+            if (token === 'undefined' || tenant === 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('tenant');
+                sessionStorage.removeItem('tenant');
+            }
+
+            // Preencher subdomínio automaticamente se vier da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tenantFromUrl = urlParams.get('tenant');
+            if (tenantFromUrl) {
+                document.getElementById('reg-subdomain').value = tenantFromUrl;
+                console.log('📝 Subdomínio preenchido da URL:', tenantFromUrl);
+            }
+
+            // Suporte para Enter no campo de senha
+            document.getElementById('reg-password').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('register-form').dispatchEvent(new Event('submit'));
+                }
+            });
+        });
+
+        // ============================================================
+        //  EXPOSIÇÃO GLOBAL
+        // ============================================================
+        window.handleRegister = handleRegister;
+        window.showToast = showToast;
+
+        console.log('✅ Register page ready!');
+    </script>
+</body>
+</html>
