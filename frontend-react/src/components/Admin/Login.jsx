@@ -182,7 +182,7 @@ const Login = () => {
                             placeholder="fireburger"
                             required
                         />
-                        <small>Ex: firerburger.smartdelivery.com</small>
+                        <small>Ex: fireburger.smartdelivery.com</small>
                     </FormGroup>
 
                     <Button primary disabled={loading} style={{ padding: '14px' }}>
