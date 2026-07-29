@@ -8,39 +8,6 @@ import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 
 // ============================================================
-//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA
-// ============================================================
-const isStoreOpen = (openTime, closeTime) => {
-    if (!openTime || !closeTime) return false;
-    
-    const now = new Date();
-    const currentHour = String(now.getHours()).padStart(2, '0');
-    const currentMinute = String(now.getMinutes()).padStart(2, '0');
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    console.log(`🕐 Horário atual: ${currentHour}:${currentMinute}`);
-    console.log(`📅 Horário de funcionamento: ${openTime} - ${closeTime}`);
-    
-    const [openHour, openMinute] = openTime.split(':').map(Number);
-    const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-    
-    const openMinutes = openHour * 60 + openMinute;
-    let closeMinutes = closeHour * 60 + closeMinute;
-    
-    if (closeMinutes <= openMinutes) {
-        closeMinutes += 24 * 60;
-        console.log(`🔄 Fecha após meia-noite: ${closeMinutes} minutos`);
-        if (currentMinutes < openMinutes) return false;
-        if (currentMinutes >= closeMinutes) return false;
-        return true;
-    }
-    
-    const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-    console.log(`🔴 Status: ${isOpen ? 'ABERTO' : 'FECHADO'}`);
-    return isOpen;
-};
-
-// ============================================================
 //  BANNER
 // ============================================================
 const BannerWrapper = styled.div`
@@ -58,6 +25,7 @@ const BannerImage = styled.div`
     height: 200px;
     background: url(${props => props.$image}) center/cover no-repeat;
     background-color: #f0f0f0;
+    transition: background-image 0.5s ease;
     
     @media (min-width: 480px) {
         height: 260px;
@@ -98,6 +66,7 @@ const StoreInfoCard = styled.div`
     box-shadow: 0 4px 20px rgba(0,0,0,0.06);
     border: 1px solid #f0f0f0;
     margin-bottom: 16px;
+    min-height: 80px;
 `;
 
 const StoreHeader = styled.div`
@@ -116,6 +85,12 @@ const StoreName = styled.h1`
     display: flex;
     align-items: center;
     gap: 12px;
+    
+    .placeholder {
+        color: #b2bec3;
+        font-weight: 400;
+        font-size: 18px;
+    }
 `;
 
 const LogoImage = styled.img`
@@ -125,6 +100,20 @@ const LogoImage = styled.img`
     border: 2px solid #f0f0f0;
     object-fit: cover;
     background: #fff;
+`;
+
+const LogoPlaceholder = styled.div`
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid #f0f0f0;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #b2bec3;
 `;
 
 const StoreMeta = styled.div`
@@ -148,6 +137,33 @@ const MetaRow = styled.div`
         color: #888;
     }
 `;
+
+// ============================================================
+//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA
+// ============================================================
+const isStoreOpen = (openTime, closeTime) => {
+    if (!openTime || !closeTime) return false;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentMinutes = currentHour * 60 + currentMinute;
+    
+    const [openHour, openMinute] = openTime.split(':').map(Number);
+    const [closeHour, closeMinute] = closeTime.split(':').map(Number);
+    
+    const openMinutes = openHour * 60 + openMinute;
+    let closeMinutes = closeHour * 60 + closeMinute;
+    
+    if (closeMinutes <= openMinutes) {
+        closeMinutes += 24 * 60;
+        if (currentMinutes < openMinutes) return false;
+        if (currentMinutes >= closeMinutes) return false;
+        return true;
+    }
+    
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+};
 
 // ============================================================
 //  CARRINHO FLUTUANTE
@@ -222,11 +238,12 @@ const ProductGrid = styled.div`
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const ClientLayout = () => {
-    const { tenant, loading } = useTenant();
+    const { tenant, loading: tenantLoading } = useTenant();
     const { totalItems } = useCart();
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -234,6 +251,7 @@ const ClientLayout = () => {
 
         const loadData = async () => {
             try {
+                setIsLoading(true);
                 const [configRes, productsRes] = await Promise.all([
                     api.get('/config'),
                     api.get('/products?active_only=true')
@@ -242,6 +260,8 @@ const ClientLayout = () => {
                 setProducts(productsRes.data.data || []);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -258,15 +278,19 @@ const ClientLayout = () => {
         };
         
         checkStatus();
-        const interval = setInterval(checkStatus, 60000); // Atualizar a cada minuto
+        const interval = setInterval(checkStatus, 60000);
         
         return () => clearInterval(interval);
     }, [config]);
 
-    if (loading) return <div className="loader">Carregando...</div>;
-    if (!tenant) return <div>Tenant não encontrado</div>;
+    // Mostrar loading apenas no primeiro carregamento
+    if (tenantLoading || (isLoading && !config)) {
+        return <div className="loader">Carregando...</div>;
+    }
 
     const hasBanner = !!config?.banner_image;
+    const storeName = config?.store_name || 'Carregando...';
+    const logoImage = config?.logo_image;
 
     return (
         <>
@@ -277,7 +301,7 @@ const ClientLayout = () => {
                         <BannerImage $image={config.banner_image} />
                     ) : (
                         <BannerPlaceholder>
-                            {config?.store_name || 'Smart Delivery'}
+                            {storeName !== 'Carregando...' ? storeName : 'Smart Delivery'}
                         </BannerPlaceholder>
                     )}
                 </BannerWrapper>
@@ -286,10 +310,12 @@ const ClientLayout = () => {
                 <StoreInfoCard>
                     <StoreHeader>
                         <StoreName>
-                            {config?.logo_image && (
-                                <LogoImage src={config.logo_image} alt="Logo" />
+                            {logoImage ? (
+                                <LogoImage src={logoImage} alt="Logo" />
+                            ) : (
+                                <LogoPlaceholder>🍔</LogoPlaceholder>
                             )}
-                            {config?.store_name || 'Smart Delivery'}
+                            {storeName}
                         </StoreName>
                     </StoreHeader>
 
