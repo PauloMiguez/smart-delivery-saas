@@ -1018,12 +1018,7 @@ console.log('📁 __dirname:', __dirname);
 app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
 
 // ============================================================
-//  2. SERVER ARQUIVOS DO ADMIN
-// ============================================================
-app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
-
-// ============================================================
-//  3. ROTAS ESPECÍFICAS HTML (ANTES DO REACT)
+//  2. ROTAS HTML ESPECÍFICAS (ANTES DO REACT)
 // ============================================================
 app.get('/register.html', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
@@ -1042,12 +1037,23 @@ app.get('/', (req, res) => {
 });
 
 // ============================================================
+//  3. ADMIN - SERVIR PELO REACT (NÃO PELO VANILLA)
+// ============================================================
+// IMPORTANTE: NÃO usar app.use('/admin', express.static(...)) para o Vanilla
+// O React vai servir o admin via SPA
+
+// ============================================================
 //  4. SERVE REACT BUILD (SPA - FALLBACK)
 // ============================================================
 const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
 if (fs.existsSync(REACT_BUILD_PATH)) {
     console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
     app.use(express.static(REACT_BUILD_PATH));
+    
+    // Rota específica para admin (React)
+    app.get('/admin*', (req, res) => {
+        res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
+    });
     
     // Fallback para SPA (React Router) - APENAS para rotas não encontradas
     app.get('*', (req, res) => {
