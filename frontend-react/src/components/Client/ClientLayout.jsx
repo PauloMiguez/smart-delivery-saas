@@ -133,7 +133,7 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  CATEGORIAS - MENU DE NAVEGAÇÃO (NOVO)
+//  CATEGORIAS - MENU DE NAVEGAÇÃO
 // ============================================================
 const CategoryNav = styled.div`
     display: flex;
@@ -311,6 +311,9 @@ const ClientLayout = () => {
     const [activeCategory, setActiveCategory] = useState('');
     const categoryRefs = useRef({});
 
+    // ============================================================
+    //  CARREGAR DADOS - COM ORDENAÇÃO POR DISPLAY_ORDER
+    // ============================================================
     useEffect(() => {
         if (!tenant) return;
 
@@ -325,11 +328,18 @@ const ClientLayout = () => {
                 setConfig(configRes.data.data);
                 setProducts(productsRes.data.data || []);
                 
-                // Filtrar categorias que têm produtos
+                // Buscar categorias com display_order
+                const allCategories = categoriesRes.data.data || [];
+                
+                // Filtrar apenas categorias que têm produtos ativos
                 const activeProducts = productsRes.data.data || [];
                 const categoryNames = [...new Set(activeProducts.map(p => p.category).filter(Boolean))];
-                const allCategories = categoriesRes.data.data || [];
-                const filteredCategories = allCategories.filter(c => categoryNames.includes(c.name));
+                
+                // Filtrar e ORDENAR por display_order
+                const filteredCategories = allCategories
+                    .filter(c => categoryNames.includes(c.name))
+                    .sort((a, b) => (a.display_order || 999) - (b.display_order || 999));
+                
                 setCategories(filteredCategories);
                 
                 if (filteredCategories.length > 0) {
@@ -344,6 +354,43 @@ const ClientLayout = () => {
 
         loadData();
     }, [tenant]);
+
+    // ============================================================
+    //  FUNÇÃO PARA AGRUPAR PRODUTOS POR CATEGORIA (ORDENADO)
+    // ============================================================
+    const getProductsByCategory = () => {
+        const grouped = {};
+        const activeProducts = products.filter(p => p.active);
+        
+        // Primeiro, criar grupos
+        activeProducts.forEach(p => {
+            const cat = p.category || 'Sem categoria';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(p);
+        });
+        
+        // Ordenar as categorias baseado no display_order do banco
+        const sortedCategories = categories
+            .filter(c => grouped[c.name])
+            .sort((a, b) => (a.display_order || 999) - (b.display_order || 999));
+        
+        // Criar objeto ordenado
+        const orderedGrouped = {};
+        sortedCategories.forEach(c => {
+            orderedGrouped[c.name] = grouped[c.name];
+        });
+        
+        // Adicionar categorias que não estão na lista do banco (fallback)
+        const extraCategories = Object.keys(grouped).filter(
+            cat => !categories.some(c => c.name === cat)
+        );
+        extraCategories.sort();
+        extraCategories.forEach(cat => {
+            orderedGrouped[cat] = grouped[cat];
+        });
+        
+        return orderedGrouped;
+    };
 
     // Atualizar status a cada minuto
     useEffect(() => {
@@ -360,25 +407,15 @@ const ClientLayout = () => {
         return () => clearInterval(interval);
     }, [config]);
 
-    // Função para scroll até a categoria
+    // ============================================================
+    //  FUNÇÃO PARA SCROLL ATÉ A CATEGORIA
+    // ============================================================
     const scrollToCategory = (categoryName) => {
         setActiveCategory(categoryName);
         const ref = categoryRefs.current[categoryName];
         if (ref) {
             ref.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    };
-
-    // Agrupar produtos por categoria
-    const getProductsByCategory = () => {
-        const grouped = {};
-        const activeProducts = products.filter(p => p.active);
-        activeProducts.forEach(p => {
-            const cat = p.category || 'Sem categoria';
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push(p);
-        });
-        return grouped;
     };
 
     const groupedProducts = getProductsByCategory();
