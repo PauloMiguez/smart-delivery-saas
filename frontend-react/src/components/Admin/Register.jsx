@@ -163,10 +163,10 @@ const Register = () => {
                             name="subdomain"
                             value={formData.subdomain}
                             onChange={handleChange}
-                            placeholder="firerburger"
+                            placeholder="fireburger"
                             required
                         />
-                        <small>Ex: firerburger.smartdelivery.com</small>
+                        <small>Ex: fireburger.smartdelivery.com</small>
                     </FormGroup>
 
                     <FormGroup>
@@ -188,7 +188,7 @@ const Register = () => {
                             name="email"
                             value={formData.email}
                             onChange={handleChange}
-                            placeholder="contato@firerburger.com"
+                            placeholder="contato@fireburger.com"
                             required
                         />
                     </FormGroup>
