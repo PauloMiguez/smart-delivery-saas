@@ -9,9 +9,9 @@ import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 import ClientLayout from './components/Client/ClientLayout';
 import Checkout from './components/Client/Checkout';
+import Register from './components/Client/Register';
 import AdminLayout from './components/Admin/AdminLayout';
 import Login from './components/Admin/Login';
-import Register from './components/Admin/Register';
 
 function App() {
     return (
@@ -25,12 +25,11 @@ function App() {
                                 <Routes>
                                     <Route path="/" element={<ClientLayout />} />
                                     <Route path="/checkout" element={<Checkout />} />
-                                    <Route path="/admin" element={<AdminLayout />} />
+                                    <Route path="/register" element={<Register />} />
+                                    <Route path="/register.html" element={<Navigate to="/register" />} />
                                     <Route path="/admin/*" element={<AdminLayout />} />
                                     <Route path="/login" element={<Login />} />
-                                    <Route path="/register" element={<Register />} />
                                     <Route path="/login.html" element={<Navigate to="/login" />} />
-                                    <Route path="/register.html" element={<Navigate to="/register" />} />
                                 </Routes>
                             </BrowserRouter>
                         </CartProvider>
