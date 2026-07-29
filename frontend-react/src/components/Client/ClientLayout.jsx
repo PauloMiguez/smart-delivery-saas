@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
@@ -85,12 +85,6 @@ const StoreName = styled.h1`
     display: flex;
     align-items: center;
     gap: 12px;
-    
-    .placeholder {
-        color: #b2bec3;
-        font-weight: 400;
-        font-size: 18px;
-    }
 `;
 
 const LogoImage = styled.img`
@@ -139,6 +133,48 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
+//  CATEGORIAS - MENU DE NAVEGAÇÃO (NOVO)
+// ============================================================
+const CategoryNav = styled.div`
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 0 16px 0;
+    margin-bottom: 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    
+    button {
+        flex-shrink: 0;
+        padding: 6px 16px;
+        border: 1.5px solid ${props => props.active ? '#e67e22' : '#dfe6e9'};
+        border-radius: 20px;
+        background: ${props => props.active ? '#fef9e7' : '#fff'};
+        color: ${props => props.active ? '#e67e22' : '#636e72'};
+        font-size: 13px;
+        font-weight: ${props => props.active ? '600' : '400'};
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        
+        &:hover {
+            border-color: #e67e22;
+            background: #fef9e7;
+        }
+        
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+`;
+
+// ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA
 // ============================================================
 const isStoreOpen = (openTime, closeTime) => {
@@ -168,43 +204,42 @@ const isStoreOpen = (openTime, closeTime) => {
 // ============================================================
 //  CARRINHO FLUTUANTE
 // ============================================================
-// ============================================================
-//  CARRINHO FLUTUANTE - CONTRASTE MELHORADO
-// ============================================================
 const FloatingCart = styled.button`
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 64px;
-    height: 64px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     background: #e67e22;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border: 3px solid #fff;
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.5),
+        0 0 0 4px rgba(230, 126, 34, 0.3);
     color: #fff;
-    font-size: 28px;
+    font-size: 30px;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     
-    /* Ícone do carrinho com contraste */
     .cart-icon {
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         line-height: 1;
     }
     
     &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 30px rgba(230, 126, 34, 0.5);
-        border-color: rgba(255, 255, 255, 0.5);
+        transform: scale(1.1) rotate(-8deg);
+        box-shadow: 
+            0 6px 30px rgba(230, 126, 34, 0.6),
+            0 0 0 6px rgba(230, 126, 34, 0.2);
     }
     
     &:active {
-        transform: scale(0.95);
+        transform: scale(0.92);
     }
 `;
 
@@ -233,13 +268,28 @@ const FloatingBadge = styled.span`
 `;
 
 // ============================================================
-//  PRODUCT GRID
+//  PRODUCT GRID COM IDENTIFICADOR DE CATEGORIA
 // ============================================================
+const CategorySection = styled.div`
+    margin-bottom: 24px;
+    scroll-margin-top: 16px;
+`;
+
+const CategoryTitle = styled.h3`
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d3436;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e67e22;
+    display: inline-block;
+`;
+
 const ProductGrid = styled.div`
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
-    padding-bottom: 80px;
+    padding-bottom: 40px;
     
     @media (min-width: 480px) {
         grid-template-columns: repeat(2, 1fr);
@@ -254,9 +304,12 @@ const ClientLayout = () => {
     const { totalItems } = useCart();
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('');
+    const categoryRefs = useRef({});
 
     useEffect(() => {
         if (!tenant) return;
@@ -264,12 +317,24 @@ const ClientLayout = () => {
         const loadData = async () => {
             try {
                 setIsLoading(true);
-                const [configRes, productsRes] = await Promise.all([
+                const [configRes, productsRes, categoriesRes] = await Promise.all([
                     api.get('/config'),
-                    api.get('/products?active_only=true')
+                    api.get('/products?active_only=true'),
+                    api.get('/categories')
                 ]);
                 setConfig(configRes.data.data);
                 setProducts(productsRes.data.data || []);
+                
+                // Filtrar categorias que têm produtos
+                const activeProducts = productsRes.data.data || [];
+                const categoryNames = [...new Set(activeProducts.map(p => p.category).filter(Boolean))];
+                const allCategories = categoriesRes.data.data || [];
+                const filteredCategories = allCategories.filter(c => categoryNames.includes(c.name));
+                setCategories(filteredCategories);
+                
+                if (filteredCategories.length > 0) {
+                    setActiveCategory(filteredCategories[0].name);
+                }
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
             } finally {
@@ -295,7 +360,30 @@ const ClientLayout = () => {
         return () => clearInterval(interval);
     }, [config]);
 
-    // Mostrar loading apenas no primeiro carregamento
+    // Função para scroll até a categoria
+    const scrollToCategory = (categoryName) => {
+        setActiveCategory(categoryName);
+        const ref = categoryRefs.current[categoryName];
+        if (ref) {
+            ref.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    // Agrupar produtos por categoria
+    const getProductsByCategory = () => {
+        const grouped = {};
+        const activeProducts = products.filter(p => p.active);
+        activeProducts.forEach(p => {
+            const cat = p.category || 'Sem categoria';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(p);
+        });
+        return grouped;
+    };
+
+    const groupedProducts = getProductsByCategory();
+    const categoryNames = Object.keys(groupedProducts);
+
     if (tenantLoading || (isLoading && !config)) {
         return <div className="loader">Carregando...</div>;
     }
@@ -344,7 +432,22 @@ const ClientLayout = () => {
                     </StoreMeta>
                 </StoreInfoCard>
 
-                {/* CARDÁPIO */}
+                {/* MENU DE CATEGORIAS */}
+                {categoryNames.length > 1 && (
+                    <CategoryNav>
+                        {categoryNames.map(cat => (
+                            <button
+                                key={cat}
+                                active={activeCategory === cat}
+                                onClick={() => scrollToCategory(cat)}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </CategoryNav>
+                )}
+
+                {/* CARDÁPIO POR CATEGORIA */}
                 <PageHeader>
                     <SectionTitle>🍽️ Cardápio</SectionTitle>
                     {products.length > 0 && (
@@ -360,11 +463,19 @@ const ClientLayout = () => {
                         <p>Nenhum produto disponível no momento.</p>
                     </div>
                 ) : (
-                    <ProductGrid>
-                        {products.map(product => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                    </ProductGrid>
+                    categoryNames.map(cat => (
+                        <CategorySection 
+                            key={cat} 
+                            ref={el => categoryRefs.current[cat] = el}
+                        >
+                            <CategoryTitle>{cat}</CategoryTitle>
+                            <ProductGrid>
+                                {groupedProducts[cat].map(product => (
+                                    <ProductCard key={product.id} product={product} />
+                                ))}
+                            </ProductGrid>
+                        </CategorySection>
+                    ))
                 )}
             </Container>
 
