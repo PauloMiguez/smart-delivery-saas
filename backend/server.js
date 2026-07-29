@@ -1013,64 +1013,62 @@ console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
 console.log('📁 __dirname:', __dirname);
 
 // ============================================================
-//  SERVE REACT BUILD (PRIMEIRO - PRIORIDADE MÁXIMA)
+//  1. SERVER ARQUIVOS HTML DO FRONTEND (PRIORIDADE MÁXIMA)
 // ============================================================
-const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
-if (fs.existsSync(REACT_BUILD_PATH)) {
-    console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
-    app.use(express.static(REACT_BUILD_PATH));
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api/') && !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
-            res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
-        }
-    });
-}
-
-// ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS (VANILLA - FALLBACK)
-// ============================================================
-// Servir arquivos estáticos do frontend (cliente) - VANILLA
 app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
 
-// Servir arquivos estáticos do admin - VANILLA
+// ============================================================
+//  2. SERVER ARQUIVOS DO ADMIN
+// ============================================================
 app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
-// Rotas específicas do Vanilla (fallback)
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
-});
-
-app.get('/admin/', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/admin/index.html'));
-});
-
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
+// ============================================================
+//  3. ROTAS ESPECÍFICAS HTML (ANTES DO REACT)
+// ============================================================
+app.get('/register.html', (req, res) => {
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
 });
 
 app.get('/login.html', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/login.html'));
 });
 
-app.get('/register', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
-});
-
-app.get('/register.html', (req, res) => {
-    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/register.html'));
+app.get('/index.html', (req, res) => {
+    res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
 });
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'frontend/public/index.html'));
 });
 
-app.get('/*.html', (req, res) => {
-    const fileName = req.path.split('/').pop();
-    const filePath = path.join(PROJECT_ROOT, 'frontend/public', fileName);
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            res.status(404).send('Página não encontrada');
+// ============================================================
+//  4. SERVE REACT BUILD (SPA - FALLBACK)
+// ============================================================
+const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
+if (fs.existsSync(REACT_BUILD_PATH)) {
+    console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
+    app.use(express.static(REACT_BUILD_PATH));
+    
+    // Fallback para SPA (React Router) - APENAS para rotas não encontradas
+    app.get('*', (req, res) => {
+        // Ignorar arquivos estáticos e APIs
+        if (!req.path.startsWith('/api/') && 
+            !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
+            res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
         }
+    });
+}
+
+// ============================================================
+//  5. FALLBACK FINAL (SE NADA FUNCIONAR)
+// ============================================================
+app.use((req, res) => {
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ success: false, error: 'Endpoint não encontrado' });
+    }
+    const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) res.status(404).send('Página não encontrada');
     });
 });
 
@@ -1093,31 +1091,6 @@ const tenantLimiter = rateLimit({
 });
 
 app.use('/api/', tenantLimiter);
-
-// ============================================================
-//  FALLBACK PARA ROTAS NÃO ENCONTRADAS (ÚLTIMA ROTA)
-// ============================================================
-
-app.use((req, res) => {
-    if (req.path.startsWith('/api/')) {
-        return res.status(404).json({
-            success: false,
-            error: 'Endpoint não encontrado'
-        });
-    }
-    // Se não for API, tentar servir o React novamente (SPA)
-    const reactIndexPath = path.join(__dirname, '../frontend-react/dist/index.html');
-    if (fs.existsSync(reactIndexPath)) {
-        res.sendFile(reactIndexPath);
-    } else {
-        const indexPath = path.join(PROJECT_ROOT, 'frontend/public/index.html');
-        res.sendFile(indexPath, (err) => {
-            if (err) {
-                res.status(404).send('Página não encontrada');
-            }
-        });
-    }
-});
 
 // ============================================================
 //  ROTA DE DELETE DE IMAGEM (CORRIGIDA - ÚNICA VERSÃO)
