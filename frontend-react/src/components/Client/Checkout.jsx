@@ -98,13 +98,14 @@ const SubmitButton = styled(Button)`
 `;
 
 // ============================================================
-//  CHIPS DE PAGAMENTO CORRIGIDOS
+//  CHIPS DE PAGAMENTO (FORA DO FORMULÁRIO)
 // ============================================================
 const ChipGroup = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 8px;
+    margin-bottom: 16px;
 `;
 
 const Chip = styled.button`
@@ -133,6 +134,21 @@ const Chip = styled.button`
     &:active {
         transform: scale(0.96);
     }
+`;
+
+const PaymentSection = styled.div`
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #f0f0f0;
+    margin-bottom: 16px;
+`;
+
+const PaymentTitle = styled.div`
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
 `;
 
 const Checkout = () => {
@@ -283,6 +299,9 @@ const Checkout = () => {
                 </TotalRow>
             </SummaryCard>
 
+            {/* ============================================================
+                FORMULÁRIO COM DADOS DO CLIENTE
+                ============================================================ */}
             <Form onSubmit={handleSubmit}>
                 <FormGroup>
                     <label>Nome completo *</label>
@@ -320,37 +339,42 @@ const Checkout = () => {
                     />
                 </FormGroup>
 
-                <div className="card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', marginBottom: '16px', border: '1px solid #f0f0f0' }}>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>
-                        💳 Pagamento na entrega
-                    </div>
+                {/* ============================================================
+                    PAGAMENTO - FORA DO SUBMIT AUTOMÁTICO
+                    ============================================================ */}
+                <PaymentSection>
+                    <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
                         <Chip 
                             selected={paymentMethod === 'Dinheiro'}
                             onClick={() => setPaymentMethod('Dinheiro')}
+                            type="button"
                         >
                             <span className="chip-icon">💰</span> Dinheiro
                         </Chip>
                         <Chip 
                             selected={paymentMethod === 'Pix'}
                             onClick={() => setPaymentMethod('Pix')}
+                            type="button"
                         >
                             <span className="chip-icon">📲</span> Pix
                         </Chip>
                         <Chip 
                             selected={paymentMethod === 'Crédito'}
                             onClick={() => setPaymentMethod('Crédito')}
+                            type="button"
                         >
                             <span className="chip-icon">💳</span> Crédito
                         </Chip>
                         <Chip 
                             selected={paymentMethod === 'Débito'}
                             onClick={() => setPaymentMethod('Débito')}
+                            type="button"
                         >
                             <span className="chip-icon">💳</span> Débito
                         </Chip>
                     </ChipGroup>
-                </div>
+                </PaymentSection>
 
                 <SubmitButton primary disabled={loading}>
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
