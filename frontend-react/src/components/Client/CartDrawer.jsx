@@ -10,7 +10,7 @@ const Overlay = styled.div`
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 1000;
     display: ${props => props.isOpen ? 'block' : 'none'};
 `;
@@ -72,6 +72,7 @@ const ItemInfo = styled.div`
     .name {
         font-weight: 500;
         font-size: 14px;
+        color: #2d3436;
     }
     
     .price {
@@ -81,29 +82,65 @@ const ItemInfo = styled.div`
     }
 `;
 
+// ============================================================
+//  BOTÕES DE QUANTIDADE CORRIGIDOS PARA O CARRINHO
+// ============================================================
 const ItemActions = styled.div`
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     
     button {
-        width: 28px;
-        height: 28px;
-        border: 1px solid #ddd;
+        width: 32px;
+        height: 32px;
+        border: 1.5px solid #ddd;
         border-radius: 50%;
         background: #fff;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #2d3436;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        touch-action: manipulation;
+        line-height: 1;
+        padding: 0;
         
         &:hover {
-            background: #f5f5f5;
+            background: #e67e22;
+            color: #fff;
+            border-color: #e67e22;
+        }
+        
+        &:active {
+            transform: scale(0.92);
         }
     }
     
     .qty {
-        min-width: 20px;
+        min-width: 24px;
         text-align: center;
         font-weight: 600;
+        font-size: 16px;
+        color: #2d3436;
+    }
+    
+    .btn-remove {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 4px;
+        -webkit-tap-highlight-color: transparent;
+        
+        &:hover {
+            color: #c0392b;
+        }
     }
 `;
 
@@ -113,6 +150,7 @@ const TotalRow = styled.div`
     font-size: 18px;
     font-weight: 700;
     padding: 8px 0;
+    color: #2d3436;
 `;
 
 const EmptyCart = styled.div`
@@ -140,7 +178,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
             <Overlay isOpen={isOpen} onClick={onClose} />
             <Drawer isOpen={isOpen}>
                 <DrawerHeader>
-                    <h3 style={{ margin: 0 }}>🛒 Sacola</h3>
+                    <h3 style={{ margin: 0, color: '#2d3436' }}>🛒 Sacola</h3>
                     <CloseButton onClick={onClose}>✕</CloseButton>
                 </DrawerHeader>
 
@@ -158,12 +196,23 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                     <div className="price">R$ {parseFloat(item.price).toFixed(2)}</div>
                                 </ItemInfo>
                                 <ItemActions>
-                                    <button onClick={() => updateQty(item.id, item.qty - 1)}>−</button>
-                                    <span className="qty">{item.qty}</span>
-                                    <button onClick={() => updateQty(item.id, item.qty + 1)}>+</button>
                                     <button 
-                                        style={{ color: '#e74c3c', border: 'none', background: 'none', fontSize: '16px' }}
+                                        onClick={() => updateQty(item.id, item.qty - 1)}
+                                        aria-label="Diminuir quantidade"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="qty">{item.qty}</span>
+                                    <button 
+                                        onClick={() => updateQty(item.id, item.qty + 1)}
+                                        aria-label="Aumentar quantidade"
+                                    >
+                                        +
+                                    </button>
+                                    <button 
+                                        className="btn-remove" 
                                         onClick={() => removeFromCart(item.id)}
+                                        aria-label="Remover item"
                                     >
                                         ✕
                                     </button>
