@@ -52,6 +52,11 @@ const FormGroup = styled.div`
         font-size: 14px;
         color: #555;
     }
+
+    small {
+        color: #888;
+        font-size: 12px;
+    }
 `;
 
 const ErrorMessage = styled.div`
@@ -84,7 +89,8 @@ const Login = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
-        password: ''
+        password: '',
+        tenant: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -99,12 +105,22 @@ const Login = () => {
         setLoading(true);
         setError('');
 
+        // Validar tenant
+        if (!formData.tenant) {
+            setError('Por favor, informe o subdomínio do restaurante.');
+            setLoading(false);
+            return;
+        }
+
         try {
-            const response = await api.post('/auth/login', formData);
+            const response = await api.post('/auth/login', {
+                email: formData.email,
+                password: formData.password
+            });
             
             if (response.data.success) {
                 const { token, user } = response.data.data;
-                const tenantId = user.tenantId;
+                const tenantId = user.tenantId || formData.tenant;
                 
                 localStorage.setItem('token', token);
                 localStorage.setItem('tenant', tenantId);
@@ -149,6 +165,19 @@ const Login = () => {
                             placeholder="••••••••"
                             required
                         />
+                    </FormGroup>
+
+                    <FormGroup>
+                        <label>Subdomínio do Restaurante *</label>
+                        <Input
+                            type="text"
+                            name="tenant"
+                            value={formData.tenant}
+                            onChange={handleChange}
+                            placeholder="firerburger"
+                            required
+                        />
+                        <small>Ex: firerburger.smartdelivery.com</small>
                     </FormGroup>
 
                     <Button primary disabled={loading} style={{ padding: '14px' }}>
