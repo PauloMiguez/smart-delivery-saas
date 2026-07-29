@@ -97,17 +97,55 @@ const SubmitButton = styled(Button)`
     }
 `;
 
+// ============================================================
+//  CHIPS DE PAGAMENTO CORRIGIDOS
+// ============================================================
+const ChipGroup = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+`;
+
+const Chip = styled.button`
+    padding: 10px 18px;
+    border: 2px solid ${props => props.selected ? '#e67e22' : '#dfe6e9'};
+    border-radius: 30px;
+    background: ${props => props.selected ? '#fef9e7' : '#fff'};
+    color: ${props => props.selected ? '#e67e22' : '#2d3436'};
+    font-size: 14px;
+    font-weight: ${props => props.selected ? '600' : '500'};
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+    
+    .chip-icon {
+        margin-right: 6px;
+    }
+    
+    &:hover {
+        border-color: #e67e22;
+        background: ${props => props.selected ? '#fef9e7' : '#fef9e7'};
+    }
+    
+    &:active {
+        transform: scale(0.96);
+    }
+`;
+
 const Checkout = () => {
     const navigate = useNavigate();
     const { tenant } = useTenant();
     const { cart, subtotal, clearCart } = useCart();
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        address: '',
-        paymentMethod: 'Dinheiro'
+        address: ''
     });
 
     useEffect(() => {
@@ -171,7 +209,7 @@ const Checkout = () => {
                 subtotal: subtotal,
                 delivery_fee: deliveryFee,
                 total: total,
-                payment_method: formData.paymentMethod,
+                payment_method: paymentMethod,
                 delivery_type: 'delivery'
             };
 
@@ -181,7 +219,7 @@ const Checkout = () => {
             // WhatsApp
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
-            const message = `🍽️ *NOVO PEDIDO*\nCliente: ${formData.name}\nTelefone: ${formData.phone}\nEndereço: ${formData.address}\n\n*Itens:*\n${cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n')}\n\nSubtotal: R$ ${subtotal.toFixed(2)}\nTaxa entrega: R$ ${deliveryFee.toFixed(2)}\n*Total: R$ ${total.toFixed(2)}*\nPagamento: ${formData.paymentMethod}`;
+            const message = `🍽️ *NOVO PEDIDO*\nCliente: ${formData.name}\nTelefone: ${formData.phone}\nEndereço: ${formData.address}\n\n*Itens:*\n${cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n')}\n\nSubtotal: R$ ${subtotal.toFixed(2)}\nTaxa entrega: R$ ${deliveryFee.toFixed(2)}\n*Total: R$ ${total.toFixed(2)}*\nPagamento: ${paymentMethod}`;
             window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
 
             clearCart();
@@ -282,26 +320,37 @@ const Checkout = () => {
                     />
                 </FormGroup>
 
-                <FormGroup>
-                    <label>Forma de pagamento</label>
-                    <select
-                        name="paymentMethod"
-                        value={formData.paymentMethod}
-                        onChange={handleChange}
-                        style={{
-                            padding: '10px 12px',
-                            border: '1px solid #dfe6e9',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            background: '#fff'
-                        }}
-                    >
-                        <option value="Dinheiro">💰 Dinheiro</option>
-                        <option value="Pix">📲 Pix</option>
-                        <option value="Crédito">💳 Cartão de Crédito</option>
-                        <option value="Débito">💳 Cartão de Débito</option>
-                    </select>
-                </FormGroup>
+                <div className="card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', marginBottom: '16px', border: '1px solid #f0f0f0' }}>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>
+                        💳 Pagamento na entrega
+                    </div>
+                    <ChipGroup>
+                        <Chip 
+                            selected={paymentMethod === 'Dinheiro'}
+                            onClick={() => setPaymentMethod('Dinheiro')}
+                        >
+                            <span className="chip-icon">💰</span> Dinheiro
+                        </Chip>
+                        <Chip 
+                            selected={paymentMethod === 'Pix'}
+                            onClick={() => setPaymentMethod('Pix')}
+                        >
+                            <span className="chip-icon">📲</span> Pix
+                        </Chip>
+                        <Chip 
+                            selected={paymentMethod === 'Crédito'}
+                            onClick={() => setPaymentMethod('Crédito')}
+                        >
+                            <span className="chip-icon">💳</span> Crédito
+                        </Chip>
+                        <Chip 
+                            selected={paymentMethod === 'Débito'}
+                            onClick={() => setPaymentMethod('Débito')}
+                        >
+                            <span className="chip-icon">💳</span> Débito
+                        </Chip>
+                    </ChipGroup>
+                </div>
 
                 <SubmitButton primary disabled={loading}>
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
