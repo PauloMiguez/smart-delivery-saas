@@ -9,7 +9,33 @@ export const api = axios.create({
     }
 });
 
-// Interceptor para adicionar token
+// Função para obter tenant
+const getTenant = () => {
+    // 1. Tenta da URL
+    const params = new URLSearchParams(window.location.search);
+    const tenant = params.get('tenant');
+    if (tenant) {
+        sessionStorage.setItem('tenant', tenant);
+        return tenant;
+    }
+    
+    // 2. Tenta do sessionStorage
+    const stored = sessionStorage.getItem('tenant');
+    if (stored) {
+        return stored;
+    }
+    
+    // 3. Tenta do localStorage
+    const localStored = localStorage.getItem('tenant');
+    if (localStored) {
+        sessionStorage.setItem('tenant', localStored);
+        return localStored;
+    }
+    
+    return null;
+};
+
+// Interceptor para adicionar token e tenant
 api.interceptors.request.use(config => {
     // Adicionar token
     const token = localStorage.getItem('token');
@@ -17,22 +43,26 @@ api.interceptors.request.use(config => {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // Adicionar tenant
-    const tenant = getTenant();
-    if (tenant) {
-        config.headers['X-Tenant-ID'] = tenant;
-        if (!config.url.includes('?')) {
-            config.url += '?tenant=' + tenant;
-        } else {
-            config.url += '&tenant=' + tenant;
+    // Adicionar tenant APENAS se não for rota pública
+    const publicRoutes = ['/auth/login', '/auth/register', '/health', '/test-db'];
+    const isPublicRoute = publicRoutes.some(route => config.url?.includes(route));
+    
+    if (!isPublicRoute) {
+        const tenant = getTenant();
+        if (tenant) {
+            config.headers['X-Tenant-ID'] = tenant;
+            if (!config.url?.includes('?')) {
+                config.url += '?tenant=' + tenant;
+            } else {
+                config.url += '&tenant=' + tenant;
+            }
         }
     }
     
-    console.log('📤 Requisição:', config.method.toUpperCase(), config.url);
+    console.log('📤 Requisição:', config.method?.toUpperCase(), config.url);
     return config;
 });
 
-// Interceptor para resposta
 api.interceptors.response.use(
     response => {
         console.log('📥 Resposta:', response.status, response.config.url);
@@ -43,16 +73,5 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-// Função para obter tenant
-const getTenant = () => {
-    const params = new URLSearchParams(window.location.search);
-    const tenant = params.get('tenant');
-    if (tenant) {
-        sessionStorage.setItem('tenant', tenant);
-        return tenant;
-    }
-    return sessionStorage.getItem('tenant') || null;
-};
 
 export const getTenantId = getTenant;
