@@ -2,46 +2,38 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { api } from '../../services/api';
-import { Button, Input } from '../Shared/Container';
+import { Container, Button, Input } from '../Shared/Container';
 
-const LoginContainer = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
+const LoginContainer = styled(Container)`
+    padding-top: 40px;
+    max-width: 420px;
     min-height: 100vh;
-    background: linear-gradient(135deg, #e67e22, #d35400);
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 `;
 
 const LoginBox = styled.div`
     background: #fff;
     padding: 40px;
-    border-radius: ${props => props.theme.borderRadius.xl};
-    box-shadow: ${props => props.theme.shadows.xl};
-    max-width: 400px;
-    width: 100%;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    border: 1px solid #f0f0f0;
 `;
 
-const Logo = styled.div`
+const Title = styled.h1`
+    font-size: 28px;
+    font-weight: 700;
+    color: #2d3436;
+    margin-bottom: 8px;
     text-align: center;
-    margin-bottom: 32px;
+`;
 
-    h1 {
-        font-size: 28px;
-        font-weight: 800;
-        color: ${props => props.theme.colors.text};
-        margin: 0;
-        
-        span {
-            color: ${props => props.theme.colors.primary};
-        }
-    }
-
-    p {
-        color: ${props => props.theme.colors.textLight};
-        font-size: 14px;
-        margin: 4px 0 0 0;
-    }
+const Subtitle = styled.p`
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 24px;
 `;
 
 const Form = styled.form`
@@ -58,27 +50,32 @@ const FormGroup = styled.div`
     label {
         font-weight: 600;
         font-size: 14px;
-        color: ${props => props.theme.colors.textLight};
+        color: #555;
+    }
+
+    small {
+        color: #888;
+        font-size: 12px;
     }
 `;
 
 const ErrorMessage = styled.div`
     background: #fdedec;
-    color: ${props => props.theme.colors.danger};
+    color: #e74c3c;
     padding: 10px 12px;
-    border-radius: ${props => props.theme.borderRadius.md};
+    border-radius: 8px;
     font-size: 14px;
-    border-left: 3px solid ${props => props.theme.colors.danger};
+    border-left: 3px solid #e74c3c;
 `;
 
 const Footer = styled.div`
     text-align: center;
     margin-top: 20px;
     font-size: 14px;
-    color: ${props => props.theme.colors.textLight};
+    color: #888;
 
     a {
-        color: ${props => props.theme.colors.primary};
+        color: #e67e22;
         text-decoration: none;
         font-weight: 600;
 
@@ -90,25 +87,50 @@ const Footer = styled.div`
 
 const Login = () => {
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        tenant: ''
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
+        // Validar tenant
+        if (!formData.tenant) {
+            setError('Por favor, informe o subdomínio do restaurante.');
+            setLoading(false);
+            return;
+        }
+
         try {
-            const response = await api.post('/auth/login', { email, password });
+            // Salvar tenant antes do login (para o interceptor)
+            localStorage.setItem('tenant', formData.tenant);
+            sessionStorage.setItem('tenant', formData.tenant);
+
+            const response = await api.post('/auth/login', {
+                email: formData.email,
+                password: formData.password
+            });
             
             if (response.data.success) {
                 const { token, user } = response.data.data;
-                localStorage.setItem('token', token);
-                localStorage.setItem('tenant', user.tenantId);
+                const tenantId = user.tenantId || formData.tenant;
                 
-                navigate('/admin?tenant=' + user.tenantId);
+                localStorage.setItem('token', token);
+                localStorage.setItem('tenant', tenantId);
+                sessionStorage.setItem('tenant', tenantId);
+                
+                navigate('/admin?tenant=' + tenantId);
             }
         } catch (error) {
             setError(error.response?.data?.error || 'Erro ao fazer login');
@@ -120,20 +142,19 @@ const Login = () => {
     return (
         <LoginContainer>
             <LoginBox>
-                <Logo>
-                    <h1>🔐 <span>Smart</span>Delivery</h1>
-                    <p>Faça login para acessar o painel</p>
-                </Logo>
+                <Title>🔐 Smart Delivery</Title>
+                <Subtitle>Faça login para acessar o painel</Subtitle>
+
+                {error && <ErrorMessage>{error}</ErrorMessage>}
 
                 <Form onSubmit={handleSubmit}>
-                    {error && <ErrorMessage>{error}</ErrorMessage>}
-
                     <FormGroup>
                         <label>E-mail</label>
                         <Input
                             type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
                             placeholder="admin@fireburger.com"
                             required
                         />
@@ -143,20 +164,34 @@ const Login = () => {
                         <label>Senha</label>
                         <Input
                             type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
                             placeholder="••••••••"
                             required
                         />
                     </FormGroup>
 
-                    <Button primary disabled={loading} style={{ padding: '12px' }}>
+                    <FormGroup>
+                        <label>Subdomínio do Restaurante *</label>
+                        <Input
+                            type="text"
+                            name="tenant"
+                            value={formData.tenant}
+                            onChange={handleChange}
+                            placeholder="fireburger"
+                            required
+                        />
+                        <small>Ex: firerburger.smartdelivery.com</small>
+                    </FormGroup>
+
+                    <Button primary disabled={loading} style={{ padding: '14px' }}>
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </Form>
 
                 <Footer>
-                    Não tem uma conta? <a href="/register.html">Cadastre-se</a>
+                    Não tem uma conta? <a href="/register">Cadastre-se</a>
                 </Footer>
             </LoginBox>
         </LoginContainer>
