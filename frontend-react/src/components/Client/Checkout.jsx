@@ -4,7 +4,8 @@ import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { api } from '../../services/api';
-import { Container, Button, Card, Input, Flex } from '../Shared/Container';
+import { Container, Button, Card, Input } from '../Shared/Container';
+import AddressModal from './AddressModal';
 
 const CheckoutContainer = styled(Container)`
     padding-top: 16px;
@@ -98,7 +99,7 @@ const SubmitButton = styled(Button)`
 `;
 
 // ============================================================
-//  CHIPS DE PAGAMENTO (FORA DO FORMULÁRIO)
+//  CHIPS DE PAGAMENTO
 // ============================================================
 const ChipGroup = styled.div`
     display: flex;
@@ -151,6 +152,9 @@ const PaymentTitle = styled.div`
     margin-bottom: 8px;
 `;
 
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const Checkout = () => {
     const navigate = useNavigate();
     const { tenant } = useTenant();
@@ -158,12 +162,14 @@ const Checkout = () => {
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
+    const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         address: ''
     });
 
+    // Carregar configurações e dados salvos
     useEffect(() => {
         if (!tenant) return;
         
@@ -190,6 +196,11 @@ const Checkout = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         localStorage.setItem(`user_${name}`, value);
+    };
+
+    const handleAddressSave = (address) => {
+        setFormData(prev => ({ ...prev, address }));
+        localStorage.setItem('user_address', address);
     };
 
     const handleSubmit = async (e) => {
@@ -299,9 +310,6 @@ const Checkout = () => {
                 </TotalRow>
             </SummaryCard>
 
-            {/* ============================================================
-                FORMULÁRIO COM DADOS DO CLIENTE
-                ============================================================ */}
             <Form onSubmit={handleSubmit}>
                 <FormGroup>
                     <label>Nome completo *</label>
@@ -329,19 +337,27 @@ const Checkout = () => {
 
                 <FormGroup>
                     <label>Endereço de entrega *</label>
-                    <Input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        placeholder="Rua, número, bairro, cidade - UF"
-                        required
-                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <Input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            placeholder="Rua, número, bairro, cidade - UF"
+                            required
+                            style={{ flex: 1 }}
+                        />
+                        <Button 
+                            secondary 
+                            type="button"
+                            onClick={() => setIsAddressModalOpen(true)}
+                            style={{ whiteSpace: 'nowrap' }}
+                        >
+                            📍 Editar
+                        </Button>
+                    </div>
                 </FormGroup>
 
-                {/* ============================================================
-                    PAGAMENTO - FORA DO SUBMIT AUTOMÁTICO
-                    ============================================================ */}
                 <PaymentSection>
                     <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
@@ -380,6 +396,14 @@ const Checkout = () => {
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
                 </SubmitButton>
             </Form>
+
+            {/* Modal de Endereço */}
+            <AddressModal
+                isOpen={isAddressModalOpen}
+                onClose={() => setIsAddressModalOpen(false)}
+                onSave={handleAddressSave}
+                initialAddress={formData.address}
+            />
         </CheckoutContainer>
     );
 };
