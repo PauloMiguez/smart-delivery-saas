@@ -168,6 +168,9 @@ const isStoreOpen = (openTime, closeTime) => {
 // ============================================================
 //  CARRINHO FLUTUANTE
 // ============================================================
+// ============================================================
+//  CARRINHO FLUTUANTE - CONTRASTE MELHORADO
+// ============================================================
 const FloatingCart = styled.button`
     position: fixed;
     bottom: 24px;
@@ -176,8 +179,8 @@ const FloatingCart = styled.button`
     height: 64px;
     border-radius: 50%;
     background: #e67e22;
-    border: none;
-    box-shadow: 0 4px 20px rgba(230, 126, 34, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     color: #fff;
     font-size: 28px;
     cursor: pointer;
@@ -186,10 +189,18 @@ const FloatingCart = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    
+    /* Ícone do carrinho com contraste */
+    .cart-icon {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        line-height: 1;
+    }
     
     &:hover {
         transform: scale(1.1);
         box-shadow: 0 6px 30px rgba(230, 126, 34, 0.5);
+        border-color: rgba(255, 255, 255, 0.5);
     }
     
     &:active {
@@ -211,7 +222,8 @@ const FloatingBadge = styled.span`
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 2px solid #fff;
     animation: pulse 2s infinite;
     
     @keyframes pulse {
@@ -358,7 +370,7 @@ const ClientLayout = () => {
 
             {/* CARRINHO FLUTUANTE */}
             <FloatingCart onClick={() => setIsCartOpen(true)}>
-                🛒
+                <span className="cart-icon">🛒</span>
                 {totalItems > 0 && (
                     <FloatingBadge>{totalItems}</FloatingBadge>
                 )}
