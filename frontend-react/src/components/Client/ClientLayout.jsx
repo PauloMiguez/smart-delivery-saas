@@ -8,7 +8,7 @@ import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 
 // ============================================================
-//  CONTAINER PRINCIPAL - CORRIGIDO
+//  CONTAINER PRINCIPAL
 // ============================================================
 const AppContainer = styled.div`
     max-width: 100vw;
@@ -188,7 +188,7 @@ const CategoryTab = styled.button`
 `;
 
 // ============================================================
-//  PRODUCT GRID - CORRIGIDO COM FLEXBOX
+//  PRODUCT GRID
 // ============================================================
 const ProductGrid = styled.div`
     display: flex;
@@ -338,18 +338,26 @@ const ClientLayout = () => {
         const loadData = async () => {
             try {
                 setIsLoading(true);
-                const [configRes, productsRes] = await Promise.all([
+                const [configRes, productsRes, categoriesRes] = await Promise.all([
                     api.get('/config'),
-                    api.get('/products?active_only=true')
+                    api.get('/products?active_only=true'),
+                    api.get('/categories')
                 ]);
                 const productsData = productsRes.data.data || [];
+                const categoriesData = categoriesRes.data.data || [];
+                
                 setConfig(configRes.data.data);
                 setProducts(productsData);
                 
-                const uniqueCategories = [...new Set(productsData.map(p => p.category).filter(Boolean))];
-                setCategories(uniqueCategories);
-                if (uniqueCategories.length > 0) {
-                    setActiveCategory(uniqueCategories[0]);
+                // Ordenar categorias pelo display_order
+                const sortedCategories = categoriesData
+                    .filter(cat => productsData.some(p => p.category === cat.name && p.active))
+                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                    .map(cat => cat.name);
+                
+                setCategories(sortedCategories);
+                if (sortedCategories.length > 0) {
+                    setActiveCategory(sortedCategories[0]);
                 }
                 setFilteredProducts(productsData);
             } catch (error) {
@@ -406,7 +414,6 @@ const ClientLayout = () => {
     return (
         <>
             <AppContainer>
-                {/* BANNER */}
                 <BannerWrapper>
                     {hasBanner ? (
                         <BannerImage $image={config.banner_image} />
@@ -417,7 +424,6 @@ const ClientLayout = () => {
                     )}
                 </BannerWrapper>
 
-                {/* STORE INFO */}
                 <StoreInfoCard>
                     <StoreHeader>
                         <StoreName>
@@ -443,7 +449,7 @@ const ClientLayout = () => {
                     </StoreMeta>
                 </StoreInfoCard>
 
-                {/* CATEGORY TABS */}
+                {/* CATEGORY TABS - ORDENADAS */}
                 {categories.length > 0 && (
                     <CategoryTabsWrapper>
                         <CategoryTabsContainer>
@@ -460,7 +466,6 @@ const ClientLayout = () => {
                     </CategoryTabsWrapper>
                 )}
 
-                {/* MENU HEADER */}
                 <MenuHeader>
                     <MenuTitle>🍽️ Cardápio</MenuTitle>
                     {filteredProducts.length > 0 && (
@@ -482,7 +487,6 @@ const ClientLayout = () => {
                 )}
             </AppContainer>
 
-            {/* CARRINHO FLUTUANTE */}
             <FloatingCart onClick={() => setIsCartOpen(true)}>
                 <span className="cart-icon">🛒</span>
                 {totalItems > 0 && (
@@ -490,7 +494,6 @@ const ClientLayout = () => {
                 )}
             </FloatingCart>
 
-            {/* CARRINHO DRAWER */}
             <CartDrawer 
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
