@@ -139,14 +139,16 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  CATEGORY TABS (BOTÕES DE CATEGORIA)
+//  CATEGORY TABS (BOTÕES DE CATEGORIA) - CORRIGIDO
 // ============================================================
 const CategoryTabsWrapper = styled.div`
     overflow-x: auto;
+    overflow-y: hidden;
     padding: 8px 0 16px 0;
     margin: 0 -8px;
-    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100%;
     
     &::-webkit-scrollbar {
         display: none;
@@ -157,10 +159,12 @@ const CategoryTabsContainer = styled.div`
     display: flex;
     gap: 8px;
     padding: 0 8px;
+    width: max-content;
+    min-width: 100%;
 `;
 
 const CategoryTab = styled.button`
-    padding: 8px 20px;
+    padding: 8px 18px;
     border: 2px solid ${props => props.active ? '#e67e22' : '#dfe6e9'};
     border-radius: 30px;
     background: ${props => props.active ? '#fef9e7' : '#fff'};
@@ -173,6 +177,7 @@ const CategoryTab = styled.button`
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     touch-action: manipulation;
+    flex-shrink: 0;
     
     &:hover {
         border-color: #e67e22;
@@ -181,6 +186,26 @@ const CategoryTab = styled.button`
     
     &:active {
         transform: scale(0.96);
+    }
+`;
+
+// ============================================================
+//  PRODUCT GRID - CORRIGIDO
+// ============================================================
+const ProductGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding-bottom: 80px;
+    width: 100%;
+    
+    @media (max-width: 420px) {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    @media (min-width: 421px) and (max-width: 768px) {
+        grid-template-columns: repeat(2, 1fr);
     }
 `;
 
@@ -295,20 +320,6 @@ const FloatingBadge = styled.span`
 `;
 
 // ============================================================
-//  PRODUCT GRID
-// ============================================================
-const ProductGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    padding-bottom: 80px;
-    
-    @media (min-width: 480px) {
-        grid-template-columns: repeat(2, 1fr);
-    }
-`;
-
-// ============================================================
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const ClientLayout = () => {
@@ -334,16 +345,16 @@ const ClientLayout = () => {
                     api.get('/config'),
                     api.get('/products?active_only=true')
                 ]);
+                const productsData = productsRes.data.data || [];
                 setConfig(configRes.data.data);
-                setProducts(productsRes.data.data || []);
+                setProducts(productsData);
                 
-                // Extrair categorias únicas dos produtos
-                const uniqueCategories = [...new Set(productsRes.data.data.map(p => p.category))].filter(Boolean);
+                const uniqueCategories = [...new Set(productsData.map(p => p.category).filter(Boolean))];
                 setCategories(uniqueCategories);
                 if (uniqueCategories.length > 0) {
                     setActiveCategory(uniqueCategories[0]);
                 }
-                setFilteredProducts(productsRes.data.data || []);
+                setFilteredProducts(productsData);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
             } finally {
@@ -435,7 +446,7 @@ const ClientLayout = () => {
                     </StoreMeta>
                 </StoreInfoCard>
 
-                {/* CATEGORY TABS - BOTÕES ACIMA DO CARDÁPIO */}
+                {/* CATEGORY TABS */}
                 {categories.length > 0 && (
                     <CategoryTabsWrapper>
                         <CategoryTabsContainer>
