@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
@@ -12,11 +12,11 @@ import CartDrawer from './CartDrawer';
 // ============================================================
 const BannerWrapper = styled.div`
     margin: -16px -16px 0 -16px;
+    overflow: hidden;
     
     @media (min-width: 600px) {
         margin: 0 -16px 0 -16px;
         border-radius: 0 0 24px 24px;
-        overflow: hidden;
     }
 `;
 
@@ -25,7 +25,6 @@ const BannerImage = styled.div`
     height: 200px;
     background: url(${props => props.$image}) center/cover no-repeat;
     background-color: #f0f0f0;
-    transition: background-image 0.5s ease;
     
     @media (min-width: 480px) {
         height: 260px;
@@ -66,7 +65,6 @@ const StoreInfoCard = styled.div`
     box-shadow: 0 4px 20px rgba(0,0,0,0.06);
     border: 1px solid #f0f0f0;
     margin-bottom: 16px;
-    min-height: 80px;
 `;
 
 const StoreHeader = styled.div`
@@ -85,12 +83,6 @@ const StoreName = styled.h1`
     display: flex;
     align-items: center;
     gap: 12px;
-    
-    .placeholder {
-        color: #b2bec3;
-        font-weight: 400;
-        font-size: 18px;
-    }
 `;
 
 const LogoImage = styled.img`
@@ -139,7 +131,7 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  CATEGORY TABS (BOTÕES DE CATEGORIA) - CORRIGIDO
+//  CATEGORY TABS
 // ============================================================
 const CategoryTabsWrapper = styled.div`
     overflow-x: auto;
@@ -148,7 +140,8 @@ const CategoryTabsWrapper = styled.div`
     margin: 0 -8px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    width: 100%;
+    width: calc(100% + 16px);
+    position: relative;
     
     &::-webkit-scrollbar {
         display: none;
@@ -160,7 +153,6 @@ const CategoryTabsContainer = styled.div`
     gap: 8px;
     padding: 0 8px;
     width: max-content;
-    min-width: 100%;
 `;
 
 const CategoryTab = styled.button`
@@ -174,9 +166,6 @@ const CategoryTab = styled.button`
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    touch-action: manipulation;
     flex-shrink: 0;
     
     &:hover {
@@ -194,17 +183,18 @@ const CategoryTab = styled.button`
 // ============================================================
 const ProductGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
     gap: 16px;
     padding-bottom: 80px;
     width: 100%;
+    max-width: 100%;
+    overflow: hidden;
     
-    @media (max-width: 420px) {
-        grid-template-columns: 1fr;
-        gap: 12px;
+    @media (min-width: 420px) {
+        grid-template-columns: repeat(2, 1fr);
     }
     
-    @media (min-width: 421px) and (max-width: 768px) {
+    @media (min-width: 768px) {
         grid-template-columns: repeat(2, 1fr);
     }
 `;
@@ -243,55 +233,34 @@ const FloatingCart = styled.button`
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 68px;
-    height: 68px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: #e67e22;
-    border: 3px solid #fff;
-    box-shadow: 
-        0 4px 20px rgba(0, 0, 0, 0.5),
-        0 0 0 4px rgba(230, 126, 34, 0.3);
+    border: 2px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     color: #fff;
-    font-size: 30px;
+    font-size: 28px;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
     
     .cart-icon {
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         line-height: 1;
     }
     
     &:hover {
-        transform: scale(1.1) rotate(-8deg);
-        box-shadow: 
-            0 6px 30px rgba(230, 126, 34, 0.6),
-            0 0 0 6px rgba(230, 126, 34, 0.2);
+        transform: scale(1.1);
+        box-shadow: 0 6px 30px rgba(230,126,34,0.5);
     }
     
     &:active {
-        transform: scale(0.92);
-    }
-    
-    &::after {
-        content: '';
-        position: absolute;
-        top: -4px;
-        left: -4px;
-        right: -4px;
-        bottom: -4px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        animation: glow 2s ease-in-out infinite;
-    }
-    
-    @keyframes glow {
-        0%, 100% { opacity: 0.5; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.05); }
+        transform: scale(0.95);
     }
 `;
 
@@ -309,7 +278,7 @@ const FloatingBadge = styled.span`
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     border: 2px solid #fff;
     animation: pulse 2s infinite;
     
@@ -333,7 +302,6 @@ const ClientLayout = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
-    const categoryRefs = useRef({});
 
     useEffect(() => {
         if (!tenant) return;
