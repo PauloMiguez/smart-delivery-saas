@@ -3,9 +3,19 @@ import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
 import { api } from '../../services/api';
-import { Container, PageHeader, SectionTitle, Badge } from '../Shared/Container';
+import { Badge } from '../Shared/Container';
 import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
+
+// ============================================================
+//  CONTAINER PRINCIPAL - CORRIGIDO
+// ============================================================
+const AppContainer = styled.div`
+    max-width: 100vw;
+    overflow-x: hidden;
+    padding: 0 16px 80px 16px;
+    box-sizing: border-box;
+`;
 
 // ============================================================
 //  BANNER
@@ -137,11 +147,11 @@ const CategoryTabsWrapper = styled.div`
     overflow-x: auto;
     overflow-y: hidden;
     padding: 8px 0 16px 0;
-    margin: 0 -8px;
+    margin: 0 -16px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    width: calc(100% + 16px);
-    position: relative;
+    padding-left: 16px;
+    padding-right: 16px;
     
     &::-webkit-scrollbar {
         display: none;
@@ -151,7 +161,6 @@ const CategoryTabsWrapper = styled.div`
 const CategoryTabsContainer = styled.div`
     display: flex;
     gap: 8px;
-    padding: 0 8px;
     width: max-content;
 `;
 
@@ -179,24 +188,44 @@ const CategoryTab = styled.button`
 `;
 
 // ============================================================
-//  PRODUCT GRID - CORRIGIDO
+//  PRODUCT GRID - CORRIGIDO COM FLEXBOX
 // ============================================================
 const ProductGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-    padding-bottom: 80px;
     width: 100%;
-    max-width: 100%;
-    overflow: hidden;
+    padding-bottom: 80px;
     
     @media (min-width: 420px) {
-        grid-template-columns: repeat(2, 1fr);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
     }
-    
-    @media (min-width: 768px) {
-        grid-template-columns: repeat(2, 1fr);
-    }
+`;
+
+// ============================================================
+//  HEADER DO CARDÁPIO
+// ============================================================
+const MenuHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 2px solid #dfe6e9;
+    margin-bottom: 16px;
+`;
+
+const MenuTitle = styled.h2`
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d3436;
+    margin: 0;
+`;
+
+const MenuCount = styled.span`
+    font-size: 14px;
+    color: #b2bec3;
 `;
 
 // ============================================================
@@ -376,7 +405,7 @@ const ClientLayout = () => {
 
     return (
         <>
-            <Container>
+            <AppContainer>
                 {/* BANNER */}
                 <BannerWrapper>
                     {hasBanner ? (
@@ -431,15 +460,13 @@ const ClientLayout = () => {
                     </CategoryTabsWrapper>
                 )}
 
-                {/* CARDÁPIO */}
-                <PageHeader>
-                    <SectionTitle>🍽️ Cardápio</SectionTitle>
+                {/* MENU HEADER */}
+                <MenuHeader>
+                    <MenuTitle>🍽️ Cardápio</MenuTitle>
                     {filteredProducts.length > 0 && (
-                        <span style={{ fontSize: 14, color: '#b2bec3' }}>
-                            {filteredProducts.length} itens
-                        </span>
+                        <MenuCount>{filteredProducts.length} itens</MenuCount>
                     )}
-                </PageHeader>
+                </MenuHeader>
 
                 {filteredProducts.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#b2bec3' }}>
@@ -453,7 +480,7 @@ const ClientLayout = () => {
                         ))}
                     </ProductGrid>
                 )}
-            </Container>
+            </AppContainer>
 
             {/* CARRINHO FLUTUANTE */}
             <FloatingCart onClick={() => setIsCartOpen(true)}>
