@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
@@ -54,7 +54,7 @@ const BannerPlaceholder = styled.div`
 `;
 
 // ============================================================
-//  STORE INFO (ABAIXO DO BANNER)
+//  STORE INFO
 // ============================================================
 const StoreInfoCard = styled.div`
     background: #fff;
@@ -139,6 +139,52 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
+//  CATEGORY TABS (BOTÕES DE CATEGORIA)
+// ============================================================
+const CategoryTabsWrapper = styled.div`
+    overflow-x: auto;
+    padding: 8px 0 16px 0;
+    margin: 0 -8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    
+    &::-webkit-scrollbar {
+        display: none;
+    }
+`;
+
+const CategoryTabsContainer = styled.div`
+    display: flex;
+    gap: 8px;
+    padding: 0 8px;
+`;
+
+const CategoryTab = styled.button`
+    padding: 8px 20px;
+    border: 2px solid ${props => props.active ? '#e67e22' : '#dfe6e9'};
+    border-radius: 30px;
+    background: ${props => props.active ? '#fef9e7' : '#fff'};
+    color: ${props => props.active ? '#e67e22' : '#2d3436'};
+    font-size: 14px;
+    font-weight: ${props => props.active ? '600' : '500'};
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+    
+    &:hover {
+        border-color: #e67e22;
+        background: ${props => props.active ? '#fef9e7' : '#fef9e7'};
+    }
+    
+    &:active {
+        transform: scale(0.96);
+    }
+`;
+
+// ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA
 // ============================================================
 const isStoreOpen = (openTime, closeTime) => {
@@ -168,43 +214,59 @@ const isStoreOpen = (openTime, closeTime) => {
 // ============================================================
 //  CARRINHO FLUTUANTE
 // ============================================================
-// ============================================================
-//  CARRINHO FLUTUANTE - CONTRASTE MELHORADO
-// ============================================================
 const FloatingCart = styled.button`
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 64px;
-    height: 64px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     background: #e67e22;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border: 3px solid #fff;
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.5),
+        0 0 0 4px rgba(230, 126, 34, 0.3);
     color: #fff;
-    font-size: 28px;
+    font-size: 30px;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     
-    /* Ícone do carrinho com contraste */
     .cart-icon {
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         line-height: 1;
     }
     
     &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 30px rgba(230, 126, 34, 0.5);
-        border-color: rgba(255, 255, 255, 0.5);
+        transform: scale(1.1) rotate(-8deg);
+        box-shadow: 
+            0 6px 30px rgba(230, 126, 34, 0.6),
+            0 0 0 6px rgba(230, 126, 34, 0.2);
     }
     
     &:active {
-        transform: scale(0.95);
+        transform: scale(0.92);
+    }
+    
+    &::after {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        animation: glow 2s ease-in-out infinite;
+    }
+    
+    @keyframes glow {
+        0%, 100% { opacity: 0.5; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); }
     }
 `;
 
@@ -254,9 +316,13 @@ const ClientLayout = () => {
     const { totalItems } = useCart();
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [activeCategory, setActiveCategory] = useState('');
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const categoryRefs = useRef({});
 
     useEffect(() => {
         if (!tenant) return;
@@ -270,6 +336,14 @@ const ClientLayout = () => {
                 ]);
                 setConfig(configRes.data.data);
                 setProducts(productsRes.data.data || []);
+                
+                // Extrair categorias únicas dos produtos
+                const uniqueCategories = [...new Set(productsRes.data.data.map(p => p.category))].filter(Boolean);
+                setCategories(uniqueCategories);
+                if (uniqueCategories.length > 0) {
+                    setActiveCategory(uniqueCategories[0]);
+                }
+                setFilteredProducts(productsRes.data.data || []);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
             } finally {
@@ -279,6 +353,15 @@ const ClientLayout = () => {
 
         loadData();
     }, [tenant]);
+
+    // Filtrar produtos por categoria
+    useEffect(() => {
+        if (activeCategory) {
+            setFilteredProducts(products.filter(p => p.category === activeCategory));
+        } else {
+            setFilteredProducts(products);
+        }
+    }, [activeCategory, products]);
 
     // Atualizar status a cada minuto
     useEffect(() => {
@@ -295,7 +378,15 @@ const ClientLayout = () => {
         return () => clearInterval(interval);
     }, [config]);
 
-    // Mostrar loading apenas no primeiro carregamento
+    // Scroll para a categoria
+    const scrollToCategory = (category) => {
+        setActiveCategory(category);
+        const element = document.getElementById(`category-${category}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     if (tenantLoading || (isLoading && !config)) {
         return <div className="loader">Carregando...</div>;
     }
@@ -318,7 +409,7 @@ const ClientLayout = () => {
                     )}
                 </BannerWrapper>
 
-                {/* STORE INFO - ABAIXO DO BANNER */}
+                {/* STORE INFO */}
                 <StoreInfoCard>
                     <StoreHeader>
                         <StoreName>
@@ -344,24 +435,41 @@ const ClientLayout = () => {
                     </StoreMeta>
                 </StoreInfoCard>
 
+                {/* CATEGORY TABS - BOTÕES ACIMA DO CARDÁPIO */}
+                {categories.length > 0 && (
+                    <CategoryTabsWrapper>
+                        <CategoryTabsContainer>
+                            {categories.map(cat => (
+                                <CategoryTab
+                                    key={cat}
+                                    active={activeCategory === cat}
+                                    onClick={() => scrollToCategory(cat)}
+                                >
+                                    {cat}
+                                </CategoryTab>
+                            ))}
+                        </CategoryTabsContainer>
+                    </CategoryTabsWrapper>
+                )}
+
                 {/* CARDÁPIO */}
                 <PageHeader>
                     <SectionTitle>🍽️ Cardápio</SectionTitle>
-                    {products.length > 0 && (
+                    {filteredProducts.length > 0 && (
                         <span style={{ fontSize: 14, color: '#b2bec3' }}>
-                            {products.length} itens
+                            {filteredProducts.length} itens
                         </span>
                     )}
                 </PageHeader>
 
-                {products.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#b2bec3' }}>
                         <div style={{ fontSize: 48, marginBottom: 16 }}>🍽️</div>
-                        <p>Nenhum produto disponível no momento.</p>
+                        <p>Nenhum produto disponível nesta categoria.</p>
                     </div>
                 ) : (
                     <ProductGrid>
-                        {products.map(product => (
+                        {filteredProducts.map(product => (
                             <ProductCard key={product.id} product={product} />
                         ))}
                     </ProductGrid>
