@@ -133,26 +133,38 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  CATEGORIAS - MENU DE NAVEGAÇÃO (CORRIGIDO)
+//  CATEGORIAS - MENU DE NAVEGAÇÃO (VERSÃO CORRIGIDA)
 // ============================================================
 const CategoryWrapper = styled.div`
     width: 100%;
     overflow: hidden;
     position: relative;
-    margin-bottom: 4px;
+    margin: 0 0 8px 0;
+    padding: 0;
     
     @media (max-width: 480px) {
         &::after {
-            content: '';
+            content: '→';
             position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-            width: 30px;
-            background: linear-gradient(to right, transparent, #f8f9fa);
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #e67e22;
+            font-size: 18px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 8px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             pointer-events: none;
-            z-index: 1;
+            z-index: 2;
+            animation: pulse-arrow 1.5s ease-in-out infinite;
         }
+    }
+    
+    @keyframes pulse-arrow {
+        0%, 100% { opacity: 0.6; transform: translateY(-50%) translateX(0); }
+        50% { opacity: 1; transform: translateY(-50%) translateX(4px); }
     }
 `;
 
@@ -161,14 +173,18 @@ const CategoryNav = styled.div`
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 8px 4px 16px 4px;
-    margin: 0 -4px;
+    padding: 8px 4px 12px 4px;
+    margin: 0;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
     
     &::-webkit-scrollbar {
         display: none;
+        width: 0;
+        height: 0;
     }
     
     button {
@@ -187,6 +203,7 @@ const CategoryNav = styled.div`
         touch-action: manipulation;
         scroll-snap-align: start;
         min-width: fit-content;
+        user-select: none;
         
         &:hover {
             border-color: #e67e22;
