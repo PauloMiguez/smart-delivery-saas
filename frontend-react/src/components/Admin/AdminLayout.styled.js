@@ -331,12 +331,28 @@ export const Overlay = styled.div`
 `;
 
 // ============================================================
-//  COMPONENTES ADICIONAIS PARA RESPONSIVIDADE
+//  COMPONENTES PARA RESPONSIVIDADE (CORRIGIDOS)
 // ============================================================
 export const ProductsContainer = styled.div`
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+
+    .desktop-table {
+        display: block;
+
+        @media (max-width: 768px) {
+            display: none;
+        }
+    }
+
+    .mobile-cards {
+        display: none;
+
+        @media (max-width: 768px) {
+            display: block;
+        }
+    }
 `;
 
 export const OrdersContainer = styled.div`
