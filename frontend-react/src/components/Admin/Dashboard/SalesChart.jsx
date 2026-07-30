@@ -92,12 +92,12 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                         />
                         <Tooltip
                             formatter={(value, name) => {
-                                // CORREÇÃO: Nomes claros para cada métrica
-                                if (name === 'Faturamento') {
-                                    return [`R$ ${value.toFixed(2)}`, 'Faturamento'];
+                                // CORREÇÃO: Nomes corretos para cada métrica
+                                if (name === 'Quantidade') {
+                                    return [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade de Pedidos'];
                                 }
-                                if (name === 'Pedidos') {
-                                    return [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade'];
+                                if (name === 'Faturamento') {
+                                    return [`R$ ${value.toFixed(2)}`, 'Faturamento Total'];
                                 }
                                 return [value, name];
                             }}
@@ -107,7 +107,7 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                                 border: '1px solid #f0f0f0',
                                 borderRadius: '8px',
                                 padding: '12px',
-                                minWidth: '140px'
+                                minWidth: '180px'
                             }}
                         />
                         <Legend 
@@ -115,11 +115,21 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                             height={36}
                             formatter={(value) => {
                                 const labels = {
-                                    'Faturamento': '💰 Faturamento',
-                                    'Pedidos': '📦 Pedidos'
+                                    'Quantidade': '📦 Quantidade de Pedidos',
+                                    'Faturamento': '💰 Faturamento Total'
                                 };
                                 return labels[value] || value;
                             }}
+                        />
+                        <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="orders"
+                            name="Quantidade"
+                            stroke="#3498db"
+                            strokeWidth={2}
+                            dot={{ fill: '#3498db', r: 4 }}
+                            activeDot={{ r: 6 }}
                         />
                         <Line
                             yAxisId="left"
@@ -129,16 +139,6 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                             stroke="#e67e22"
                             strokeWidth={2}
                             dot={{ fill: '#e67e22', r: 4 }}
-                            activeDot={{ r: 6 }}
-                        />
-                        <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="orders"
-                            name="Pedidos"
-                            stroke="#3498db"
-                            strokeWidth={2}
-                            dot={{ fill: '#3498db', r: 4 }}
                             activeDot={{ r: 6 }}
                         />
                     </LineChart>
