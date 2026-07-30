@@ -74,23 +74,18 @@ const ChartWrapper = styled.div`
     }
 `;
 
-const ChartGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 20px;
+const COLORS = {
+    '🟡 Pendente': '#f39c12',
+    '🟢 Confirmado': '#27ae60',
+    '✅ Entregue': '#2ecc71',
+    '❌ Cancelado': '#e74c3c',
+    '🟠 Preparando': '#e67e22'
+};
 
-    @media (max-width: 768px) {
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-top: 12px;
-    }
-`;
-
-const COLORS = ['#e67e22', '#27ae60', '#e74c3c', '#3498db', '#f39c12', '#9b59b6'];
+const DEFAULT_COLORS = ['#e67e22', '#27ae60', '#3498db', '#e74c3c', '#f39c12', '#9b59b6'];
 
 // ============================================================
-//  GRÁFICO DE VENDAS DIÁRIAS (LINHA) - RESPONSIVO
+//  GRÁFICO DE VENDAS DIÁRIAS (LINHA)
 // ============================================================
 export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
     if (!data || data.length === 0) {
@@ -104,7 +99,6 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
         );
     }
 
-    // Formatar data para exibição
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
         const parts = dateStr.split('-');
@@ -112,7 +106,6 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
         return `${parts[2]}/${parts[1]}`;
     };
 
-    // Detectar se é mobile para ajustar o tooltip
     const isMobile = window.innerWidth < 768;
 
     return (
@@ -217,7 +210,7 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 };
 
 // ============================================================
-//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - RESPONSIVO
+//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - CORRIGIDO
 // ============================================================
 export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
@@ -246,6 +239,59 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
         );
     }
 
+    // ============================================================
+    //  CORREÇÃO: Mapear cores para cada status
+    // ============================================================
+    const getColor = (name) => {
+        if (name.includes('Pendente')) return '#f39c12';
+        if (name.includes('Confirmado')) return '#27ae60';
+        if (name.includes('Entregue')) return '#2ecc71';
+        if (name.includes('Cancelado')) return '#e74c3c';
+        if (name.includes('Preparando')) return '#e67e22';
+        return '#3498db';
+    };
+
+    // ============================================================
+    //  CORREÇÃO: Função para renderizar a legenda com a cor correta
+    // ============================================================
+    const renderLegend = (props) => {
+        const { payload } = props;
+        return (
+            <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: isMobile ? '4px' : '8px',
+                justifyContent: 'center'
+            }}>
+                {payload.map((entry, index) => {
+                    const color = getColor(entry.value);
+                    return (
+                        <li key={`legend-${index}`} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: isMobile ? '11px' : '13px',
+                            color: '#2d3436'
+                        }}>
+                            <span style={{
+                                display: 'inline-block',
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '3px',
+                                backgroundColor: color,
+                                flexShrink: 0
+                            }} />
+                            <span>{entry.value}</span>
+                        </li>
+                    );
+                })}
+            </ul>
+        );
+    };
+
     const pieSize = isSmallMobile ? 180 : (isMobile ? 200 : 260);
 
     return (
@@ -270,7 +316,10 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                             label={{ fontSize: isMobile ? 10 : 12 }}
                         >
                             {filteredData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                <Cell 
+                                    key={`cell-${index}`} 
+                                    fill={getColor(entry.name)}
+                                />
                             ))}
                         </Pie>
                         <Tooltip
@@ -284,13 +333,14 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                             }}
                         />
                         <Legend 
+                            content={renderLegend}
                             wrapperStyle={{
                                 fontSize: isMobile ? '11px' : '14px',
                                 paddingTop: isMobile ? '8px' : '12px'
                             }}
-                            layout={isMobile ? "horizontal" : "vertical"}
                             verticalAlign={isMobile ? "bottom" : "middle"}
                             align={isMobile ? "center" : "right"}
+                            layout={isMobile ? "horizontal" : "vertical"}
                         />
                     </PieChart>
                 </ResponsiveContainer>
@@ -300,7 +350,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
 };
 
 // ============================================================
-//  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS) - RESPONSIVO
+//  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS)
 // ============================================================
 export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.quantity === 0)) {
