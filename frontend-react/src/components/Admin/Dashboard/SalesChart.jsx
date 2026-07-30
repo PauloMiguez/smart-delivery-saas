@@ -75,15 +75,24 @@ const ChartWrapper = styled.div`
 `;
 
 // ============================================================
-//  CORES POR STATUS
+//  CORES POR STATUS (SEM EMOJIS)
 // ============================================================
 const getStatusColor = (name) => {
-    if (name.includes('Pendente')) return '#f39c12';
-    if (name.includes('Confirmado')) return '#27ae60';
-    if (name.includes('Entregue')) return '#2ecc71';
-    if (name.includes('Cancelado')) return '#e74c3c';
-    if (name.includes('Preparando')) return '#e67e22';
+    // Remover emojis do nome para comparar
+    const cleanName = name.replace(/[✅🟡🟢🔴🟠❌]/g, '').trim();
+    if (cleanName.includes('Pendente')) return '#f39c12';
+    if (cleanName.includes('Confirmado')) return '#27ae60';
+    if (cleanName.includes('Entregue')) return '#2ecc71';
+    if (cleanName.includes('Cancelado')) return '#e74c3c';
+    if (cleanName.includes('Preparando')) return '#e67e22';
     return '#3498db';
+};
+
+// ============================================================
+//  FUNÇÃO PARA LIMPAR EMOJIS DO TEXTO
+// ============================================================
+const cleanText = (text) => {
+    return text.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim();
 };
 
 // ============================================================
@@ -178,8 +187,8 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                             }}
                             formatter={(value) => {
                                 const labels = {
-                                    'Quantidade': isMobile ? '📦 Pedidos' : '📦 Quantidade de Pedidos',
-                                    'Faturamento': isMobile ? '💰 Faturamento' : '💰 Faturamento Total'
+                                    'Quantidade': isMobile ? 'Pedidos' : 'Quantidade de Pedidos',
+                                    'Faturamento': isMobile ? 'Faturamento' : 'Faturamento Total'
                                 };
                                 return labels[value] || value;
                             }}
@@ -212,9 +221,9 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 };
 
 // ============================================================
-//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - CORRIGIDO
+//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - SEM EMOJIS
 // ============================================================
-export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' }) => {
+export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
         return (
             <ChartContainer>
@@ -226,11 +235,18 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
         );
     }
 
-    const filteredData = data.filter(d => d.value > 0);
+    // ============================================================
+    //  LIMPAR EMOJIS DOS DADOS
+    // ============================================================
+    const cleanData = data.map(item => ({
+        ...item,
+        name: cleanText(item.name)
+    })).filter(item => item.value > 0);
+
     const isMobile = window.innerWidth < 768;
     const isSmallMobile = window.innerWidth < 480;
 
-    if (filteredData.length === 0) {
+    if (cleanData.length === 0) {
         return (
             <ChartContainer>
                 <ChartTitle>{title}</ChartTitle>
@@ -242,8 +258,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
     }
 
     // ============================================================
-    //  CORREÇÃO: Legenda personalizada SEM ícone duplicado
-    //  Apenas o texto com a cor de fundo
+    //  LEGENDA PERSONALIZADA - APENAS COR + TEXTO (SEM EMOJIS)
     // ============================================================
     const renderLegend = (props) => {
         const { payload } = props;
@@ -258,6 +273,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                 justifyContent: 'center'
             }}>
                 {payload.map((entry, index) => {
+                    const cleanName = cleanText(entry.value);
                     const color = getStatusColor(entry.value);
                     return (
                         <li key={`legend-${index}`} style={{
@@ -278,7 +294,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                                 backgroundColor: color,
                                 flexShrink: 0
                             }} />
-                            <span>{entry.value}</span>
+                            <span>{cleanName}</span>
                         </li>
                     );
                 })}
@@ -295,7 +311,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={filteredData}
+                            data={cleanData}
                             cx="50%"
                             cy="50%"
                             innerRadius={isSmallMobile ? 30 : (isMobile ? 40 : 60)}
@@ -304,12 +320,12 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                             paddingAngle={2}
                             dataKey="value"
                             label={({ name, percent }) => 
-                                percent > 0.1 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
+                                percent > 0.1 ? `${cleanText(name)} ${(percent * 100).toFixed(0)}%` : ''
                             }
                             labelLine={false}
                             label={{ fontSize: isMobile ? 10 : 12 }}
                         >
-                            {filteredData.map((entry, index) => (
+                            {cleanData.map((entry, index) => (
                                 <Cell 
                                     key={`cell-${index}`} 
                                     fill={getStatusColor(entry.name)}
@@ -346,7 +362,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
 // ============================================================
 //  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS)
 // ============================================================
-export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }) => {
+export const TopProductsChart = ({ data, title = 'Produtos Mais Vendidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.quantity === 0)) {
         return (
             <ChartContainer>
