@@ -15,6 +15,12 @@ const Container = styled.div`
     @media (max-width: 768px) {
         flex-direction: column;
         align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    @media (max-width: 480px) {
+        padding: 10px;
         gap: 8px;
     }
 `;
@@ -27,7 +33,13 @@ const FilterGroup = styled.div`
 
     @media (max-width: 768px) {
         width: 100%;
-        justify-content: stretch;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    @media (max-width: 480px) {
+        gap: 4px;
+        justify-content: space-between;
     }
 `;
 
@@ -49,8 +61,17 @@ const FilterButton = styled.button`
     }
 
     @media (max-width: 768px) {
+        padding: 6px 12px;
+        font-size: 12px;
         flex: 1;
         text-align: center;
+        min-width: 60px;
+    }
+
+    @media (max-width: 480px) {
+        padding: 5px 8px;
+        font-size: 11px;
+        min-width: 50px;
     }
 `;
 
@@ -59,12 +80,20 @@ const RightGroup = styled.div`
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    min-width: 120px;
+    min-width: auto;
     justify-content: flex-end;
 
     @media (max-width: 768px) {
         width: 100%;
-        justify-content: stretch;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 480px) {
+        flex-direction: column;
+        gap: 6px;
+        align-items: stretch;
     }
 `;
 
@@ -92,6 +121,20 @@ const RefreshButton = styled.button`
         opacity: 0.6;
         cursor: not-allowed;
     }
+
+    @media (max-width: 768px) {
+        padding: 8px 16px;
+        font-size: 12px;
+        flex: 1;
+        justify-content: center;
+    }
+
+    @media (max-width: 480px) {
+        padding: 10px;
+        font-size: 13px;
+        width: 100%;
+        justify-content: center;
+    }
 `;
 
 const LastUpdate = styled.span`
@@ -99,28 +142,44 @@ const LastUpdate = styled.span`
     color: #888;
     white-space: nowrap;
     flex-shrink: 0;
-    min-width: 80px;
     text-align: right;
 
     @media (max-width: 768px) {
+        font-size: 11px;
         text-align: center;
-        min-width: unset;
+        flex: 1;
+    }
+
+    @media (max-width: 480px) {
+        font-size: 10px;
         width: 100%;
+        text-align: center;
     }
 `;
 
 const FilterBar = ({ period, onPeriodChange, onRefresh, lastUpdate, loading }) => {
     const periods = [
         { value: 'today', label: '📅 Hoje' },
-        { value: 'week', label: '📅 Esta Semana' },
-        { value: 'month', label: '📅 Este Mês' },
-        { value: 'all', label: '📅 Todo Período' }
+        { value: 'week', label: '📅 Semana' },
+        { value: 'month', label: '📅 Mês' },
+        { value: 'all', label: '📅 Todo' }
     ];
+
+    // Versão mobile com labels mais curtas
+    const isMobile = window.innerWidth < 480;
+    const mobilePeriods = [
+        { value: 'today', label: '📅 Hoje' },
+        { value: 'week', label: '📅 Semana' },
+        { value: 'month', label: '📅 Mês' },
+        { value: 'all', label: '📅 Todo' }
+    ];
+
+    const displayPeriods = isMobile ? mobilePeriods : periods;
 
     return (
         <Container>
             <FilterGroup>
-                {periods.map(p => (
+                {displayPeriods.map(p => (
                     <FilterButton
                         key={p.value}
                         active={period === p.value}
