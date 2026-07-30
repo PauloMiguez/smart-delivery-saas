@@ -19,7 +19,11 @@ import {
     Overlay,
     ProductsContainer,
     OrdersContainer,
-    ActionContainer
+    ActionContainer,
+    MobileOrderCard,
+    MobileOrderRow,
+    MobileItemsList,
+    MobileActions
 } from './AdminLayout.styled';
 import ProductModal from './ProductModal';
 import CategoryModal from './CategoryModal';
@@ -456,106 +460,214 @@ const AdminLayout = () => {
                     </>
                 )}
 
-                {/* PEDIDOS */}
+                {/* PEDIDOS - COM SUPORTE MOBILE */}
                 {activeTab === 'orders' && (
                     <OrdersContainer>
                         <h2>📋 Pedidos</h2>
                         {orders.length === 0 ? (
                             <p style={{ color: '#888', padding: '20px 0' }}>Nenhum pedido recebido.</p>
                         ) : (
-                            <TableWrapper>
-                                <Table>
-                                    <thead>
-                                        <tr>
-                                            <th>Pedido</th>
-                                            <th>Cliente</th>
-                                            <th>Itens</th>
-                                            <th>Total</th>
-                                            <th>Status</th>
-                                            <th>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {orders.map(o => {
-                                            let items = o.items;
-                                            if (typeof items === 'string') {
-                                                try { items = JSON.parse(items); } catch (e) { items = []; }
-                                            }
-                                            if (!Array.isArray(items)) items = [];
+                            <>
+                                {/* TABELA DESKTOP */}
+                                <TableWrapper className="desktop-table">
+                                    <Table>
+                                        <thead>
+                                            <tr>
+                                                <th>Pedido</th>
+                                                <th>Cliente</th>
+                                                <th>Itens</th>
+                                                <th>Total</th>
+                                                <th>Status</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {orders.map(o => {
+                                                let items = o.items;
+                                                if (typeof items === 'string') {
+                                                    try { items = JSON.parse(items); } catch (e) { items = []; }
+                                                }
+                                                if (!Array.isArray(items)) items = [];
 
-                                            const statusMap = {
-                                                'pending': 'pending',
-                                                'confirmado': 'confirmed',
-                                                'entregue': 'delivered',
-                                                'cancelado': 'cancelled'
-                                            };
+                                                const statusMap = {
+                                                    'pending': 'pending',
+                                                    'confirmado': 'confirmed',
+                                                    'entregue': 'delivered',
+                                                    'cancelado': 'cancelled'
+                                                };
 
-                                            const statusLabels = {
-                                                'pending': '🟡 Pendente',
-                                                'confirmado': '🟢 Confirmado',
-                                                'entregue': '✅ Entregue',
-                                                'cancelado': '❌ Cancelado'
-                                            };
+                                                const statusLabels = {
+                                                    'pending': '🟡 Pendente',
+                                                    'confirmado': '🟢 Confirmado',
+                                                    'entregue': '✅ Entregue',
+                                                    'cancelado': '❌ Cancelado'
+                                                };
 
-                                            const statusClass = o.status || 'pending';
+                                                const statusClass = o.status || 'pending';
 
-                                            return (
-                                                <tr key={o.id}>
-                                                    <td>#{o.order_number || o.id}</td>
-                                                    <td>{o.customer_name || 'Cliente'}</td>
-                                                    <td>
-                                                        {items.map(i => `${i.qty}x ${i.name}`).join(', ')}
-                                                    </td>
-                                                    <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
-                                                    <td>
+                                                return (
+                                                    <tr key={o.id}>
+                                                        <td>#{o.order_number || o.id}</td>
+                                                        <td>{o.customer_name || 'Cliente'}</td>
+                                                        <td>
+                                                            {items.map((i, idx) => (
+                                                                <div key={idx}>{i.qty}x {i.name}</div>
+                                                            ))}
+                                                        </td>
+                                                        <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
+                                                        <td>
+                                                            <Badge $status={statusMap[statusClass] || 'pending'}>
+                                                                {statusLabels[statusClass] || statusClass}
+                                                            </Badge>
+                                                        </td>
+                                                        <td>
+                                                            <ActionContainer>
+                                                                {statusClass === 'pending' && (
+                                                                    <>
+                                                                        <ActionButton 
+                                                                            $variant="confirm" 
+                                                                            onClick={() => updateOrderStatus(o.id, 'confirmado')}
+                                                                        >
+                                                                            ✅ Confirmar
+                                                                        </ActionButton>
+                                                                        <ActionButton 
+                                                                            $variant="cancel" 
+                                                                            onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                        >
+                                                                            ❌ Cancelar
+                                                                        </ActionButton>
+                                                                    </>
+                                                                )}
+                                                                {statusClass === 'confirmado' && (
+                                                                    <ActionButton 
+                                                                        $variant="deliver" 
+                                                                        onClick={() => updateOrderStatus(o.id, 'entregue')}
+                                                                    >
+                                                                        📦 Entregue
+                                                                    </ActionButton>
+                                                                )}
+                                                                {statusClass === 'entregue' && (
+                                                                    <Badge $status="delivered">
+                                                                        ✅ Finalizado
+                                                                    </Badge>
+                                                                )}
+                                                                {statusClass === 'cancelado' && (
+                                                                    <Badge $status="cancelled">
+                                                                        ❌ Cancelado
+                                                                    </Badge>
+                                                                )}
+                                                            </ActionContainer>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </Table>
+                                </TableWrapper>
+
+                                {/* CARDS MOBILE */}
+                                <div className="mobile-cards">
+                                    {orders.map(o => {
+                                        let items = o.items;
+                                        if (typeof items === 'string') {
+                                            try { items = JSON.parse(items); } catch (e) { items = []; }
+                                        }
+                                        if (!Array.isArray(items)) items = [];
+
+                                        const statusMap = {
+                                            'pending': 'pending',
+                                            'confirmado': 'confirmed',
+                                            'entregue': 'delivered',
+                                            'cancelado': 'cancelled'
+                                        };
+
+                                        const statusLabels = {
+                                            'pending': '🟡 Pendente',
+                                            'confirmado': '🟢 Confirmado',
+                                            'entregue': '✅ Entregue',
+                                            'cancelado': '❌ Cancelado'
+                                        };
+
+                                        const statusClass = o.status || 'pending';
+
+                                        return (
+                                            <MobileOrderCard key={o.id}>
+                                                <MobileOrderRow>
+                                                    <span className="label">Pedido</span>
+                                                    <span className="value">#{o.order_number || o.id}</span>
+                                                </MobileOrderRow>
+                                                <MobileOrderRow>
+                                                    <span className="label">Cliente</span>
+                                                    <span className="value">{o.customer_name || 'Cliente'}</span>
+                                                </MobileOrderRow>
+                                                <MobileOrderRow>
+                                                    <span className="label">Total</span>
+                                                    <span className="value"><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></span>
+                                                </MobileOrderRow>
+                                                <MobileOrderRow>
+                                                    <span className="label">Status</span>
+                                                    <span className="value">
                                                         <Badge $status={statusMap[statusClass] || 'pending'}>
                                                             {statusLabels[statusClass] || statusClass}
                                                         </Badge>
-                                                    </td>
-                                                    <td>
-                                                        <ActionContainer>
-                                                            {statusClass === 'pending' && (
-                                                                <>
-                                                                    <ActionButton 
-                                                                    $variant="confirm" 
-                                                                    onClick={() => updateOrderStatus(o.id, 'confirmado')}
-                                                                >
-                                                                    ✅ Confirmar
-                                                                </ActionButton>
-                                                                <ActionButton 
-                                                                    $variant="cancel" 
-                                                                    onClick={() => updateOrderStatus(o.id, 'cancelado')}
-                                                                >
-                                                                    ❌ Cancelar
-                                                                </ActionButton>
-                                                                </>
-                                                            )}
-                                                            {statusClass === 'confirmado' && (
-                                                                <ActionButton 
-                                                                    $variant="deliver" 
-                                                                    onClick={() => updateOrderStatus(o.id, 'entregue')}
-                                                                >
-                                                                    📦 Entregue
-                                                                </ActionButton>
-                                                            )}
-                                                            {statusClass === 'entregue' && (
-                                                                <Badge $status="delivered">
-                                                                    ✅ Finalizado
-                                                                </Badge>
-                                                            )}
-                                                            {statusClass === 'cancelado' && (
-                                                                <Badge $status="cancelled">
-                                                                    ❌ Cancelado
-                                                                </Badge>
-                                                            )}
-                                                        </ActionContainer>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </Table>
-                            </TableWrapper>
+                                                    </span>
+                                                </MobileOrderRow>
+                                                <MobileOrderRow style={{ flexDirection: 'column', alignItems: 'stretch', borderBottom: 'none' }}>
+                                                    <span className="label" style={{ marginBottom: '8px' }}>Itens</span>
+                                                    <MobileItemsList>
+                                                        {items.map((item, idx) => (
+                                                            <div className="item" key={idx}>
+                                                                <span className="item-name">{item.name}</span>
+                                                                <span className="item-qty">{item.qty}x</span>
+                                                                <span className="item-price">R$ {(item.price * item.qty).toFixed(2)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </MobileItemsList>
+                                                </MobileOrderRow>
+                                                <MobileActions>
+                                                    {statusClass === 'pending' && (
+                                                        <>
+                                                            <ActionButton 
+                                                                $variant="confirm" 
+                                                                onClick={() => updateOrderStatus(o.id, 'confirmado')}
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                ✅ Confirmar
+                                                            </ActionButton>
+                                                            <ActionButton 
+                                                                $variant="cancel" 
+                                                                onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                ❌ Cancelar
+                                                            </ActionButton>
+                                                        </>
+                                                    )}
+                                                    {statusClass === 'confirmado' && (
+                                                        <ActionButton 
+                                                            $variant="deliver" 
+                                                            onClick={() => updateOrderStatus(o.id, 'entregue')}
+                                                            style={{ flex: 1 }}
+                                                        >
+                                                            📦 Entregue
+                                                        </ActionButton>
+                                                    )}
+                                                    {statusClass === 'entregue' && (
+                                                        <Badge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                                            ✅ Finalizado
+                                                        </Badge>
+                                                    )}
+                                                    {statusClass === 'cancelado' && (
+                                                        <Badge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                                            ❌ Cancelado
+                                                        </Badge>
+                                                    )}
+                                                </MobileActions>
+                                            </MobileOrderCard>
+                                        );
+                                    })}
+                                </div>
+                            </>
                         )}
                     </OrdersContainer>
                 )}

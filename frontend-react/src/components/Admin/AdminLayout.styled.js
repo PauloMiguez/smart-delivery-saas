@@ -147,7 +147,7 @@ export const StatCard = styled.div`
 `;
 
 // ============================================================
-//  TABLE RESPONSIVA - CORRIGIDA
+//  TABLE RESPONSIVA
 // ============================================================
 export const TableWrapper = styled.div`
     width: 100%;
@@ -343,6 +343,22 @@ export const OrdersContainer = styled.div`
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+
+    .desktop-table {
+        display: block;
+
+        @media (max-width: 768px) {
+            display: none;
+        }
+    }
+
+    .mobile-cards {
+        display: none;
+
+        @media (max-width: 768px) {
+            display: block;
+        }
+    }
 `;
 
 export const ActionContainer = styled.div`
@@ -355,5 +371,97 @@ export const ActionContainer = styled.div`
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
+    }
+`;
+
+// ============================================================
+//  PEDIDOS - VERSÃO MOBILE (CARDS)
+// ============================================================
+export const MobileOrderCard = styled.div`
+    background: ${props => props.theme.colors.card};
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: ${props => props.theme.shadows.sm};
+    border: 1px solid ${props => props.theme.colors.border};
+    display: none;
+
+    @media (max-width: 768px) {
+        display: block;
+    }
+`;
+
+export const MobileOrderRow = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f5f5f5;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    .label {
+        font-weight: 600;
+        font-size: 13px;
+        color: ${props => props.theme.colors.textLight};
+    }
+
+    .value {
+        font-size: 14px;
+        color: ${props => props.theme.colors.text};
+        text-align: right;
+        max-width: 60%;
+        word-break: break-word;
+    }
+
+    .value strong {
+        color: ${props => props.theme.colors.primary};
+    }
+`;
+
+export const MobileItemsList = styled.div`
+    padding: 8px 0;
+
+    .item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        font-size: 13px;
+        color: ${props => props.theme.colors.textLight};
+        border-bottom: 1px dashed #f0f0f0;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            flex: 1;
+            color: ${props => props.theme.colors.text};
+        }
+
+        .item-qty {
+            margin: 0 12px;
+            color: ${props => props.theme.colors.textMuted};
+        }
+
+        .item-price {
+            font-weight: 500;
+            color: ${props => props.theme.colors.primary};
+        }
+    }
+`;
+
+export const MobileActions = styled.div`
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+
+    button {
+        flex: 1;
+        min-width: 80px;
+        justify-content: center;
     }
 `;
