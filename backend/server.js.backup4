@@ -1,5 +1,5 @@
 // ============================================================
-// SMART DELIVERY SAAS - SERVER COMPLETO (COM WEBSOCKET)
+// SMART DELIVERY SAAS - SERVER COMPLETO (COM CLOUDINARY)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -11,7 +11,6 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
-const socketIo = require('socket.io');
 
 // ============================================================
 //  IMPORTS CLOUDINARY
@@ -658,33 +657,6 @@ app.post('/api/orders', async (req, res) => {
 
         console.log('✅ Pedido criado:', orderNumber);
 
-        // ============================================================
-        //  NOTIFICAÇÃO EM TEMPO REAL - NOVO PEDIDO
-        // ============================================================
-        const io = req.app.get('io');
-        if (io) {
-            const orderData = {
-                id: result.insertId,
-                orderNumber: orderNumber,
-                customer_name: customer_name,
-                total: parseFloat(total),
-                items: items,
-                status: 'pending'
-            };
-            
-            console.log('🔔 Enviando notificação de novo pedido para tenant:', tenantId);
-            
-            io.to(`tenant-${tenantId}`).emit('new-order-notification', {
-                order: orderData,
-                timestamp: new Date().toISOString()
-            });
-            
-            io.to(`tenant-${tenantId}`).emit('order-updated', {
-                action: 'new',
-                order: orderData
-            });
-        }
-
         res.status(201).json({
             success: true,
             data: { id: result.insertId, order_number: orderNumber },
@@ -725,32 +697,6 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
-        }
-
-        // ============================================================
-        //  NOTIFICAÇÃO EM TEMPO REAL - STATUS ATUALIZADO
-        // ============================================================
-        const io = req.app.get('io');
-        if (io) {
-            // Buscar o número do pedido
-            const [orderInfo] = await pool.query(
-                'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
-                [orderId, tenantId]
-            );
-            
-            if (orderInfo.length > 0) {
-                console.log('🔔 Enviando notificação de atualização de status para tenant:', tenantId);
-                console.log('   Pedido:', orderInfo[0].order_number, 'Status:', status);
-                
-                io.to(`tenant-${tenantId}`).emit('order-updated', {
-                    action: 'status_change',
-                    order: { 
-                        id: orderId, 
-                        orderNumber: orderInfo[0].order_number,
-                        status: status 
-                    }
-                });
-            }
         }
 
         res.json({ success: true, message: 'Status atualizado com sucesso' });
@@ -1193,59 +1139,14 @@ app.post('/api/upload/delete', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  WEBSOCKET - NOTIFICAÇÕES EM TEMPO REAL
-// ============================================================
-
-// Criar servidor HTTP a partir do app existente
-const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: {
-        origin: ['http://localhost:5173', 'https://smart-delivery-saas.onrender.com'],
-        credentials: true
-    }
-});
-
-// Middleware para autenticação do socket
-io.use((socket, next) => {
-    const tenant = socket.handshake.query.tenant;
-    if (!tenant) {
-        return next(new Error('Tenant não informado'));
-    }
-    socket.tenant = tenant;
-    next();
-});
-
-// Gerenciar conexões
-io.on('connection', (socket) => {
-    const tenant = socket.tenant;
-    console.log(`🔌 Cliente conectado ao tenant: ${tenant}`);
-    
-    // Entrar na sala do tenant
-    socket.join(`tenant-${tenant}`);
-    
-    socket.emit('connected', { 
-        message: 'Conectado ao servidor de notificações',
-        tenant: tenant 
-    });
-
-    socket.on('disconnect', () => {
-        console.log(`🔌 Cliente desconectado do tenant: ${tenant}`);
-    });
-});
-
-// Adicionar io ao app para uso nas rotas
-app.set('io', io);
-
-// ============================================================
-//  INICIAR SERVIDOR COM WEBSOCKET
+//  INICIAR SERVIDOR
 // ============================================================
 
 testDatabaseConnection().then(() => {
-    server.listen(PORT, () => {
+    app.listen(PORT, () => {
         console.log(`🚀 Servidor Smart Delivery SaaS rodando em http://localhost:${PORT}`);
         console.log(`📱 Cliente: http://localhost:${PORT}`);
         console.log(`🔐 Admin: http://localhost:${PORT}/admin`);
-        console.log(`🔌 WebSocket ativo para notificações em tempo real`);
         console.log('🏷️ Multi-tenant habilitado');
         console.log('⚡ Rate Limiting: 100 req/min por tenant');
         console.log('🔒 Conexão SSL com TiDB Cloud ativada');

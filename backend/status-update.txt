@@ -1,0 +1,49 @@
+        if (!status) {
+            return res.status(400).json({ success: false, error: 'Status é obrigatório' });
+        }
+
+        const validStatuses = ['pending', 'confirmado', 'preparando', 'entregue', 'cancelado'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Status inválido. Use: ' + validStatuses.join(', ')
+            });
+        }
+
+        const [result] = await pool.query(
+            `UPDATE orders SET status = ?, updated_at = NOW()
+             WHERE id = ? AND tenant_id = ?`,
+            [status, orderId, tenantId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
+        }
+
+        // ============================================================
+        //  NOTIFICAÇÃO EM TEMPO REAL - STATUS ATUALIZADO
+        // ============================================================
+        const io = req.app.get('io');
+        if (io) {
+            // Buscar o número do pedido
+            const [orderInfo] = await pool.query(
+                'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
+                [orderId, tenantId]
+            );
+            
+            if (orderInfo.length > 0) {
+                console.log('🔔 Enviando notificação de atualização de status para tenant:', tenantId);
+                console.log('   Pedido:', orderInfo[0].order_number, 'Status:', status);
+                
+                io.to(`tenant-${tenantId}`).emit('order-updated', {
+                    action: 'status_change',
+                    order: { 
+                        id: orderId, 
+                        orderNumber: orderInfo[0].order_number,
+                        status: status 
+                    }
+                });
+            }
+        }
+
+        res.json({ success: true, message: 'Status atualizado com sucesso' });

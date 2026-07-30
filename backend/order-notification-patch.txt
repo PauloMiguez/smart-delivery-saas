@@ -1,0 +1,30 @@
+        console.log('✅ Pedido criado:', orderNumber);
+
+        // ============================================================
+        //  NOTIFICAÇÃO EM TEMPO REAL - NOVO PEDIDO
+        // ============================================================
+        const io = req.app.get('io');
+        if (io) {
+            const orderData = {
+                id: result.insertId,
+                orderNumber: orderNumber,
+                customer_name: customer_name,
+                total: parseFloat(total),
+                items: items,
+                status: 'pending'
+            };
+            
+            console.log('🔔 Enviando notificação de novo pedido para tenant:', tenantId);
+            
+            io.to(`tenant-${tenantId}`).emit('new-order-notification', {
+                order: orderData,
+                timestamp: new Date().toISOString()
+            });
+            
+            io.to(`tenant-${tenantId}`).emit('order-updated', {
+                action: 'new',
+                order: orderData
+            });
+        }
+
+        res.status(201).json({
