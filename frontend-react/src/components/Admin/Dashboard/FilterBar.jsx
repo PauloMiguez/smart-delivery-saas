@@ -41,6 +41,7 @@ const FilterButton = styled.button`
     font-size: 13px;
     cursor: pointer;
     transition: all 0.3s ease;
+    white-space: nowrap;
 
     &:hover {
         border-color: #e67e22;
@@ -50,6 +51,20 @@ const FilterButton = styled.button`
     @media (max-width: 768px) {
         flex: 1;
         text-align: center;
+    }
+`;
+
+const RightGroup = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-width: 120px;
+    justify-content: flex-end;
+
+    @media (max-width: 768px) {
+        width: 100%;
+        justify-content: stretch;
     }
 `;
 
@@ -66,6 +81,8 @@ const RefreshButton = styled.button`
     display: flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
 
     &:hover {
         background: #d35400;
@@ -80,6 +97,16 @@ const RefreshButton = styled.button`
 const LastUpdate = styled.span`
     font-size: 12px;
     color: #888;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 80px;
+    text-align: right;
+
+    @media (max-width: 768px) {
+        text-align: center;
+        min-width: unset;
+        width: 100%;
+    }
 `;
 
 const FilterBar = ({ period, onPeriodChange, onRefresh, lastUpdate, loading }) => {
@@ -103,14 +130,14 @@ const FilterBar = ({ period, onPeriodChange, onRefresh, lastUpdate, loading }) =
                     </FilterButton>
                 ))}
             </FilterGroup>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <RightGroup>
                 {lastUpdate && (
                     <LastUpdate>🔄 {lastUpdate}</LastUpdate>
                 )}
                 <RefreshButton onClick={onRefresh} disabled={loading}>
                     {loading ? '⏳' : '🔄'} Atualizar
                 </RefreshButton>
-            </div>
+            </RightGroup>
         </Container>
     );
 };
