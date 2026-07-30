@@ -4,6 +4,8 @@ export const AdminContainer = styled.div`
     display: flex;
     min-height: 100vh;
     background: ${props => props.theme.colors.background};
+    max-width: 100vw;
+    overflow-x: hidden;
 `;
 
 export const Sidebar = styled.aside`
@@ -82,10 +84,13 @@ export const MainContent = styled.main`
     margin-left: 260px;
     padding: 24px;
     min-height: 100vh;
+    max-width: calc(100vw - 260px);
+    overflow-x: hidden;
 
     @media (max-width: 768px) {
         margin-left: 0;
         padding: 16px;
+        max-width: 100vw;
     }
 `;
 
@@ -107,51 +112,77 @@ export const PageHeader = styled.div`
 
 export const StatsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+    width: 100%;
+
+    @media (max-width: 480px) {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
 `;
 
 export const StatCard = styled.div`
     background: ${props => props.theme.colors.card};
-    padding: 20px;
+    padding: 16px;
     border-radius: 12px;
     box-shadow: ${props => props.theme.shadows.sm};
     border: 1px solid ${props => props.theme.colors.border};
+    min-width: 0;
 
     .number {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 700;
         color: ${props => props.theme.colors.primary};
         margin-bottom: 4px;
+        word-break: break-word;
     }
 
     .label {
-        font-size: 14px;
+        font-size: 13px;
         color: ${props => props.theme.colors.textLight};
+        word-break: break-word;
+    }
+`;
+
+// ============================================================
+//  TABLE RESPONSIVA - CORRIGIDA
+// ============================================================
+export const TableWrapper = styled.div`
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    box-shadow: ${props => props.theme.shadows.sm};
+    background: ${props => props.theme.colors.card};
+
+    @media (max-width: 768px) {
+        border-radius: 8px;
     }
 `;
 
 export const Table = styled.table`
     width: 100%;
+    min-width: 600px;
     border-collapse: collapse;
     background: ${props => props.theme.colors.card};
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: ${props => props.theme.shadows.sm};
+    font-size: 14px;
 
     thead {
         background: ${props => props.theme.colors.background};
         border-bottom: 1px solid ${props => props.theme.colors.border};
 
         th {
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
             font-size: 12px;
             font-weight: 600;
             color: ${props => props.theme.colors.textLight};
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }
     }
 
@@ -165,9 +196,22 @@ export const Table = styled.table`
             }
 
             td {
-                padding: 12px 16px;
-                font-size: 14px;
+                padding: 10px 12px;
+                font-size: 13px;
+                vertical-align: middle;
+                word-break: break-word;
+                max-width: 200px;
             }
+        }
+    }
+
+    @media (max-width: 480px) {
+        font-size: 12px;
+        min-width: 500px;
+
+        thead th,
+        tbody td {
+            padding: 8px 10px;
         }
     }
 `;
@@ -176,8 +220,9 @@ export const Badge = styled.span`
     display: inline-block;
     padding: 2px 10px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    white-space: nowrap;
 
     ${props => props.$status === 'active' && `
         background: #eafaf1;
@@ -211,13 +256,14 @@ export const Badge = styled.span`
 `;
 
 export const ActionButton = styled.button`
-    padding: 6px 12px;
+    padding: 4px 10px;
     border: none;
     border-radius: 6px;
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
 
     ${props => props.$variant === 'edit' && `
         background: #eaf2f8;
@@ -281,5 +327,33 @@ export const Overlay = styled.div`
 
     @media (max-width: 768px) {
         display: ${props => props.$open ? 'block' : 'none'};
+    }
+`;
+
+// ============================================================
+//  COMPONENTES ADICIONAIS PARA RESPONSIVIDADE
+// ============================================================
+export const ProductsContainer = styled.div`
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+`;
+
+export const OrdersContainer = styled.div`
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+`;
+
+export const ActionContainer = styled.div`
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+
+    @media (max-width: 480px) {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
     }
 `;

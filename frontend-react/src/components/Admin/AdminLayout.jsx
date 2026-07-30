@@ -11,11 +11,15 @@ import {
     PageHeader,
     StatsGrid,
     StatCard,
+    TableWrapper,
     Table,
     Badge,
     ActionButton,
     MobileToggle,
-    Overlay
+    Overlay,
+    ProductsContainer,
+    OrdersContainer,
+    ActionContainer
 } from './AdminLayout.styled';
 import ProductModal from './ProductModal';
 import CategoryModal from './CategoryModal';
@@ -300,7 +304,7 @@ const AdminLayout = () => {
 
                 {/* PRODUTOS */}
                 {activeTab === 'products' && (
-                    <div className="products-admin">
+                    <ProductsContainer>
                         <PageHeader>
                             <h2>📦 Produtos</h2>
                             <ActionButton 
@@ -325,59 +329,62 @@ const AdminLayout = () => {
                             </p>
                         ) : (
                             <>
-                                <Table>
-                                    <thead>
-                                        <tr>
-                                            <th>Imagem</th>
-                                            <th>Nome</th>
-                                            <th>Preço</th>
-                                            <th>Status</th>
-                                            <th>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentItems.map(p => (
-                                            <tr key={p.id}>
-                                                <td>
-                                                    {p.image_url ? (
-                                                        <img 
-                                                            src={p.image_url} 
-                                                            alt={p.name} 
-                                                            style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
-                                                        />
-                                                    ) : (
-                                                        <span style={{ color: '#ccc', fontSize: 20 }}>📦</span>
-                                                    )}
-                                                </td>
-                                                <td><strong>{p.name}</strong></td>
-                                                <td>R$ {parseFloat(p.price).toFixed(2)}</td>
-                                                <td>
-                                                    <Badge $status={p.active ? 'active' : 'inactive'}>
-                                                        {p.active ? '🟢 Ativo' : '🔴 Inativo'}
-                                                    </Badge>
-                                                </td>
-                                                <td>
-                                                    <ActionButton 
-                                                        $variant="edit" 
-                                                        onClick={() => {
-                                                            setEditingProduct(p);
-                                                            setIsProductModalOpen(true);
-                                                        }}
-                                                    >
-                                                        ✏️
-                                                    </ActionButton>
-                                                    <ActionButton 
-                                                        $variant="delete" 
-                                                        style={{ marginLeft: 4 }}
-                                                        onClick={() => handleDeleteProduct(p.id)}
-                                                    >
-                                                        🗑️
-                                                    </ActionButton>
-                                                </td>
+                                <TableWrapper>
+                                    <Table>
+                                        <thead>
+                                            <tr>
+                                                <th>Imagem</th>
+                                                <th>Nome</th>
+                                                <th>Preço</th>
+                                                <th>Status</th>
+                                                <th>Ações</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </thead>
+                                        <tbody>
+                                            {currentItems.map(p => (
+                                                <tr key={p.id}>
+                                                    <td>
+                                                        {p.image_url ? (
+                                                            <img 
+                                                                src={p.image_url} 
+                                                                alt={p.name} 
+                                                                style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }}
+                                                            />
+                                                        ) : (
+                                                            <span style={{ color: '#ccc', fontSize: 18 }}>📦</span>
+                                                        )}
+                                                    </td>
+                                                    <td><strong>{p.name}</strong></td>
+                                                    <td>R$ {parseFloat(p.price).toFixed(2)}</td>
+                                                    <td>
+                                                        <Badge $status={p.active ? 'active' : 'inactive'}>
+                                                            {p.active ? '🟢 Ativo' : '🔴 Inativo'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td>
+                                                        <ActionContainer>
+                                                            <ActionButton 
+                                                                $variant="edit" 
+                                                                onClick={() => {
+                                                                    setEditingProduct(p);
+                                                                    setIsProductModalOpen(true);
+                                                                }}
+                                                            >
+                                                                ✏️
+                                                            </ActionButton>
+                                                            <ActionButton 
+                                                                $variant="delete" 
+                                                                onClick={() => handleDeleteProduct(p.id)}
+                                                            >
+                                                                🗑️
+                                                            </ActionButton>
+                                                        </ActionContainer>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </TableWrapper>
                                 
                                 <Pagination 
                                     currentPage={currentPage}
@@ -386,7 +393,7 @@ const AdminLayout = () => {
                                 />
                             </>
                         )}
-                    </div>
+                    </ProductsContainer>
                 )}
 
                 {/* CATEGORIAS */}
@@ -407,108 +414,109 @@ const AdminLayout = () => {
                         {categories.length === 0 ? (
                             <p style={{ color: '#888', padding: '20px 0' }}>Nenhuma categoria cadastrada.</p>
                         ) : (
-                            <Table>
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Ordem</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {categories.map(c => (
-                                        <tr key={c.id}>
-                                            <td><strong>{c.name}</strong></td>
-                                            <td>{c.display_order || 1}</td>
-                                            <td>
-                                                <ActionButton 
-                                                    $variant="edit" 
-                                                    onClick={() => {
-                                                        setEditingCategory(c);
-                                                        setIsCategoryModalOpen(true);
-                                                    }}
-                                                >
-                                                    ✏️
-                                                </ActionButton>
-                                                <ActionButton 
-                                                    $variant="delete" 
-                                                    style={{ marginLeft: 4 }}
-                                                    onClick={() => handleDeleteCategory(c.id)}
-                                                >
-                                                    🗑️
-                                                </ActionButton>
-                                            </td>
+                            <TableWrapper>
+                                <Table>
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Ordem</th>
+                                            <th>Ações</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
+                                    </thead>
+                                    <tbody>
+                                        {categories.map(c => (
+                                            <tr key={c.id}>
+                                                <td><strong>{c.name}</strong></td>
+                                                <td>{c.display_order || 1}</td>
+                                                <td>
+                                                    <ActionContainer>
+                                                        <ActionButton 
+                                                            $variant="edit" 
+                                                            onClick={() => {
+                                                                setEditingCategory(c);
+                                                                setIsCategoryModalOpen(true);
+                                                            }}
+                                                        >
+                                                            ✏️
+                                                        </ActionButton>
+                                                        <ActionButton 
+                                                            $variant="delete" 
+                                                            onClick={() => handleDeleteCategory(c.id)}
+                                                        >
+                                                            🗑️
+                                                        </ActionButton>
+                                                    </ActionContainer>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            </TableWrapper>
                         )}
                     </>
                 )}
 
-                {/* PEDIDOS - COM BOTÕES UNIFICADOS */}
+                {/* PEDIDOS */}
                 {activeTab === 'orders' && (
-                    <>
+                    <OrdersContainer>
                         <h2>📋 Pedidos</h2>
                         {orders.length === 0 ? (
                             <p style={{ color: '#888', padding: '20px 0' }}>Nenhum pedido recebido.</p>
                         ) : (
-                            <Table>
-                                <thead>
-                                    <tr>
-                                        <th>Pedido</th>
-                                        <th>Cliente</th>
-                                        <th>Itens</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {orders.map(o => {
-                                        let items = o.items;
-                                        if (typeof items === 'string') {
-                                            try { items = JSON.parse(items); } catch (e) { items = []; }
-                                        }
-                                        if (!Array.isArray(items)) items = [];
+                            <TableWrapper>
+                                <Table>
+                                    <thead>
+                                        <tr>
+                                            <th>Pedido</th>
+                                            <th>Cliente</th>
+                                            <th>Itens</th>
+                                            <th>Total</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {orders.map(o => {
+                                            let items = o.items;
+                                            if (typeof items === 'string') {
+                                                try { items = JSON.parse(items); } catch (e) { items = []; }
+                                            }
+                                            if (!Array.isArray(items)) items = [];
 
-                                        const statusMap = {
-                                            'pending': 'pending',
-                                            'confirmado': 'confirmed',
-                                            'entregue': 'delivered',
-                                            'cancelado': 'cancelled'
-                                        };
+                                            const statusMap = {
+                                                'pending': 'pending',
+                                                'confirmado': 'confirmed',
+                                                'entregue': 'delivered',
+                                                'cancelado': 'cancelled'
+                                            };
 
-                                        const statusLabels = {
-                                            'pending': '🟡 Pendente',
-                                            'confirmado': '🟢 Confirmado',
-                                            'entregue': '✅ Entregue',
-                                            'cancelado': '❌ Cancelado'
-                                        };
+                                            const statusLabels = {
+                                                'pending': '🟡 Pendente',
+                                                'confirmado': '🟢 Confirmado',
+                                                'entregue': '✅ Entregue',
+                                                'cancelado': '❌ Cancelado'
+                                            };
 
-                                        const statusClass = o.status || 'pending';
+                                            const statusClass = o.status || 'pending';
 
-                                        return (
-                                            <tr key={o.id}>
-                                                <td>#{o.order_number || o.id}</td>
-                                                <td>{o.customer_name || 'Cliente'}</td>
-                                                <td>
-                                                    {items.map(i => `${i.qty}x ${i.name}`).join(', ')}
-                                                </td>
-                                                <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
-                                                <td>
-                                                    <Badge $status={statusMap[statusClass] || 'pending'}>
-                                                        {statusLabels[statusClass] || statusClass}
-                                                    </Badge>
-                                                </td>
-                                                <td>
-                                                    {/* ============================================================
-                                                        BOTÕES DE AÇÃO UNIFICADOS COM O ESTILO DOS PRODUTOS
-                                                        ============================================================ */}
-                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                        {statusClass === 'pending' && (
-                                                            <>
-                                                                <ActionButton 
+                                            return (
+                                                <tr key={o.id}>
+                                                    <td>#{o.order_number || o.id}</td>
+                                                    <td>{o.customer_name || 'Cliente'}</td>
+                                                    <td>
+                                                        {items.map(i => `${i.qty}x ${i.name}`).join(', ')}
+                                                    </td>
+                                                    <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
+                                                    <td>
+                                                        <Badge $status={statusMap[statusClass] || 'pending'}>
+                                                            {statusLabels[statusClass] || statusClass}
+                                                        </Badge>
+                                                    </td>
+                                                    <td>
+                                                        <ActionContainer>
+                                                            {statusClass === 'pending' && (
+                                                                <>
+                                                                    <ActionButton 
                                                                     $variant="confirm" 
                                                                     onClick={() => updateOrderStatus(o.id, 'confirmado')}
                                                                 >
@@ -516,40 +524,40 @@ const AdminLayout = () => {
                                                                 </ActionButton>
                                                                 <ActionButton 
                                                                     $variant="cancel" 
-                                                                    style={{ marginLeft: 4 }}
                                                                     onClick={() => updateOrderStatus(o.id, 'cancelado')}
                                                                 >
                                                                     ❌ Cancelar
                                                                 </ActionButton>
-                                                            </>
-                                                        )}
-                                                        {statusClass === 'confirmado' && (
-                                                            <ActionButton 
-                                                                $variant="deliver" 
-                                                                onClick={() => updateOrderStatus(o.id, 'entregue')}
-                                                            >
-                                                                📦 Entregue
-                                                            </ActionButton>
-                                                        )}
-                                                        {statusClass === 'entregue' && (
-                                                            <Badge $status="delivered">
-                                                                ✅ Finalizado
-                                                            </Badge>
-                                                        )}
-                                                        {statusClass === 'cancelado' && (
-                                                            <Badge $status="cancelled">
-                                                                ❌ Cancelado
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </Table>
+                                                                </>
+                                                            )}
+                                                            {statusClass === 'confirmado' && (
+                                                                <ActionButton 
+                                                                    $variant="deliver" 
+                                                                    onClick={() => updateOrderStatus(o.id, 'entregue')}
+                                                                >
+                                                                    📦 Entregue
+                                                                </ActionButton>
+                                                            )}
+                                                            {statusClass === 'entregue' && (
+                                                                <Badge $status="delivered">
+                                                                    ✅ Finalizado
+                                                                </Badge>
+                                                            )}
+                                                            {statusClass === 'cancelado' && (
+                                                                <Badge $status="cancelled">
+                                                                    ❌ Cancelado
+                                                                </Badge>
+                                                            )}
+                                                        </ActionContainer>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </Table>
+                            </TableWrapper>
                         )}
-                    </>
+                    </OrdersContainer>
                 )}
 
                 {/* CONFIGURAÇÕES */}
