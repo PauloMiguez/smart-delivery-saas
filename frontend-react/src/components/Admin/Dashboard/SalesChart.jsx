@@ -42,7 +42,7 @@ const ChartWrapper = styled.div`
 const COLORS = ['#e67e22', '#27ae60', '#e74c3c', '#3498db', '#f39c12', '#9b59b6'];
 
 // ============================================================
-//  GRÁFICO DE VENDAS DIÁRIAS (LINHA)
+//  GRÁFICO DE VENDAS DIÁRIAS (LINHA) - CORRIGIDO
 // ============================================================
 export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
     if (!data || data.length === 0) {
@@ -56,6 +56,14 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
         );
     }
 
+    // Formatar data para exibição
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        return `${parts[2]}/${parts[1]}`;
+    };
+
     return (
         <ChartContainer>
             <ChartTitle>{title}</ChartTitle>
@@ -63,29 +71,71 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                 <ResponsiveContainer>
                     <LineChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="date" stroke="#888" fontSize={12} />
-                        <YAxis stroke="#888" fontSize={12} />
+                        <XAxis 
+                            dataKey="date" 
+                            tickFormatter={formatDate}
+                            stroke="#888" 
+                            fontSize={12}
+                        />
+                        <YAxis 
+                            yAxisId="left"
+                            stroke="#888" 
+                            fontSize={12}
+                            tickFormatter={(value) => `R$ ${value.toFixed(0)}`}
+                        />
+                        <YAxis 
+                            yAxisId="right"
+                            orientation="right"
+                            stroke="#3498db" 
+                            fontSize={12}
+                            tickFormatter={(value) => `${value}`}
+                        />
                         <Tooltip
-                            formatter={(value) => [`R$ ${value.toFixed(2)}`, 'Vendas']}
+                            formatter={(value, name) => {
+                                // CORREÇÃO: Nomes claros para cada métrica
+                                if (name === 'Faturamento') {
+                                    return [`R$ ${value.toFixed(2)}`, 'Faturamento'];
+                                }
+                                if (name === 'Pedidos') {
+                                    return [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade'];
+                                }
+                                return [value, name];
+                            }}
+                            labelFormatter={(label) => `📅 ${formatDate(label)}`}
                             contentStyle={{
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
                                 borderRadius: '8px',
-                                padding: '12px'
+                                padding: '12px',
+                                minWidth: '140px'
                             }}
                         />
-                        <Legend />
+                        <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            formatter={(value) => {
+                                const labels = {
+                                    'Faturamento': '💰 Faturamento',
+                                    'Pedidos': '📦 Pedidos'
+                                };
+                                return labels[value] || value;
+                            }}
+                        />
                         <Line
+                            yAxisId="left"
                             type="monotone"
                             dataKey="total"
+                            name="Faturamento"
                             stroke="#e67e22"
                             strokeWidth={2}
                             dot={{ fill: '#e67e22', r: 4 }}
                             activeDot={{ r: 6 }}
                         />
                         <Line
+                            yAxisId="right"
                             type="monotone"
                             dataKey="orders"
+                            name="Pedidos"
                             stroke="#3498db"
                             strokeWidth={2}
                             dot={{ fill: '#3498db', r: 4 }}
@@ -102,7 +152,21 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 //  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA)
 // ============================================================
 export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' }) => {
-    if (!data || data.length === 0) {
+    if (!data || data.length === 0 || data.every(d => d.value === 0)) {
+        return (
+            <ChartContainer>
+                <ChartTitle>{title}</ChartTitle>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#b2bec3' }}>
+                    Sem dados para exibir
+                </div>
+            </ChartContainer>
+        );
+    }
+
+    // Filtrar dados com valor > 0
+    const filteredData = data.filter(d => d.value > 0);
+
+    if (filteredData.length === 0) {
         return (
             <ChartContainer>
                 <ChartTitle>{title}</ChartTitle>
@@ -120,7 +184,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                 <ResponsiveContainer>
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={filteredData}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -128,14 +192,24 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                             fill="#8884d8"
                             paddingAngle={2}
                             dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }) => 
+                                percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
+                            }
                             labelLine={false}
                         >
-                            {data.map((entry, index) => (
+                            {filteredData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip
+                            formatter={(value) => [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade']}
+                            contentStyle={{
+                                background: '#fff',
+                                border: '1px solid #f0f0f0',
+                                borderRadius: '8px',
+                                padding: '12px'
+                            }}
+                        />
                         <Legend />
                     </PieChart>
                 </ResponsiveContainer>
@@ -148,7 +222,21 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
 //  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS)
 // ============================================================
 export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }) => {
-    if (!data || data.length === 0) {
+    if (!data || data.length === 0 || data.every(d => d.quantity === 0)) {
+        return (
+            <ChartContainer>
+                <ChartTitle>{title}</ChartTitle>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#b2bec3' }}>
+                    Sem dados para exibir
+                </div>
+            </ChartContainer>
+        );
+    }
+
+    // Filtrar produtos com quantity > 0
+    const filteredData = data.filter(d => d.quantity > 0);
+
+    if (filteredData.length === 0) {
         return (
             <ChartContainer>
                 <ChartTitle>{title}</ChartTitle>
@@ -164,7 +252,7 @@ export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }
             <ChartTitle>{title}</ChartTitle>
             <ChartWrapper>
                 <ResponsiveContainer>
-                    <BarChart data={data} layout="vertical">
+                    <BarChart data={filteredData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis type="number" stroke="#888" fontSize={12} />
                         <YAxis
@@ -172,10 +260,10 @@ export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }
                             dataKey="name"
                             stroke="#888"
                             fontSize={12}
-                            width={100}
+                            width={120}
                         />
                         <Tooltip
-                            formatter={(value) => [`${value} unidades`, 'Quantidade']}
+                            formatter={(value) => [`${value} unidade${value !== 1 ? 's' : ''}`, 'Quantidade']}
                             contentStyle={{
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
