@@ -13,9 +13,24 @@ export const connectSocket = (token) => {
     console.log('🔌 Conectando socket para tenant:', tenant);
     console.log('🔑 Token presente:', !!token);
 
-    // USAR A PORTA DO BACKEND (3000) E NÃO A DO FRONTEND (5173)
-    const SOCKET_URL = 'http://localhost:3000';
+    // ============================================================
+    //  URL DINÂMICA PARA PRODUÇÃO E DESENVOLVIMENTO
+    // ============================================================
+    // Em produção: usa a URL do Render
+    // Em desenvolvimento: usa localhost:3000
+    // ============================================================
+    const getSocketURL = () => {
+        // Se estiver em produção (Render)
+        if (window.location.hostname !== 'localhost' && 
+            window.location.hostname !== '127.0.0.1') {
+            // Usar a mesma URL do frontend (Render serve tudo)
+            return window.location.origin;
+        }
+        // Desenvolvimento local
+        return 'http://localhost:3000';
+    };
 
+    const SOCKET_URL = getSocketURL();
     console.log('🌐 Conectando ao backend em:', SOCKET_URL);
 
     socket = io(SOCKET_URL, {
@@ -39,7 +54,7 @@ export const connectSocket = (token) => {
 
     socket.on('connect_error', (error) => {
         console.error('❌ Erro na conexão socket:', error);
-        console.error('🔍 Verifique se o backend está rodando em http://localhost:3000');
+        console.error('🔍 URL tentada:', SOCKET_URL);
     });
 
     return socket;
