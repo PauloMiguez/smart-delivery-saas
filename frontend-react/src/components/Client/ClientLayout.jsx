@@ -9,6 +9,13 @@ import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 
 // ============================================================
+//  FORÇAR CARREGAMENTO DOS COMPONENTES DE PEDIDOS
+//  (Isso garante que eles sejam incluídos no build)
+// ============================================================
+import OrdersHistory from './OrdersHistory';
+import TrackOrder from './TrackOrder';
+
+// ============================================================
 //  CONTAINER PRINCIPAL
 // ============================================================
 const AppContainer = styled.div`
@@ -369,6 +376,9 @@ const ClientLayout = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
 
+    // Forçar referência aos componentes (evita tree-shaking)
+    const _forceComponents = [OrdersHistory, TrackOrder];
+
     useEffect(() => {
         if (!tenant) return;
 
@@ -386,7 +396,6 @@ const ClientLayout = () => {
                 setConfig(configRes.data.data);
                 setProducts(productsData);
                 
-                // Ordenar categorias pelo display_order
                 const sortedCategories = categoriesData
                     .filter(cat => productsData.some(p => p.category === cat.name && p.active))
                     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
@@ -407,7 +416,6 @@ const ClientLayout = () => {
         loadData();
     }, [tenant]);
 
-    // Filtrar produtos por categoria
     useEffect(() => {
         if (activeCategory) {
             setFilteredProducts(products.filter(p => p.category === activeCategory));
@@ -416,7 +424,6 @@ const ClientLayout = () => {
         }
     }, [activeCategory, products]);
 
-    // Atualizar status a cada minuto
     useEffect(() => {
         if (!config) return;
         
@@ -431,7 +438,6 @@ const ClientLayout = () => {
         return () => clearInterval(interval);
     }, [config]);
 
-    // Scroll para a categoria
     const scrollToCategory = (category) => {
         setActiveCategory(category);
         const element = document.getElementById(`category-${category}`);
@@ -485,9 +491,6 @@ const ClientLayout = () => {
                         </MetaRow>
                     </StoreMeta>
 
-                    {/* ============================================================
-                        LINK PARA ACOMPANHAMENTO DE PEDIDOS
-                        ============================================================ */}
                     <OrdersLinkWrapper>
                         <OrdersLink to="/orders">
                             <span className="icon">📋</span>
@@ -500,7 +503,6 @@ const ClientLayout = () => {
                     </OrdersLinkWrapper>
                 </StoreInfoCard>
 
-                {/* CATEGORY TABS - ORDENADAS */}
                 {categories.length > 0 && (
                     <CategoryTabsWrapper>
                         <CategoryTabsContainer>
