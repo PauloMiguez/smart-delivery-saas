@@ -10,7 +10,6 @@ import CartDrawer from './CartDrawer';
 
 // ============================================================
 //  FORÇAR CARREGAMENTO DOS COMPONENTES DE PEDIDOS
-//  (Isso garante que eles sejam incluídos no build)
 // ============================================================
 import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
@@ -149,17 +148,15 @@ const MetaRow = styled.div`
 `;
 
 // ============================================================
-//  LINK DE ACOMPANHAMENTO DE PEDIDOS
+//  LINK DE MEUS PEDIDOS
 // ============================================================
 const OrdersLinkWrapper = styled.div`
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid #f0f0f0;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
 `;
 
 const OrdersLink = styled(Link)`
@@ -491,14 +488,13 @@ const ClientLayout = () => {
                         </MetaRow>
                     </StoreMeta>
 
+                    {/* ============================================================
+                        APENAS O BOTÃO "MEUS PEDIDOS"
+                        ============================================================ */}
                     <OrdersLinkWrapper>
                         <OrdersLink to="/orders">
                             <span className="icon">📋</span>
                             Meus Pedidos
-                        </OrdersLink>
-                        <OrdersLink to="/track">
-                            <span className="icon">🔍</span>
-                            Acompanhar Pedido
                         </OrdersLink>
                     </OrdersLinkWrapper>
                 </StoreInfoCard>
