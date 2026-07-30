@@ -43,3 +43,34 @@ export const GlobalStyle = createGlobalStyle`
         to { transform: rotate(360deg); }
     }
 `;
+// Adicionar no final do GlobalStyle
+const responsiveStyles = `
+    /* ============================================================
+       RESPONSIVIDADE DO DASHBOARD - UM GRÁFICO POR LINHA NO MOBILE
+       ============================================================ */
+    @media (max-width: 768px) {
+        /* Grid dos gráficos de status e produtos */
+        .dashboard-charts-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+        }
+        
+        /* Cards de métricas */
+        .stats-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
+        }
+    }
+
+    @media (max-width: 480px) {
+        /* Em telas muito pequenas, métricas ficam uma abaixo da outra */
+        .stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+        }
+        
+        .dashboard-charts-grid {
+            gap: 12px !important;
+        }
+    }
+`;

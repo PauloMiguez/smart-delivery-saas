@@ -43,6 +43,10 @@ import {
 } from './Dashboard/SalesChart';
 import RecentOrders from './Dashboard/RecentOrders';
 import FilterBar from './Dashboard/FilterBar';
+// ============================================================
+//  IMPORT DO COMPONENTE DE GRID RESPONSIVO
+// ============================================================
+import DashboardChartsGrid from './Dashboard/DashboardGrid';
 
 const AdminLayout = () => {
     const { tenant, loading } = useTenant();
@@ -507,7 +511,9 @@ const AdminLayout = () => {
                     </div>
                 </PageHeader>
 
-                {/* DASHBOARD - COMPLETO COM GRÁFICOS RESPONSIVOS */}
+                {/* ============================================================
+                    DASHBOARD - COMPLETO COM GRÁFICOS RESPONSIVOS
+                    ============================================================ */}
                 {activeTab === 'dashboard' && (
                     <>
                         <FilterBar
@@ -552,16 +558,13 @@ const AdminLayout = () => {
                         {/* Gráfico de Vendas */}
                         <SalesLineChart data={salesData} />
 
-                        {/* Gráficos de Status e Top Produtos - Grid Responsivo */}
-                        <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: '1fr 1fr', 
-                            gap: '20px',
-                            marginTop: '20px'
-                        }}>
+                        {/* ============================================================
+                            GRÁFICOS DE STATUS E TOP PRODUTOS - UM POR LINHA NO MOBILE
+                            ============================================================ */}
+                        <DashboardChartsGrid>
                             <OrderStatusPieChart data={statusData} />
                             <TopProductsChart data={topProducts} />
-                        </div>
+                        </DashboardChartsGrid>
 
                         {/* Últimos Pedidos */}
                         <RecentOrders orders={orders} />
