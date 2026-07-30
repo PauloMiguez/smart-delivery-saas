@@ -12,25 +12,25 @@ export const connectSocket = (token) => {
 
     console.log('🔌 Conectando socket para tenant:', tenant);
     console.log('🔑 Token presente:', !!token);
+    console.log('📍 Ambiente:', window.location.hostname);
 
     // ============================================================
-    //  URL DINÂMICA PARA PRODUÇÃO E DESENVOLVIMENTO
+    //  URL DO SOCKET - DETECÇÃO AUTOMÁTICA
     // ============================================================
-    // Em produção: usa a URL do Render
-    // Em desenvolvimento: usa localhost:3000
-    // ============================================================
-    const getSocketURL = () => {
-        // Se estiver em produção (Render)
-        if (window.location.hostname !== 'localhost' && 
-            window.location.hostname !== '127.0.0.1') {
-            // Usar a mesma URL do frontend (Render serve tudo)
-            return window.location.origin;
-        }
+    let SOCKET_URL;
+    
+    // Em produção (Render)
+    if (window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1') {
+        // Usar a URL do frontend (Render)
+        SOCKET_URL = window.location.origin;
+        console.log('🏭 Modo produção - URL:', SOCKET_URL);
+    } else {
         // Desenvolvimento local
-        return 'http://localhost:3000';
-    };
+        SOCKET_URL = 'http://localhost:3000';
+        console.log('💻 Modo desenvolvimento - URL:', SOCKET_URL);
+    }
 
-    const SOCKET_URL = getSocketURL();
     console.log('🌐 Conectando ao backend em:', SOCKET_URL);
 
     socket = io(SOCKET_URL, {
@@ -38,14 +38,22 @@ export const connectSocket = (token) => {
         auth: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
-        timeout: 10000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        // Forçar polling se WebSocket falhar
+        upgrade: true,
+        rememberUpgrade: false,
     });
+
+    // EXPOR O SOCKET GLOBALMENTE PARA DEBUG
+    window.socket = socket;
 
     socket.on('connect', () => {
         console.log('✅ Socket conectado ao servidor!');
         console.log('📡 Socket ID:', socket.id);
+        console.log('🔗 Transporte:', socket.io.engine.transport.name);
     });
 
     socket.on('disconnect', () => {
@@ -55,6 +63,22 @@ export const connectSocket = (token) => {
     socket.on('connect_error', (error) => {
         console.error('❌ Erro na conexão socket:', error);
         console.error('🔍 URL tentada:', SOCKET_URL);
+        console.error('🔍 Tenant:', tenant);
+        console.error('🔍 Token presente:', !!token);
+        
+        // Tentar recuar para polling se WebSocket falhar
+        if (socket.io.engine.transport.name === 'websocket') {
+            console.log('🔄 Tentando fallback para polling...');
+            socket.io.engine.transport.name = 'polling';
+        }
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+        console.log(`🔄 Reconectado após ${attemptNumber} tentativas`);
+    });
+
+    socket.on('reconnect_error', (error) => {
+        console.error('❌ Erro na reconexão:', error);
     });
 
     return socket;
@@ -64,6 +88,7 @@ export const disconnectSocket = () => {
     if (socket) {
         socket.disconnect();
         socket = null;
+        window.socket = null;
         console.log('🔌 Socket desconectado');
     }
 };
