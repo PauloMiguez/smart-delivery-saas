@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { useToast } from '../../contexts/ToastContext';  // <-- ADICIONADO
 import { api } from '../../services/api';
 import { Container, Button, Card, Input } from '../Shared/Container';
 import AddressModal from './AddressModal';
@@ -159,6 +160,7 @@ const Checkout = () => {
     const navigate = useNavigate();
     const { tenant } = useTenant();
     const { cart, subtotal, clearCart } = useCart();
+    const { showToast } = useToast();  // <-- ADICIONADO
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
