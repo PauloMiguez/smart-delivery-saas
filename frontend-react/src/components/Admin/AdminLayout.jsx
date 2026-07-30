@@ -126,7 +126,6 @@ const AdminLayout = () => {
     const handlePageChange = (page) => {
         if (page < 1 || page > totalPages) return;
         setCurrentPage(page);
-        // Scroll para o topo da lista
         const productList = document.querySelector('.products-admin');
         if (productList) {
             productList.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -447,7 +446,7 @@ const AdminLayout = () => {
                     </>
                 )}
 
-                {/* PEDIDOS */}
+                {/* PEDIDOS - COM BOTÕES UNIFICADOS */}
                 {activeTab === 'orders' && (
                     <>
                         <h2>📋 Pedidos</h2>
@@ -487,6 +486,8 @@ const AdminLayout = () => {
                                             'cancelado': '❌ Cancelado'
                                         };
 
+                                        const statusClass = o.status || 'pending';
+
                                         return (
                                             <tr key={o.id}>
                                                 <td>#{o.order_number || o.id}</td>
@@ -496,36 +497,51 @@ const AdminLayout = () => {
                                                 </td>
                                                 <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
                                                 <td>
-                                                    <Badge $status={statusMap[o.status] || 'pending'}>
-                                                        {statusLabels[o.status] || o.status}
+                                                    <Badge $status={statusMap[statusClass] || 'pending'}>
+                                                        {statusLabels[statusClass] || statusClass}
                                                     </Badge>
                                                 </td>
                                                 <td>
-                                                    {o.status === 'pending' && (
-                                                        <>
+                                                    {/* ============================================================
+                                                        BOTÕES DE AÇÃO UNIFICADOS COM O ESTILO DOS PRODUTOS
+                                                        ============================================================ */}
+                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        {statusClass === 'pending' && (
+                                                            <>
+                                                                <ActionButton 
+                                                                    $variant="confirm" 
+                                                                    onClick={() => updateOrderStatus(o.id, 'confirmado')}
+                                                                >
+                                                                    ✅ Confirmar
+                                                                </ActionButton>
+                                                                <ActionButton 
+                                                                    $variant="cancel" 
+                                                                    style={{ marginLeft: 4 }}
+                                                                    onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                >
+                                                                    ❌ Cancelar
+                                                                </ActionButton>
+                                                            </>
+                                                        )}
+                                                        {statusClass === 'confirmado' && (
                                                             <ActionButton 
-                                                                $variant="confirm" 
-                                                                onClick={() => updateOrderStatus(o.id, 'confirmado')}
+                                                                $variant="deliver" 
+                                                                onClick={() => updateOrderStatus(o.id, 'entregue')}
                                                             >
-                                                                ✅
+                                                                📦 Entregue
                                                             </ActionButton>
-                                                            <ActionButton 
-                                                                $variant="cancel" 
-                                                                style={{ marginLeft: 4 }}
-                                                                onClick={() => updateOrderStatus(o.id, 'cancelado')}
-                                                            >
-                                                                ❌
-                                                            </ActionButton>
-                                                        </>
-                                                    )}
-                                                    {o.status === 'confirmado' && (
-                                                        <ActionButton 
-                                                            $variant="deliver" 
-                                                            onClick={() => updateOrderStatus(o.id, 'entregue')}
-                                                        >
-                                                            📦
-                                                        </ActionButton>
-                                                    )}
+                                                        )}
+                                                        {statusClass === 'entregue' && (
+                                                            <Badge $status="delivered">
+                                                                ✅ Finalizado
+                                                            </Badge>
+                                                        )}
+                                                        {statusClass === 'cancelado' && (
+                                                            <Badge $status="cancelled">
+                                                                ❌ Cancelado
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
