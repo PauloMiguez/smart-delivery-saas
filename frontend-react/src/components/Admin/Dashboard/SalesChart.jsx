@@ -74,15 +74,17 @@ const ChartWrapper = styled.div`
     }
 `;
 
-const COLORS = {
-    '🟡 Pendente': '#f39c12',
-    '🟢 Confirmado': '#27ae60',
-    '✅ Entregue': '#2ecc71',
-    '❌ Cancelado': '#e74c3c',
-    '🟠 Preparando': '#e67e22'
+// ============================================================
+//  CORES POR STATUS
+// ============================================================
+const getStatusColor = (name) => {
+    if (name.includes('Pendente')) return '#f39c12';
+    if (name.includes('Confirmado')) return '#27ae60';
+    if (name.includes('Entregue')) return '#2ecc71';
+    if (name.includes('Cancelado')) return '#e74c3c';
+    if (name.includes('Preparando')) return '#e67e22';
+    return '#3498db';
 };
-
-const DEFAULT_COLORS = ['#e67e22', '#27ae60', '#3498db', '#e74c3c', '#f39c12', '#9b59b6'];
 
 // ============================================================
 //  GRÁFICO DE VENDAS DIÁRIAS (LINHA)
@@ -240,19 +242,8 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
     }
 
     // ============================================================
-    //  CORREÇÃO: Mapear cores para cada status
-    // ============================================================
-    const getColor = (name) => {
-        if (name.includes('Pendente')) return '#f39c12';
-        if (name.includes('Confirmado')) return '#27ae60';
-        if (name.includes('Entregue')) return '#2ecc71';
-        if (name.includes('Cancelado')) return '#e74c3c';
-        if (name.includes('Preparando')) return '#e67e22';
-        return '#3498db';
-    };
-
-    // ============================================================
-    //  CORREÇÃO: Função para renderizar a legenda com a cor correta
+    //  CORREÇÃO: Legenda personalizada SEM ícone duplicado
+    //  Apenas o texto com a cor de fundo
     // ============================================================
     const renderLegend = (props) => {
         const { payload } = props;
@@ -267,14 +258,17 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                 justifyContent: 'center'
             }}>
                 {payload.map((entry, index) => {
-                    const color = getColor(entry.value);
+                    const color = getStatusColor(entry.value);
                     return (
                         <li key={`legend-${index}`} style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px',
+                            gap: '6px',
                             fontSize: isMobile ? '11px' : '13px',
-                            color: '#2d3436'
+                            color: '#2d3436',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: '#f8f9fa'
                         }}>
                             <span style={{
                                 display: 'inline-block',
@@ -318,7 +312,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                             {filteredData.map((entry, index) => (
                                 <Cell 
                                     key={`cell-${index}`} 
-                                    fill={getColor(entry.name)}
+                                    fill={getStatusColor(entry.name)}
                                 />
                             ))}
                         </Pie>
