@@ -10,6 +10,8 @@ import { Container, Button, Card } from '../Shared/Container';
 const TrackContainer = styled(Container)`
     padding-top: 16px;
     padding-bottom: 40px;
+    max-width: 480px;
+    margin: 0 auto;
 `;
 
 const BackButton = styled.button`
@@ -38,6 +40,7 @@ const Title = styled.h2`
 
 const OrderCard = styled(Card)`
     margin-bottom: 20px;
+    padding: 20px;
 `;
 
 const OrderNumber = styled.div`
@@ -92,16 +95,18 @@ const StatusStep = styled.div`
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 12px;
+    padding: 12px 16px;
     border-radius: 8px;
     background: ${props => props.active ? '#fef9e7' : '#f8f9fa'};
     border-left: 4px solid ${props => props.active ? '#e67e22' : '#ddd'};
-    opacity: ${props => props.active ? 1 : 0.6};
+    opacity: ${props => props.active ? 1 : 0.5};
     transition: all 0.3s ease;
 `;
 
 const StepIcon = styled.div`
     font-size: 24px;
+    width: 40px;
+    text-align: center;
 `;
 
 const StepContent = styled.div`
@@ -110,12 +115,13 @@ const StepContent = styled.div`
 
 const StepTitle = styled.div`
     font-weight: 600;
-    color: ${props => props.active ? '#e67e22' : '#888'};
+    color: ${props => props.active ? '#2d3436' : '#888'};
 `;
 
-const StepTime = styled.div`
+const StepSubtitle = styled.div`
     font-size: 12px;
-    color: #888;
+    color: ${props => props.active ? '#e67e22' : '#bbb'};
+    margin-top: 2px;
 `;
 
 const OrderDetails = styled.div`
@@ -127,7 +133,7 @@ const OrderDetails = styled.div`
 const DetailRow = styled.div`
     display: flex;
     justify-content: space-between;
-    padding: 4px 0;
+    padding: 6px 0;
     font-size: 14px;
     color: #555;
 `;
@@ -142,6 +148,41 @@ const LoadingContainer = styled.div`
     color: #888;
 `;
 
+// ============================================================
+//  STATUS DO PEDIDO - MAPEAMENTO COMPLETO
+// ============================================================
+const statusLabels = {
+    'pending': 'Aguardando confirmação',
+    'confirmado': 'Confirmado',
+    'preparando': 'Em preparação',
+    'entregue': 'Entregue',
+    'cancelado': 'Cancelado'
+};
+
+const statusEmojis = {
+    'pending': '📋',
+    'confirmado': '✅',
+    'preparando': '👨‍🍳',
+    'entregue': '📦',
+    'cancelado': '❌'
+};
+
+// ============================================================
+//  ORDEM DOS STATUS PARA TIMELINE
+// ============================================================
+const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
+
+// ============================================================
+//  CORES DOS STATUS
+// ============================================================
+const statusColors = {
+    'pending': '#f39c12',
+    'confirmado': '#27ae60',
+    'preparando': '#e67e22',
+    'entregue': '#2ecc71',
+    'cancelado': '#e74c3c'
+};
+
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
@@ -151,37 +192,21 @@ const TrackOrder = () => {
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
 
-    // Status em português
-    const statusLabels = {
-        'pending': '🟡 Aguardando confirmação',
-        'confirmado': '🟢 Confirmado',
-        'preparando': '🟠 Em preparo',
-        'entregue': '✅ Entregue',
-        'cancelado': '❌ Cancelado'
-    };
-
-    const statusIcons = {
-        'pending': '📋',
-        'confirmado': '✅',
-        'preparando': '👨‍🍳',
-        'entregue': '📦',
-        'cancelado': '❌'
-    };
-
-    const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
-
-    // Carregar dados do pedido
     const loadOrder = async () => {
         try {
+            console.log('📦 Buscando pedido:', orderId);
             const response = await api.get(`/orders/${orderId}`);
+            console.log('📦 Resposta:', response.data);
             if (response.data.success) {
                 setOrder(response.data.data);
+                console.log('✅ Pedido carregado:', response.data.data.order_number);
+                console.log('📊 Status atual:', response.data.data.status);
             } else {
                 showToast('Pedido não encontrado', 'error');
                 navigate('/');
             }
         } catch (error) {
-            console.error('Erro ao carregar pedido:', error);
+            console.error('❌ Erro ao carregar pedido:', error);
             showToast('Erro ao carregar pedido', 'error');
             navigate('/');
         } finally {
@@ -189,7 +214,9 @@ const TrackOrder = () => {
         }
     };
 
-    // Conectar socket para atualizações em tempo real
+    // ============================================================
+    //  WEBSOCKET - ATUALIZAÇÕES EM TEMPO REAL
+    // ============================================================
     useEffect(() => {
         if (!tenant || !orderId) return;
 
@@ -198,7 +225,6 @@ const TrackOrder = () => {
         setSocket(socketInstance);
 
         if (socketInstance) {
-            // Ouvir atualizações do pedido
             socketInstance.on('order-updated', (data) => {
                 if (data.order && data.order.id === parseInt(orderId)) {
                     console.log('📦 Status atualizado:', data.order.status);
@@ -208,16 +234,9 @@ const TrackOrder = () => {
                         updated_at: new Date().toISOString()
                     }));
                     showToast(
-                        `Status do pedido atualizado: ${statusLabels[data.order.status]}`,
+                        `Status do pedido: ${statusEmojis[data.order.status]} ${statusLabels[data.order.status]}`,
                         'info'
                     );
-                }
-            });
-
-            // Ouvir notificações de novo pedido (para o caso de ser o próprio pedido)
-            socketInstance.on('new-order-notification', (data) => {
-                if (data.order && data.order.id === parseInt(orderId)) {
-                    loadOrder();
                 }
             });
         }
@@ -228,24 +247,32 @@ const TrackOrder = () => {
         };
     }, [tenant, orderId]);
 
-    // Carregar pedido inicial
     useEffect(() => {
-        loadOrder();
+        if (orderId) {
+            loadOrder();
+        } else {
+            navigate('/');
+        }
     }, [orderId]);
 
-    // Função para verificar se um status está ativo ou já passou
+    const getStatusIndex = (status) => {
+        return statusOrder.indexOf(status);
+    };
+
     const isStatusActive = (status) => {
         if (!order) return false;
-        const currentIndex = statusOrder.indexOf(order.status);
-        const statusIndex = statusOrder.indexOf(status);
-        return currentIndex >= statusIndex && order.status !== 'cancelado';
+        if (order.status === 'cancelado') return false;
+        const currentIndex = getStatusIndex(order.status);
+        const statusIndex = getStatusIndex(status);
+        return currentIndex >= statusIndex;
     };
 
     const isStatusCompleted = (status) => {
         if (!order) return false;
-        const currentIndex = statusOrder.indexOf(order.status);
-        const statusIndex = statusOrder.indexOf(status);
-        return currentIndex > statusIndex && order.status !== 'cancelado';
+        if (order.status === 'cancelado') return false;
+        const currentIndex = getStatusIndex(order.status);
+        const statusIndex = getStatusIndex(status);
+        return currentIndex > statusIndex;
     };
 
     if (loading) {
@@ -275,6 +302,7 @@ const TrackOrder = () => {
     }
 
     const isCancelled = order.status === 'cancelado';
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
 
     return (
         <TrackContainer>
@@ -287,7 +315,7 @@ const TrackOrder = () => {
             <OrderCard>
                 <OrderNumber>#{order.order_number}</OrderNumber>
                 <StatusBadge status={order.status}>
-                    {statusLabels[order.status] || order.status}
+                    {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                 </StatusBadge>
                 <StatusLabel>
                     {order.status === 'pending' && 'Aguardando confirmação do restaurante'}
@@ -298,33 +326,34 @@ const TrackOrder = () => {
                 </StatusLabel>
 
                 <StatusTimeline>
-                    {statusOrder.map((status) => (
-                        <StatusStep 
-                            key={status}
-                            active={!isCancelled && isStatusActive(status)}
-                        >
-                            <StepIcon>
-                                {isCancelled ? '❌' : (
-                                    isStatusCompleted(status) ? '✅' : 
-                                    isStatusActive(status) ? '⏳' : 
-                                    statusIcons[status]
-                                )}
-                            </StepIcon>
-                            <StepContent>
-                                <StepTitle active={!isCancelled && isStatusActive(status)}>
-                                    {statusLabels[status]}
-                                </StepTitle>
-                                {isStatusCompleted(status) && !isCancelled && (
-                                    <StepTime>✓ Concluído</StepTime>
-                                )}
-                                {isStatusActive(status) && !isCancelled && (
-                                    <StepTime>⏳ Em andamento</StepTime>
-                                )}
-                            </StepContent>
-                        </StatusStep>
-                    ))}
+                    {statusOrder.map((status) => {
+                        const active = !isCancelled && isStatusActive(status);
+                        const completed = !isCancelled && isStatusCompleted(status);
+                        const icon = isCancelled ? '❌' : 
+                                   completed ? '✅' : 
+                                   active ? statusEmojis[status] : '⏳';
+                        
+                        return (
+                            <StatusStep key={status} active={active}>
+                                <StepIcon>{icon}</StepIcon>
+                                <StepContent>
+                                    <StepTitle active={active}>
+                                        {statusEmojis[status]} {statusLabels[status]}
+                                    </StepTitle>
+                                    {completed && !isCancelled && (
+                                        <StepSubtitle active={active}>✓ Concluído</StepSubtitle>
+                                    )}
+                                    {active && !isCancelled && !completed && (
+                                        <StepSubtitle active={active}>⏳ Em andamento</StepSubtitle>
+                                    )}
+                                    {status === 'preparando' && active && !completed && (
+                                        <StepSubtitle active={active}>👨‍🍳 Cozinha preparando seu pedido</StepSubtitle>
+                                    )}
+                                </StepContent>
+                            </StatusStep>
+                        );
+                    })}
                     
-                    {/* Status cancelado */}
                     {isCancelled && (
                         <StatusStep active={true}>
                             <StepIcon>❌</StepIcon>
@@ -332,19 +361,30 @@ const TrackOrder = () => {
                                 <StepTitle active={true} style={{ color: '#e74c3c' }}>
                                     Pedido Cancelado
                                 </StepTitle>
+                                <StepSubtitle active={true}>Pedido foi cancelado</StepSubtitle>
                             </StepContent>
                         </StatusStep>
                     )}
                 </StatusTimeline>
 
                 <OrderDetails>
+                    <div style={{ marginBottom: 12 }}>
+                        <strong style={{ color: '#555' }}>Itens:</strong>
+                        {items.map((item, index) => (
+                            <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}>
+                                <span>{item.qty}x {item.name}</span>
+                                <span>R$ {(item.price * item.qty).toFixed(2)}</span>
+                            </div>
+                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0 0', fontWeight: 'bold', borderTop: '2px solid #f0f0f0', marginTop: '4px' }}>
+                            <span>Total</span>
+                            <span>R$ {parseFloat(order.total).toFixed(2)}</span>
+                        </div>
+                    </div>
+
                     <DetailRow>
                         <DetailLabel>Data do pedido</DetailLabel>
                         <span>{new Date(order.created_at).toLocaleString('pt-BR')}</span>
-                    </DetailRow>
-                    <DetailRow>
-                        <DetailLabel>Total</DetailLabel>
-                        <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                     </DetailRow>
                     <DetailRow>
                         <DetailLabel>Pagamento</DetailLabel>
