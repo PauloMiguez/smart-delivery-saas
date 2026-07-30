@@ -32,7 +32,6 @@ import CategoryModal from './CategoryModal';
 import Config from './Config';
 import ProductFilters from './ProductFilters';
 import Pagination from '../Shared/Pagination';
-
 // ============================================================
 //  IMPORTS DO DASHBOARD
 // ============================================================
@@ -76,7 +75,7 @@ const AdminLayout = () => {
     });
 
     // ============================================================
-    //  ESTADOS DO DASHBOARD
+    //  DASHBOARD - ESTADOS
     // ============================================================
     const [period, setPeriod] = useState('today');
     const [salesData, setSalesData] = useState([]);
@@ -114,92 +113,6 @@ const AdminLayout = () => {
         if (!tenant) return;
         loadData();
     }, [tenant]);
-
-    // ============================================================
-    //  DASHBOARD - CARREGAR DADOS
-    // ============================================================
-    const loadDashboardData = async (selectedPeriod) => {
-        if (!tenant) return;
-        
-        setDashboardLoading(true);
-        try {
-            const response = await api.get(`/stats/dashboard?period=${selectedPeriod || period}`);
-            if (response.data.success) {
-                const data = response.data.data;
-                setSalesData(data.salesData || []);
-                setStatusData(data.statusData || []);
-                setTopProducts(data.topProducts || []);
-                setLastUpdate(new Date().toLocaleString());
-            }
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados do dashboard:', error);
-            // Se a rota não existir, usar dados mockados para não quebrar
-            setSalesData(generateMockSalesData());
-            setStatusData(generateMockStatusData());
-            setTopProducts(generateMockTopProducts());
-            setLastUpdate(new Date().toLocaleString());
-        } finally {
-            setDashboardLoading(false);
-        }
-    };
-
-    // ============================================================
-    //  DADOS MOCKADOS (FALLBACK)
-    // ============================================================
-    const generateMockSalesData = () => {
-        const data = [];
-        const today = new Date();
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            data.push({
-                date: date.toISOString().split('T')[0],
-                total: Math.floor(Math.random() * 500) + 100,
-                orders: Math.floor(Math.random() * 20) + 5
-            });
-        }
-        return data;
-    };
-
-    const generateMockStatusData = () => {
-        return [
-            { name: '🟡 Pendente', value: Math.floor(Math.random() * 10) + 1 },
-            { name: '🟢 Confirmado', value: Math.floor(Math.random() * 15) + 2 },
-            { name: '✅ Entregue', value: Math.floor(Math.random() * 30) + 5 },
-            { name: '❌ Cancelado', value: Math.floor(Math.random() * 5) + 0 }
-        ];
-    };
-
-    const generateMockTopProducts = () => {
-        const products = ['X-Bacon', 'X-Burguer', 'Coca-Cola', 'Batata Frita', 'X-Calabresa'];
-        return products.map(name => ({
-            name,
-            quantity: Math.floor(Math.random() * 50) + 10
-        }));
-    };
-
-    // ============================================================
-    //  DASHBOARD - HANDLERS
-    // ============================================================
-    const handlePeriodChange = (newPeriod) => {
-        setPeriod(newPeriod);
-        loadDashboardData(newPeriod);
-    };
-
-    const handleRefresh = () => {
-        loadDashboardData(period);
-        loadData(); // Recarregar também os dados principais
-        showToast('🔄 Dados atualizados!', 'success');
-    };
-
-    // ============================================================
-    //  CARREGAR DADOS DO DASHBOARD AO MUDAR DE ABA
-    // ============================================================
-    useEffect(() => {
-        if (activeTab === 'dashboard') {
-            loadDashboardData(period);
-        }
-    }, [activeTab]);
 
     // ============================================================
     //  WEBSOCKET - NOTIFICAÇÕES EM TEMPO REAL
@@ -255,9 +168,9 @@ const AdminLayout = () => {
                 
                 // Recarregar dados
                 loadData();
-                if (activeTab === 'dashboard') {
-                    loadDashboardData(period);
-                }
+                loadDashboardData(period);
+                
+                // Se estiver na aba de pedidos, recarregar
                 if (activeTab === 'orders') {
                     loadData();
                 }
@@ -275,9 +188,7 @@ const AdminLayout = () => {
                         'info'
                     );
                     loadData();
-                    if (activeTab === 'dashboard') {
-                        loadDashboardData(period);
-                    }
+                    loadDashboardData(period);
                     if (activeTab === 'orders') loadData();
                 }
             });
@@ -298,6 +209,51 @@ const AdminLayout = () => {
             setUnreadOrders(0);
         }
     }, [activeTab]);
+
+    // ============================================================
+    //  DASHBOARD - CARREGAR DADOS
+    // ============================================================
+    const loadDashboardData = async (selectedPeriod) => {
+        setDashboardLoading(true);
+        try {
+            console.log('📊 Carregando dados do dashboard...');
+            const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
+            if (response.data.success) {
+                const data = response.data.data;
+                setSalesData(data.salesData || []);
+                setStatusData(data.statusData || []);
+                setTopProducts(data.topProducts || []);
+                setLastUpdate(new Date().toLocaleString('pt-BR'));
+                console.log('✅ Dados do dashboard carregados!');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados do dashboard:', error);
+            showToast('Erro ao carregar dados do dashboard', 'error');
+        } finally {
+            setDashboardLoading(false);
+        }
+    };
+
+    // Carregar dados do dashboard quando a aba for ativada
+    useEffect(() => {
+        if (activeTab === 'dashboard' && tenant) {
+            loadDashboardData(period);
+        }
+    }, [activeTab, tenant]);
+
+    // ============================================================
+    //  DASHBOARD - HANDLERS
+    // ============================================================
+    const handlePeriodChange = (newPeriod) => {
+        setPeriod(newPeriod);
+        loadDashboardData(newPeriod);
+    };
+
+    const handleRefresh = () => {
+        loadDashboardData(period);
+        loadData();
+        showToast('📊 Dashboard atualizado!', 'success');
+    };
 
     // ============================================================
     //  FILTROS E PAGINAÇÃO - CORRIGIDO
@@ -455,9 +411,7 @@ const AdminLayout = () => {
             await api.put(`/orders/${orderId}/status`, { status });
             showToast(`Pedido atualizado para: ${status}`, 'success');
             await loadData();
-            if (activeTab === 'dashboard') {
-                loadDashboardData(period);
-            }
+            loadDashboardData(period);
         } catch (error) {
             console.error('Erro ao atualizar status:', error);
             showToast('Erro ao atualizar status do pedido.', 'error');
@@ -554,7 +508,7 @@ const AdminLayout = () => {
 
                 {/* ============================================================
                     DASHBOARD - COMPLETO COM GRÁFICOS
-                    ============================================================ */}
+                ============================================================ */}
                 {activeTab === 'dashboard' && (
                     <>
                         <FilterBar
@@ -599,7 +553,7 @@ const AdminLayout = () => {
                         {/* Gráfico de Vendas */}
                         <SalesLineChart data={salesData} />
 
-                        {/* Gráficos lado a lado */}
+                        {/* Gráficos de Status e Top Produtos */}
                         <div style={{ 
                             display: 'grid', 
                             gridTemplateColumns: '1fr 1fr', 
@@ -1053,4 +1007,69 @@ const AdminLayout = () => {
                                                             </ActionButton>
                                                             <ActionButton 
                                                                 $variant="cancel" 
-                                                                onClick
+                                                                onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                ❌ Cancelar
+                                                            </ActionButton>
+                                                        </>
+                                                    )}
+                                                    {statusClass === 'confirmado' && (
+                                                        <ActionButton 
+                                                            $variant="deliver" 
+                                                            onClick={() => updateOrderStatus(o.id, 'entregue')}
+                                                            style={{ flex: 1 }}
+                                                        >
+                                                            📦 Entregue
+                                                        </ActionButton>
+                                                    )}
+                                                    {statusClass === 'entregue' && (
+                                                        <Badge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                                            ✅ Finalizado
+                                                        </Badge>
+                                                    )}
+                                                    {statusClass === 'cancelado' && (
+                                                        <Badge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                                            ❌ Cancelado
+                                                        </Badge>
+                                                    )}
+                                                </MobileActions>
+                                            </MobileOrderCard>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </OrdersContainer>
+                )}
+
+                {/* CONFIGURAÇÕES */}
+                {activeTab === 'config' && <Config />}
+            </MainContent>
+
+            {/* MODAIS */}
+            <ProductModal
+                isOpen={isProductModalOpen}
+                onClose={() => {
+                    setIsProductModalOpen(false);
+                    setEditingProduct(null);
+                }}
+                onSave={handleSaveProduct}
+                product={editingProduct}
+                categories={categories}
+            />
+
+            <CategoryModal
+                isOpen={isCategoryModalOpen}
+                onClose={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                }}
+                onSave={handleSaveCategory}
+                category={editingCategory}
+            />
+        </AdminContainer>
+    );
+};
+
+export default AdminLayout;
