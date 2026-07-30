@@ -414,7 +414,6 @@ const AdminLayout = () => {
     const updateOrderStatus = async (orderId, status) => {
         try {
             await api.put(`/orders/${orderId}/status`, { status });
-            showToast(`Pedido atualizado para: ${status}`, 'success');
             await loadData();
             loadDashboardData(period);
         } catch (error) {
