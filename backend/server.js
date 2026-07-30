@@ -1038,6 +1038,156 @@ app.get('/api/stats/orders', async (req, res) => {
 });
 
 // ============================================================
+//  ROTA DE DASHBOARD - ESTATÍSTICAS AVANÇADAS (NOVA)
+// ============================================================
+app.get('/api/stats/dashboard', async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        if (!tenantId) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Tenant não encontrado' 
+            });
+        }
+
+        const { period = 'today' } = req.query;
+        console.log(`📊 Dashboard - Período: ${period}, Tenant: ${tenantId}`);
+        
+        // Calcular data de início baseado no período
+        let startDate = new Date();
+        
+        switch (period) {
+            case 'today':
+                startDate.setHours(0, 0, 0, 0);
+                break;
+            case 'week':
+                const day = startDate.getDay();
+                startDate.setDate(startDate.getDate() - day);
+                startDate.setHours(0, 0, 0, 0);
+                break;
+            case 'month':
+                startDate.setDate(1);
+                startDate.setHours(0, 0, 0, 0);
+                break;
+            case 'all':
+                startDate = new Date(0);
+                break;
+            default:
+                startDate.setHours(0, 0, 0, 0);
+        }
+
+        const startDateStr = startDate.toISOString().split('T')[0];
+        console.log(`📅 Data inicial: ${startDateStr}`);
+
+        // Buscar pedidos do período
+        const [orders] = await pool.query(
+            `SELECT * FROM orders 
+             WHERE tenant_id = ? 
+               AND DATE(created_at) >= ? 
+             ORDER BY created_at DESC`,
+            [tenantId, startDateStr]
+        );
+
+        console.log(`📦 Pedidos encontrados: ${orders.length}`);
+
+        // ============================================================
+        //  1. DADOS PARA GRÁFICO DE VENDAS DIÁRIAS
+        // ============================================================
+        const salesMap = {};
+        orders.forEach(order => {
+            const date = new Date(order.created_at).toISOString().split('T')[0];
+            if (!salesMap[date]) {
+                salesMap[date] = { date, total: 0, orders: 0 };
+            }
+            salesMap[date].total += parseFloat(order.total || 0);
+            salesMap[date].orders += 1;
+        });
+
+        // Ordenar por data
+        const salesData = Object.values(salesMap).sort((a, b) => 
+            a.date.localeCompare(b.date)
+        );
+
+        // Se não houver dados, adicionar dados do dia atual com zero
+        if (salesData.length === 0) {
+            const today = new Date().toISOString().split('T')[0];
+            salesData.push({ date: today, total: 0, orders: 0 });
+        }
+
+        // ============================================================
+        //  2. DADOS PARA GRÁFICO DE STATUS DOS PEDIDOS
+        // ============================================================
+        const statusCount = {};
+        orders.forEach(order => {
+            const status = order.status || 'pending';
+            statusCount[status] = (statusCount[status] || 0) + 1;
+        });
+
+        const statusMap = {
+            'pending': '🟡 Pendente',
+            'confirmado': '🟢 Confirmado',
+            'entregue': '✅ Entregue',
+            'cancelado': '❌ Cancelado'
+        };
+
+        const statusData = Object.entries(statusCount).map(([key, value]) => ({
+            name: statusMap[key] || key,
+            value
+        }));
+
+        // Se não houver status, adicionar dados padrão
+        if (statusData.length === 0) {
+            statusData.push({ name: '🟡 Pendente', value: 0 });
+        }
+
+        // ============================================================
+        //  3. TOP PRODUTOS MAIS VENDIDOS
+        // ============================================================
+        const productSales = {};
+        orders.forEach(order => {
+            let items = order.items;
+            if (typeof items === 'string') {
+                try { items = JSON.parse(items); } catch (e) { items = []; }
+            }
+            if (Array.isArray(items)) {
+                items.forEach(item => {
+                    const name = item.name || 'Produto';
+                    if (!productSales[name]) {
+                        productSales[name] = { name, quantity: 0 };
+                    }
+                    productSales[name].quantity += item.qty || 1;
+                });
+            }
+        });
+
+        const topProducts = Object.values(productSales)
+            .sort((a, b) => b.quantity - a.quantity)
+            .slice(0, 5);
+
+        // Se não houver produtos, adicionar dados padrão
+        if (topProducts.length === 0) {
+            topProducts.push({ name: 'Nenhum produto vendido', quantity: 0 });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                salesData,
+                statusData,
+                topProducts
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erro no dashboard:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao carregar dados do dashboard: ' + error.message 
+        });
+    }
+});
+
+// ============================================================
 //  ROTAS DE TENANT
 // ============================================================
 
@@ -1229,7 +1379,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`🔌 Cliente desconectado do tenant: ${tenant}`);
+        console.log(`🔌 Cliente desconectado ao tenant: ${tenant}`);
     });
 });
 
