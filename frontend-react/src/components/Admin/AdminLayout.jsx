@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
@@ -211,12 +211,13 @@ const AdminLayout = () => {
     }, [activeTab]);
 
     // ============================================================
-    //  DASHBOARD - CARREGAR DADOS
+    //  DASHBOARD - CARREGAR DADOS (CORRIGIDO COM useCallback)
     // ============================================================
-    const loadDashboardData = async (selectedPeriod) => {
+    const loadDashboardData = useCallback(async (selectedPeriod) => {
+        if (!tenant) return;
         setDashboardLoading(true);
         try {
-            console.log('📊 Carregando dados do dashboard...');
+            console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
             const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
             if (response.data.success) {
                 const data = response.data.data;
@@ -232,21 +233,21 @@ const AdminLayout = () => {
         } finally {
             setDashboardLoading(false);
         }
-    };
+    }, [tenant, showToast]);
 
-    // Carregar dados do dashboard quando a aba for ativada
+    // Carregar dados do dashboard quando a aba for ativada ou período mudar
     useEffect(() => {
         if (activeTab === 'dashboard' && tenant) {
             loadDashboardData(period);
         }
-    }, [activeTab, tenant]);
+    }, [activeTab, tenant, period, loadDashboardData]);
 
     // ============================================================
     //  DASHBOARD - HANDLERS
     // ============================================================
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
-        loadDashboardData(newPeriod);
+        // O useEffect vai carregar os dados automaticamente
     };
 
     const handleRefresh = () => {
