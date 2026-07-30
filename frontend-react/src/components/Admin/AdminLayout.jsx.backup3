@@ -188,7 +188,7 @@ const AdminLayout = () => {
     }, [activeTab]);
 
     // ============================================================
-    //  FILTROS E PAGINAÇÃO - CORRIGIDO
+    //  FILTROS E PAGINAÇÃO
     // ============================================================
     useEffect(() => {
         applyFilters();
@@ -201,9 +201,6 @@ const AdminLayout = () => {
         }
     }, [filteredProducts, itemsPerPage]);
 
-    // ============================================================
-    //  CORREÇÃO: applyFilters com filtro de status funcionando
-    // ============================================================
     const applyFilters = () => {
         let filtered = [...products];
         
@@ -219,15 +216,9 @@ const AdminLayout = () => {
             filtered = filtered.filter(p => p.category === filters.category);
         }
         
-        // ============================================================
-        //  CORREÇÃO: Filtro de status comparando com 1/0 ou true/false
-        // ============================================================
         if (filters.status) {
-            if (filters.status === 'active') {
-                filtered = filtered.filter(p => p.active === 1 || p.active === true);
-            } else if (filters.status === 'inactive') {
-                filtered = filtered.filter(p => p.active === 0 || p.active === false);
-            }
+            const isActive = filters.status === 'active';
+            filtered = filtered.filter(p => p.active === isActive);
         }
         
         setFilteredProducts(filtered);
