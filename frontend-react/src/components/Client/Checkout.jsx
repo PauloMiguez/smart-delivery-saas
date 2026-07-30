@@ -243,14 +243,47 @@ const Checkout = () => {
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
 
-            // WhatsApp
+            // ============================================================
+            //  EXTRAIR NÚMERO DO PEDIDO DA RESPOSTA
+            // ============================================================
+            const orderNumber = response.data.data?.order_number || response.data.data?.id || 'N/A';
+            console.log(`📋 Número do pedido: ${orderNumber}`);
+
+            // ============================================================
+            //  MENSAGEM DO WHATSAPP COM NÚMERO DO PEDIDO
+            // ============================================================
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
-            const message = `🍽️ *NOVO PEDIDO*\nCliente: ${formData.name}\nTelefone: ${formData.phone}\nEndereço: ${formData.address}\n\n*Itens:*\n${cart.map(i => `- ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n')}\n\nSubtotal: R$ ${subtotal.toFixed(2)}\nTaxa entrega: R$ ${deliveryFee.toFixed(2)}\n*Total: R$ ${total.toFixed(2)}*\nPagamento: ${paymentMethod}`;
-            window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+
+            // Garantir que o número tenha o código do país
+            let formattedPhone = cleanPhone;
+            if (!formattedPhone.startsWith('55')) {
+                formattedPhone = '55' + formattedPhone;
+            }
+
+            // Construir a mensagem com o número do pedido
+            const message = 
+                `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `👤 *Cliente:* ${formData.name}\n` +
+                `📱 *Telefone:* ${formData.phone}\n` +
+                `📍 *Endereço:* ${formData.address}\n\n` +
+                `🛒 *Itens:*\n` +
+                cart.map(i => `  • ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') +
+                `\n\n💰 *Resumo:*\n` +
+                `  Subtotal: R$ ${subtotal.toFixed(2)}\n` +
+                `  Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n` +
+                `  ─────────────────────\n` +
+                `  *TOTAL: R$ ${total.toFixed(2)}*\n\n` +
+                `💳 *Pagamento:* ${paymentMethod}\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🔗 *Pedido #${orderNumber}*`;
+
+            window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
 
             clearCart();
             navigate('/');
+            showToast(`Pedido #${orderNumber} enviado com sucesso!`, 'success');
             
         } catch (error) {
             console.error('❌ Erro ao criar pedido:', error);
