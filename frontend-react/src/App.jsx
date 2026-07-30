@@ -11,8 +11,9 @@ import ClientLayout from './components/Client/ClientLayout';
 import Checkout from './components/Client/Checkout';
 import Register from './components/Client/Register';
 import Login from './components/Client/Login';
-import AdminLayout from './components/Admin/AdminLayout';
 import TrackOrder from './components/Client/TrackOrder';
+import OrdersHistory from './components/Client/OrdersHistory';
+import AdminLayout from './components/Admin/AdminLayout';
 
 function App() {
     return (
@@ -30,8 +31,9 @@ function App() {
                                     <Route path="/register.html" element={<Navigate to="/register" />} />
                                     <Route path="/login" element={<Login />} />
                                     <Route path="/login.html" element={<Navigate to="/login" />} />
-                                    <Route path="/admin/*" element={<AdminLayout />} />
                                     <Route path="/track/:orderId" element={<TrackOrder />} />
+                                    <Route path="/orders" element={<OrdersHistory />} />
+                                    <Route path="/admin/*" element={<AdminLayout />} />
                                 </Routes>
                             </BrowserRouter>
                         </CartProvider>
