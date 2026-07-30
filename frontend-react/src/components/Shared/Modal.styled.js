@@ -112,12 +112,22 @@ export const Input = styled.input`
     border-radius: ${props => props.theme.borderRadius.md};
     font-size: 14px;
     transition: all 0.3s ease;
-    background: #fff;
+    background: #ffffff;
+    color: #2d3436;
+    
+    &::placeholder {
+        color: #b2bec3;
+    }
 
     &:focus {
         outline: none;
         border-color: ${props => props.theme.colors.primary};
         box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+    }
+
+    &:disabled {
+        background: #f5f5f5;
+        color: #888888;
     }
 `;
 
@@ -127,8 +137,33 @@ export const Select = styled.select`
     border: 1px solid ${props => props.theme.colors.border};
     border-radius: ${props => props.theme.borderRadius.md};
     font-size: 14px;
-    background: #fff;
+    background: #ffffff;
+    color: #2d3436;
     transition: all 0.3s ease;
+
+    &:focus {
+        outline: none;
+        border-color: ${props => props.theme.colors.primary};
+        box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+    }
+`;
+
+export const TextArea = styled.textarea`
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+    font-size: 14px;
+    background: #ffffff;
+    color: #2d3436;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    transition: all 0.3s ease;
+
+    &::placeholder {
+        color: #b2bec3;
+    }
 
     &:focus {
         outline: none;
@@ -180,7 +215,7 @@ export const Button = styled.button`
 
     ${props => props.primary && `
         background: ${props.theme.colors.primary};
-        color: #fff;
+        color: #ffffff;
         &:hover { background: ${props.theme.colors.primaryDark}; }
     `}
 
@@ -192,7 +227,7 @@ export const Button = styled.button`
 
     ${props => props.danger && `
         background: ${props.theme.colors.danger};
-        color: #fff;
+        color: #ffffff;
         &:hover { background: #c0392b; }
     `}
 
@@ -268,7 +303,7 @@ export const ImagePreview = styled.img`
 
 export const RemoveImageButton = styled.button`
     background: ${props => props.theme.colors.danger};
-    color: #fff;
+    color: #ffffff;
     border: none;
     padding: 4px 12px;
     border-radius: ${props => props.theme.borderRadius.sm};

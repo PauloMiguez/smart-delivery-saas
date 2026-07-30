@@ -10,6 +10,7 @@ import {
     FormRow,
     Input,
     Select,
+    TextArea,
     CheckboxGroup,
     ModalActions,
     Button,
@@ -170,12 +171,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
 
                     <FormGroup>
                         <label>Descrição</label>
-                        <Input
-                            type="text"
+                        <TextArea
                             name="description"
                             value={formData.description}
                             onChange={handleChange}
                             placeholder="Breve descrição do produto"
+                            rows="3"
                         />
                     </FormGroup>
 
