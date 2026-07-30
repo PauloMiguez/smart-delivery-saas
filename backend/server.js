@@ -593,6 +593,9 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
+// ============================================================
+//  ROTA POST /api/orders - COM NUMERAÇÃO SEQUENCIAL POR TENANT
+// ============================================================
 app.post('/api/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -634,7 +637,37 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
-        const orderNumber = '#' + Date.now().toString().slice(-6);
+        // ============================================================
+        //  GERAR NÚMERO DO PEDIDO - SEQUENCIAL POR TENANT COM PREFIXO
+        //  Formato: #TENANT-000001
+        // ============================================================
+        const [lastOrder] = await pool.query(
+            `SELECT order_number FROM orders 
+             WHERE tenant_id = ? 
+             ORDER BY id DESC 
+             LIMIT 1`,
+            [tenantId]
+        );
+
+        let nextNumber = 1;
+        if (lastOrder.length > 0) {
+            // Extrair o número do último pedido
+            // Formato: #TENANT-000001
+            const lastNumberStr = lastOrder[0].order_number.split('-')[1];
+            const lastNumber = parseInt(lastNumberStr);
+            if (!isNaN(lastNumber)) {
+                nextNumber = lastNumber + 1;
+            }
+        }
+
+        // Formatar com zeros à esquerda (6 dígitos)
+        const sequentialNumber = String(nextNumber).padStart(6, '0');
+        // Criar o prefixo com o nome do tenant (substituir espaços por nada)
+        const tenantPrefix = tenantId.replace(/\s+/g, '').toUpperCase();
+        // Formato final: #TENANT-000001
+        const orderNumber = `#${tenantPrefix}-${sequentialNumber}`;
+
+        console.log(`📋 Número do pedido: ${orderNumber} (Sequencial: ${nextNumber})`);
 
         const [result] = await pool.query(
             `INSERT INTO orders (
