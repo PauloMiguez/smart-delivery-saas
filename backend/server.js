@@ -594,6 +594,49 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
+//  ROTA GET /api/orders/:id - BUSCAR PEDIDO POR ID
+// ============================================================
+app.get('/api/orders/:id', async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        const orderId = req.params.id;
+
+        if (!tenantId) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Tenant não encontrado' 
+            });
+        }
+
+        const [orders] = await pool.query(
+            'SELECT * FROM orders WHERE id = ? AND tenant_id = ?',
+            [orderId, tenantId]
+        );
+
+        if (orders.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Pedido não encontrado' 
+            });
+        }
+
+        const order = {
+            ...orders[0],
+            items: typeof orders[0].items === 'string' ? 
+                JSON.parse(orders[0].items) : orders[0].items
+        };
+
+        res.json({ success: true, data: order });
+    } catch (error) {
+        console.error('❌ Erro ao buscar pedido:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao buscar pedido: ' + error.message 
+        });
+    }
+});
+
+// ============================================================
 //  ROTA POST /api/orders - COM NUMERAÇÃO SEQUENCIAL POR TENANT
 // ============================================================
 app.post('/api/orders', async (req, res) => {

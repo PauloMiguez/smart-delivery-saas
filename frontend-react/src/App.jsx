@@ -12,6 +12,7 @@ import Checkout from './components/Client/Checkout';
 import Register from './components/Client/Register';
 import Login from './components/Client/Login';
 import AdminLayout from './components/Admin/AdminLayout';
+import TrackOrder from './components/Client/TrackOrder';
 
 function App() {
     return (
@@ -30,6 +31,7 @@ function App() {
                                     <Route path="/login" element={<Login />} />
                                     <Route path="/login.html" element={<Navigate to="/login" />} />
                                     <Route path="/admin/*" element={<AdminLayout />} />
+                                    <Route path="/track/:orderId" element={<TrackOrder />} />
                                 </Routes>
                             </BrowserRouter>
                         </CartProvider>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
@@ -137,6 +138,42 @@ const MetaRow = styled.div`
     .address {
         font-size: 13px;
         color: #888;
+    }
+`;
+
+// ============================================================
+//  LINK DE ACOMPANHAMENTO DE PEDIDOS
+// ============================================================
+const OrdersLinkWrapper = styled.div`
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+`;
+
+const OrdersLink = styled(Link)`
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #e67e22;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        background: #fef9e7;
+        color: #d35400;
+    }
+    
+    .icon {
+        font-size: 18px;
     }
 `;
 
@@ -447,6 +484,20 @@ const ClientLayout = () => {
                             )}
                         </MetaRow>
                     </StoreMeta>
+
+                    {/* ============================================================
+                        LINK PARA ACOMPANHAMENTO DE PEDIDOS
+                        ============================================================ */}
+                    <OrdersLinkWrapper>
+                        <OrdersLink to="/orders">
+                            <span className="icon">📋</span>
+                            Meus Pedidos
+                        </OrdersLink>
+                        <OrdersLink to="/track">
+                            <span className="icon">🔍</span>
+                            Acompanhar Pedido
+                        </OrdersLink>
+                    </OrdersLinkWrapper>
                 </StoreInfoCard>
 
                 {/* CATEGORY TABS - ORDENADAS */}
