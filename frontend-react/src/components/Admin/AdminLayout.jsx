@@ -818,7 +818,9 @@ const AdminLayout = () => {
                     </ProductsContainer>
                 )}
 
-                {/* PEDIDOS */}
+                {/* ============================================================
+                    PEDIDOS - COM BOTÃO "EM PREPARO"
+                    ============================================================ */}
                 {activeTab === 'orders' && (
                     <OrdersContainer>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
@@ -865,6 +867,7 @@ const AdminLayout = () => {
                                                 const statusMap = {
                                                     'pending': 'pending',
                                                     'confirmado': 'confirmed',
+                                                    'preparando': 'preparing',
                                                     'entregue': 'delivered',
                                                     'cancelado': 'cancelled'
                                                 };
@@ -872,6 +875,7 @@ const AdminLayout = () => {
                                                 const statusLabels = {
                                                     'pending': '🟡 Pendente',
                                                     'confirmado': '🟢 Confirmado',
+                                                    'preparando': '🟠 Em preparo',
                                                     'entregue': '✅ Entregue',
                                                     'cancelado': '❌ Cancelado'
                                                 };
@@ -912,6 +916,22 @@ const AdminLayout = () => {
                                                                     </>
                                                                 )}
                                                                 {statusClass === 'confirmado' && (
+                                                                    <>
+                                                                        <ActionButton 
+                                                                            $variant="preparar" 
+                                                                            onClick={() => updateOrderStatus(o.id, 'preparando')}
+                                                                        >
+                                                                            👨‍🍳 Em preparo
+                                                                        </ActionButton>
+                                                                        <ActionButton 
+                                                                            $variant="cancel" 
+                                                                            onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                        >
+                                                                            ❌ Cancelar
+                                                                        </ActionButton>
+                                                                    </>
+                                                                )}
+                                                                {statusClass === 'preparando' && (
                                                                     <ActionButton 
                                                                         $variant="deliver" 
                                                                         onClick={() => updateOrderStatus(o.id, 'entregue')}
@@ -950,6 +970,7 @@ const AdminLayout = () => {
                                         const statusMap = {
                                             'pending': 'pending',
                                             'confirmado': 'confirmed',
+                                            'preparando': 'preparing',
                                             'entregue': 'delivered',
                                             'cancelado': 'cancelled'
                                         };
@@ -957,6 +978,7 @@ const AdminLayout = () => {
                                         const statusLabels = {
                                             'pending': '🟡 Pendente',
                                             'confirmado': '🟢 Confirmado',
+                                            'preparando': '🟠 Em preparo',
                                             'entregue': '✅ Entregue',
                                             'cancelado': '❌ Cancelado'
                                         };
@@ -1017,6 +1039,24 @@ const AdminLayout = () => {
                                                         </>
                                                     )}
                                                     {statusClass === 'confirmado' && (
+                                                        <>
+                                                            <ActionButton 
+                                                                $variant="preparar" 
+                                                                onClick={() => updateOrderStatus(o.id, 'preparando')}
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                👨‍🍳 Em preparo
+                                                            </ActionButton>
+                                                            <ActionButton 
+                                                                $variant="cancel" 
+                                                                onClick={() => updateOrderStatus(o.id, 'cancelado')}
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                ❌ Cancelar
+                                                            </ActionButton>
+                                                        </>
+                                                    )}
+                                                    {statusClass === 'preparando' && (
                                                         <ActionButton 
                                                             $variant="deliver" 
                                                             onClick={() => updateOrderStatus(o.id, 'entregue')}
