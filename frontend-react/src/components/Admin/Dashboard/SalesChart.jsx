@@ -23,6 +23,20 @@ const ChartContainer = styled.div`
     margin-bottom: 20px;
     border: 1px solid #f0f0f0;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    @media (max-width: 768px) {
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+
+    @media (max-width: 480px) {
+        padding: 8px;
+        border-radius: 8px;
+    }
 `;
 
 const ChartTitle = styled.h3`
@@ -32,17 +46,51 @@ const ChartTitle = styled.h3`
     display: flex;
     align-items: center;
     gap: 8px;
+
+    @media (max-width: 768px) {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+
+    @media (max-width: 480px) {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
 `;
 
 const ChartWrapper = styled.div`
     height: ${props => props.height || 280}px;
     width: 100%;
+    min-height: 200px;
+
+    @media (max-width: 768px) {
+        height: ${props => props.mobileHeight || 220}px;
+        min-height: 180px;
+    }
+
+    @media (max-width: 480px) {
+        height: ${props => props.smallHeight || 180}px;
+        min-height: 150px;
+    }
+`;
+
+const ChartGrid = styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 12px;
+    }
 `;
 
 const COLORS = ['#e67e22', '#27ae60', '#e74c3c', '#3498db', '#f39c12', '#9b59b6'];
 
 // ============================================================
-//  GRÁFICO DE VENDAS DIÁRIAS (LINHA) - CORRIGIDO
+//  GRÁFICO DE VENDAS DIÁRIAS (LINHA) - RESPONSIVO
 // ============================================================
 export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
     if (!data || data.length === 0) {
@@ -64,35 +112,47 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
         return `${parts[2]}/${parts[1]}`;
     };
 
+    // Detectar se é mobile para ajustar o tooltip
+    const isMobile = window.innerWidth < 768;
+
     return (
         <ChartContainer>
             <ChartTitle>{title}</ChartTitle>
-            <ChartWrapper>
-                <ResponsiveContainer>
-                    <LineChart data={data}>
+            <ChartWrapper height={280} mobileHeight={220} smallHeight={180}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{ 
+                        top: 5, 
+                        right: isMobile ? 5 : 20, 
+                        left: isMobile ? 0 : 10, 
+                        bottom: 5 
+                    }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis 
                             dataKey="date" 
                             tickFormatter={formatDate}
                             stroke="#888" 
-                            fontSize={12}
+                            fontSize={isMobile ? 9 : 12}
+                            interval={isMobile ? 2 : 0}
+                            tick={{ fontSize: isMobile ? 9 : 12 }}
+                            height={isMobile ? 30 : 40}
                         />
                         <YAxis 
                             yAxisId="left"
                             stroke="#888" 
-                            fontSize={12}
-                            tickFormatter={(value) => `R$ ${value.toFixed(0)}`}
+                            fontSize={isMobile ? 9 : 12}
+                            tickFormatter={(value) => isMobile ? `R$ ${value.toFixed(0)}` : `R$ ${value.toFixed(0)}`}
+                            width={isMobile ? 35 : 50}
                         />
                         <YAxis 
                             yAxisId="right"
                             orientation="right"
                             stroke="#3498db" 
-                            fontSize={12}
+                            fontSize={isMobile ? 9 : 12}
                             tickFormatter={(value) => `${value}`}
+                            width={isMobile ? 25 : 40}
                         />
                         <Tooltip
                             formatter={(value, name) => {
-                                // CORREÇÃO: Nomes corretos para cada métrica
                                 if (name === 'Quantidade') {
                                     return [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade de Pedidos'];
                                 }
@@ -106,17 +166,25 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
                                 borderRadius: '8px',
-                                padding: '12px',
-                                minWidth: '180px'
+                                padding: isMobile ? '8px 10px' : '12px',
+                                minWidth: isMobile ? '120px' : '180px',
+                                fontSize: isMobile ? '12px' : '14px'
+                            }}
+                            wrapperStyle={{
+                                zIndex: 100
                             }}
                         />
                         <Legend 
                             verticalAlign="top" 
-                            height={36}
+                            height={isMobile ? 30 : 36}
+                            wrapperStyle={{
+                                fontSize: isMobile ? '11px' : '14px',
+                                paddingBottom: isMobile ? '4px' : '8px'
+                            }}
                             formatter={(value) => {
                                 const labels = {
-                                    'Quantidade': '📦 Quantidade de Pedidos',
-                                    'Faturamento': '💰 Faturamento Total'
+                                    'Quantidade': isMobile ? '📦 Pedidos' : '📦 Quantidade de Pedidos',
+                                    'Faturamento': isMobile ? '💰 Faturamento' : '💰 Faturamento Total'
                                 };
                                 return labels[value] || value;
                             }}
@@ -127,9 +195,9 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                             dataKey="orders"
                             name="Quantidade"
                             stroke="#3498db"
-                            strokeWidth={2}
-                            dot={{ fill: '#3498db', r: 4 }}
-                            activeDot={{ r: 6 }}
+                            strokeWidth={isMobile ? 2 : 2}
+                            dot={{ fill: '#3498db', r: isMobile ? 3 : 4 }}
+                            activeDot={{ r: isMobile ? 4 : 6 }}
                         />
                         <Line
                             yAxisId="left"
@@ -137,9 +205,9 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                             dataKey="total"
                             name="Faturamento"
                             stroke="#e67e22"
-                            strokeWidth={2}
-                            dot={{ fill: '#e67e22', r: 4 }}
-                            activeDot={{ r: 6 }}
+                            strokeWidth={isMobile ? 2 : 2}
+                            dot={{ fill: '#e67e22', r: isMobile ? 3 : 4 }}
+                            activeDot={{ r: isMobile ? 4 : 6 }}
                         />
                     </LineChart>
                 </ResponsiveContainer>
@@ -149,7 +217,7 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 };
 
 // ============================================================
-//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA)
+//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - RESPONSIVO
 // ============================================================
 export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
@@ -163,8 +231,9 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
         );
     }
 
-    // Filtrar dados com valor > 0
     const filteredData = data.filter(d => d.value > 0);
+    const isMobile = window.innerWidth < 768;
+    const isSmallMobile = window.innerWidth < 480;
 
     if (filteredData.length === 0) {
         return (
@@ -177,25 +246,28 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
         );
     }
 
+    const pieSize = isSmallMobile ? 180 : (isMobile ? 200 : 260);
+
     return (
         <ChartContainer>
             <ChartTitle>{title}</ChartTitle>
-            <ChartWrapper height={260}>
-                <ResponsiveContainer>
+            <ChartWrapper height={pieSize} mobileHeight={pieSize} smallHeight={pieSize}>
+                <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
                             data={filteredData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
+                            innerRadius={isSmallMobile ? 30 : (isMobile ? 40 : 60)}
+                            outerRadius={isSmallMobile ? 55 : (isMobile ? 70 : 90)}
                             fill="#8884d8"
                             paddingAngle={2}
                             dataKey="value"
                             label={({ name, percent }) => 
-                                percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
+                                percent > 0.1 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
                             }
                             labelLine={false}
+                            label={{ fontSize: isMobile ? 10 : 12 }}
                         >
                             {filteredData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -207,10 +279,19 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
                                 borderRadius: '8px',
-                                padding: '12px'
+                                padding: isMobile ? '8px 10px' : '12px',
+                                fontSize: isMobile ? '12px' : '14px'
                             }}
                         />
-                        <Legend />
+                        <Legend 
+                            wrapperStyle={{
+                                fontSize: isMobile ? '11px' : '14px',
+                                paddingTop: isMobile ? '8px' : '12px'
+                            }}
+                            layout={isMobile ? "horizontal" : "vertical"}
+                            verticalAlign={isMobile ? "bottom" : "middle"}
+                            align={isMobile ? "center" : "right"}
+                        />
                     </PieChart>
                 </ResponsiveContainer>
             </ChartWrapper>
@@ -219,7 +300,7 @@ export const OrderStatusPieChart = ({ data, title = '📊 Status dos Pedidos' })
 };
 
 // ============================================================
-//  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS)
+//  GRÁFICO DE PRODUTOS MAIS VENDIDOS (BARRAS) - RESPONSIVO
 // ============================================================
 export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.quantity === 0)) {
@@ -233,8 +314,8 @@ export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }
         );
     }
 
-    // Filtrar produtos com quantity > 0
     const filteredData = data.filter(d => d.quantity > 0);
+    const isMobile = window.innerWidth < 768;
 
     if (filteredData.length === 0) {
         return (
@@ -250,28 +331,67 @@ export const TopProductsChart = ({ data, title = '🥇 Produtos Mais Vendidos' }
     return (
         <ChartContainer>
             <ChartTitle>{title}</ChartTitle>
-            <ChartWrapper>
-                <ResponsiveContainer>
-                    <BarChart data={filteredData} layout="vertical">
+            <ChartWrapper height={isMobile ? 200 : 280} mobileHeight={200} smallHeight={180}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={filteredData} layout={isMobile ? "horizontal" : "vertical"} margin={{
+                        top: 5,
+                        right: isMobile ? 10 : 20,
+                        left: isMobile ? 0 : 5,
+                        bottom: isMobile ? 20 : 5
+                    }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis type="number" stroke="#888" fontSize={12} />
-                        <YAxis
-                            type="category"
-                            dataKey="name"
-                            stroke="#888"
-                            fontSize={12}
-                            width={120}
-                        />
+                        {isMobile ? (
+                            <>
+                                <XAxis 
+                                    dataKey="name" 
+                                    stroke="#888" 
+                                    fontSize={10}
+                                    interval={0}
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={60}
+                                    tick={{ fontSize: 10 }}
+                                />
+                                <YAxis 
+                                    type="number" 
+                                    stroke="#888" 
+                                    fontSize={10}
+                                    tickFormatter={(value) => `${value}`}
+                                    width={25}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <XAxis 
+                                    type="number" 
+                                    stroke="#888" 
+                                    fontSize={12} 
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    stroke="#888"
+                                    fontSize={12}
+                                    width={120}
+                                />
+                            </>
+                        )}
                         <Tooltip
                             formatter={(value) => [`${value} unidade${value !== 1 ? 's' : ''}`, 'Quantidade']}
                             contentStyle={{
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
                                 borderRadius: '8px',
-                                padding: '12px'
+                                padding: isMobile ? '8px 10px' : '12px',
+                                fontSize: isMobile ? '12px' : '14px'
                             }}
                         />
-                        <Bar dataKey="quantity" fill="#e67e22" radius={[0, 4, 4, 0]} />
+                        <Bar 
+                            dataKey="quantity" 
+                            fill="#e67e22" 
+                            radius={isMobile ? [4, 4, 0, 0] : [0, 4, 4, 0]}
+                            barSize={isMobile ? 20 : 30}
+                        />
                     </BarChart>
                 </ResponsiveContainer>
             </ChartWrapper>

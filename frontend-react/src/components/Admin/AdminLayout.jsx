@@ -507,9 +507,7 @@ const AdminLayout = () => {
                     </div>
                 </PageHeader>
 
-                {/* ============================================================
-                    DASHBOARD - COMPLETO COM GRÁFICOS
-                ============================================================ */}
+                {/* DASHBOARD - COMPLETO COM GRÁFICOS RESPONSIVOS */}
                 {activeTab === 'dashboard' && (
                     <>
                         <FilterBar
@@ -554,7 +552,7 @@ const AdminLayout = () => {
                         {/* Gráfico de Vendas */}
                         <SalesLineChart data={salesData} />
 
-                        {/* Gráficos de Status e Top Produtos */}
+                        {/* Gráficos de Status e Top Produtos - Grid Responsivo */}
                         <div style={{ 
                             display: 'grid', 
                             gridTemplateColumns: '1fr 1fr', 
