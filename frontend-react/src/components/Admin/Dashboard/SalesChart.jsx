@@ -78,8 +78,7 @@ const ChartWrapper = styled.div`
 //  CORES POR STATUS (SEM EMOJIS)
 // ============================================================
 const getStatusColor = (name) => {
-    // Remover emojis do nome para comparar
-    const cleanName = name.replace(/[✅🟡🟢🔴🟠❌]/g, '').trim();
+    const cleanName = name.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim();
     if (cleanName.includes('Pendente')) return '#f39c12';
     if (cleanName.includes('Confirmado')) return '#27ae60';
     if (cleanName.includes('Entregue')) return '#2ecc71';
@@ -221,7 +220,7 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 };
 
 // ============================================================
-//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - SEM EMOJIS
+//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - LEGENDA ABAIXO
 // ============================================================
 export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
@@ -235,9 +234,6 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
         );
     }
 
-    // ============================================================
-    //  LIMPAR EMOJIS DOS DADOS
-    // ============================================================
     const cleanData = data.map(item => ({
         ...item,
         name: cleanText(item.name)
@@ -258,7 +254,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
     }
 
     // ============================================================
-    //  LEGENDA PERSONALIZADA - APENAS COR + TEXTO (SEM EMOJIS)
+    //  LEGENDA PERSONALIZADA - SEMPRE ABAIXO DO GRÁFICO
     // ============================================================
     const renderLegend = (props) => {
         const { payload } = props;
@@ -266,7 +262,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
             <ul style={{
                 listStyle: 'none',
                 padding: 0,
-                margin: 0,
+                margin: '8px 0 0 0',
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: isMobile ? '4px' : '8px',
@@ -282,7 +278,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                             gap: '6px',
                             fontSize: isMobile ? '11px' : '13px',
                             color: '#2d3436',
-                            padding: '2px 8px',
+                            padding: '2px 10px',
                             borderRadius: '4px',
                             background: '#f8f9fa'
                         }}>
@@ -302,20 +298,23 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
         );
     };
 
-    const pieSize = isSmallMobile ? 180 : (isMobile ? 200 : 260);
+    // ============================================================
+    //  AJUSTAR TAMANHO DO GRÁFICO PARA CABER A LEGENDA ABAIXO
+    // ============================================================
+    const chartHeight = isSmallMobile ? 180 : (isMobile ? 200 : 240);
 
     return (
         <ChartContainer>
             <ChartTitle>{title}</ChartTitle>
-            <ChartWrapper height={pieSize} mobileHeight={pieSize} smallHeight={pieSize}>
+            <ChartWrapper height={chartHeight} mobileHeight={chartHeight} smallHeight={chartHeight}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                         <Pie
                             data={cleanData}
                             cx="50%"
-                            cy="50%"
-                            innerRadius={isSmallMobile ? 30 : (isMobile ? 40 : 60)}
-                            outerRadius={isSmallMobile ? 55 : (isMobile ? 70 : 90)}
+                            cy="45%"
+                            innerRadius={isSmallMobile ? 30 : (isMobile ? 40 : 55)}
+                            outerRadius={isSmallMobile ? 55 : (isMobile ? 70 : 85)}
                             fill="#8884d8"
                             paddingAngle={2}
                             dataKey="value"
@@ -345,12 +344,15 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                         <Legend 
                             content={renderLegend}
                             wrapperStyle={{
-                                fontSize: isMobile ? '11px' : '14px',
-                                paddingTop: isMobile ? '8px' : '12px'
+                                fontSize: isMobile ? '11px' : '13px',
+                                paddingTop: isMobile ? '4px' : '8px',
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center'
                             }}
-                            verticalAlign={isMobile ? "bottom" : "middle"}
-                            align={isMobile ? "center" : "right"}
-                            layout={isMobile ? "horizontal" : "vertical"}
+                            verticalAlign="bottom"
+                            align="center"
+                            layout="horizontal"
                         />
                     </PieChart>
                 </ResponsiveContainer>
