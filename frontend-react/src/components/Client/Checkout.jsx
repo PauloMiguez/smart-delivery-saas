@@ -184,7 +184,6 @@ const validateAddress = (address) => {
     if (!address || address.trim().length < 5) {
         return 'Digite um endereço completo (mínimo 5 caracteres)';
     }
-    // Verificar se tem pelo menos rua e número
     const parts = address.split(',');
     if (parts.length < 2) {
         return 'Inclua rua e número separados por vírgula (ex: Rua Exemplo, 123)';
@@ -238,7 +237,6 @@ const Checkout = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
         localStorage.setItem(`user_${name}`, value);
         
-        // Limpar erro do campo ao digitar
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }));
         }
@@ -258,19 +256,15 @@ const Checkout = () => {
     const validateForm = () => {
         const newErrors = {};
         
-        // Validar nome
         const nameError = validateName(formData.name);
         if (nameError) newErrors.name = nameError;
         
-        // Validar telefone
         const phoneError = validatePhone(formData.phone);
         if (phoneError) newErrors.phone = phoneError;
         
-        // Validar endereço
         const addressError = validateAddress(formData.address);
         if (addressError) newErrors.address = addressError;
         
-        // Validar carrinho
         if (cart.length === 0) {
             showToast('Adicione itens ao carrinho antes de finalizar.', 'warning');
             return false;
@@ -283,9 +277,7 @@ const Checkout = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // 1. Validar formulário
         if (!validateForm()) {
-            // Mostrar o primeiro erro
             const firstError = Object.values(errors)[0];
             if (firstError) {
                 showToast(firstError, 'error');
@@ -299,7 +291,6 @@ const Checkout = () => {
             const deliveryFee = parseFloat(config?.delivery_fee) || 0;
             const total = subtotal + deliveryFee;
 
-            // 2. Validar itens do carrinho
             const invalidItems = cart.filter(item => !item.name || !item.price || !item.qty);
             if (invalidItems.length > 0) {
                 showToast('Alguns itens do carrinho estão inválidos.', 'error');
@@ -336,11 +327,9 @@ const Checkout = () => {
             console.log(`📋 Número do pedido: ${orderNumber}`);
             console.log(`🔑 Token: ${accessToken?.substring(0, 16)}...`);
 
-            // Criar link de acompanhamento
             const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
             console.log(`🔗 Link de acompanhamento: ${trackLink}`);
 
-            // WhatsApp
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
             let formattedPhone = cleanPhone;
@@ -375,7 +364,6 @@ const Checkout = () => {
         } catch (error) {
             console.error('❌ Erro ao criar pedido:', error);
             
-            // 3. Mensagens de erro específicas
             let errorMessage = 'Erro ao criar pedido. Tente novamente.';
             
             if (error.response) {
