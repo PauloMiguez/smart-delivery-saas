@@ -43,11 +43,16 @@ api.interceptors.request.use(config => {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // Adicionar tenant APENAS se não for rota pública
+    // ============================================================
+    //  CORREÇÃO: Não adicionar tenant para rotas de tracking
+    // ============================================================
     const publicRoutes = ['/auth/login', '/auth/register', '/health', '/test-db'];
     const isPublicRoute = publicRoutes.some(route => config.url?.includes(route));
     
-    if (!isPublicRoute) {
+    // Verificar se é uma rota de tracking (contém 'token=' na URL)
+    const isTrackingRoute = config.url?.includes('token=');
+    
+    if (!isPublicRoute && !isTrackingRoute) {
         const tenant = getTenant();
         if (tenant) {
             config.headers['X-Tenant-ID'] = tenant;
@@ -75,3 +80,4 @@ api.interceptors.response.use(
 );
 
 export const getTenantId = getTenant;
+export default api;

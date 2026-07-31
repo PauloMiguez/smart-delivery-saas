@@ -12,6 +12,7 @@ const TrackContainer = styled(Container)`
     padding-bottom: 40px;
     max-width: 480px;
     margin: 0 auto;
+    min-height: 60vh;
 `;
 
 const BackButton = styled.button`
@@ -148,6 +149,12 @@ const LoadingContainer = styled.div`
     color: #888;
 `;
 
+const ErrorContainer = styled.div`
+    text-align: center;
+    padding: 40px 20px;
+    color: #e74c3c;
+`;
+
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -174,40 +181,77 @@ const TrackOrder = () => {
     const { showToast } = useToast();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [socket, setSocket] = useState(null);
+    const [error, setError] = useState(null);
 
     const token = searchParams.get('token');
 
     const loadOrder = async () => {
+        setLoading(true);
+        setError(null);
+        
         try {
+            console.log('📦 Buscando pedido:', orderId);
+            console.log('🔑 Token presente:', !!token);
+            
             if (!token) {
+                setError('Link inválido. Token de acesso não encontrado.');
                 showToast('Link inválido. Token de acesso não encontrado.', 'error');
-                navigate('/');
+                setLoading(false);
                 return;
             }
 
-            console.log('📦 Buscando pedido:', orderId, 'com token:', token.substring(0, 16) + '...');
+            if (token.length < 10) {
+                setError('Token inválido. Verifique o link.');
+                showToast('Token inválido. Verifique o link.', 'error');
+                setLoading(false);
+                return;
+            }
+
             const response = await api.get(`/orders/${orderId}?token=${token}`);
             
             if (response.data.success) {
                 setOrder(response.data.data);
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
             } else {
-                showToast('Pedido não encontrado ou token inválido', 'error');
-                navigate('/');
+                setError('Pedido não encontrado');
+                showToast('Pedido não encontrado', 'error');
             }
         } catch (error) {
             console.error('❌ Erro ao carregar pedido:', error);
-            showToast('Erro ao carregar pedido. Verifique o link.', 'error');
-            navigate('/');
+            
+            let errorMessage = 'Erro ao carregar pedido. Verifique o link.';
+            
+            if (error.response) {
+                if (error.response.status === 401) {
+                    errorMessage = 'Token inválido ou expirado.';
+                } else if (error.response.status === 404) {
+                    errorMessage = 'Pedido não encontrado. Verifique se o link está correto.';
+                } else if (error.response.status === 500) {
+                    errorMessage = 'Erro interno no servidor. Tente novamente.';
+                }
+                console.log('📦 Erro do servidor:', error.response.data);
+            } else if (error.request) {
+                errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
+            }
+            
+            setError(errorMessage);
+            showToast(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    // Conectar socket para atualizações em tempo real
     useEffect(() => {
-        if (!tenant || !orderId || !token) return;
+        if (orderId) {
+            loadOrder();
+        } else {
+            setError('ID do pedido não encontrado na URL.');
+            setLoading(false);
+        }
+    }, [orderId]);
+
+    useEffect(() => {
+        if (!tenant || !orderId || !token || !order) return;
 
         const tokenAuth = localStorage.getItem('token');
         const socketInstance = connectSocket(tokenAuth);
@@ -234,15 +278,9 @@ const TrackOrder = () => {
             disconnectSocket();
             setSocket(null);
         };
-    }, [tenant, orderId, token]);
+    }, [tenant, orderId, token, order]);
 
-    useEffect(() => {
-        if (orderId && token) {
-            loadOrder();
-        } else {
-            navigate('/');
-        }
-    }, [orderId, token]);
+    const [socket, setSocket] = useState(null);
 
     const getStatusIndex = (status) => statusOrder.indexOf(status);
 
@@ -273,17 +311,45 @@ const TrackOrder = () => {
         );
     }
 
-    if (!order) {
+    if (error || !order) {
         return (
             <TrackContainer>
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
-                    <h2>Pedido não encontrado</h2>
-                    <p style={{ color: '#888' }}>O pedido que você está procurando não existe ou o link é inválido.</p>
-                    <Button primary onClick={() => navigate('/')} style={{ marginTop: 16 }}>
-                        Voltar ao cardápio
-                    </Button>
-                </div>
+                <ErrorContainer>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+                    <h2 style={{ color: '#e74c3c' }}>Erro ao carregar pedido</h2>
+                    <p style={{ color: '#888', marginBottom: 8 }}>{error || 'Pedido não encontrado'}</p>
+                    <div style={{ 
+                        background: '#f8f9fa', 
+                        padding: '16px', 
+                        borderRadius: '8px', 
+                        marginTop: '16px',
+                        textAlign: 'left',
+                        fontSize: '13px',
+                        color: '#555'
+                    }}>
+                        <p><strong>🔍 Diagnóstico:</strong></p>
+                        <p>• Order ID: {orderId || 'N/A'}</p>
+                        <p>• Token presente: {token ? '✅ Sim' : '❌ Não'}</p>
+                        <p>• Tamanho do token: {token?.length || 0} caracteres</p>
+                        {token && <p>• Token (início): {token.substring(0, 15)}...</p>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '16px' }}>
+                        <Button 
+                            primary 
+                            onClick={() => window.location.reload()} 
+                            style={{ minWidth: '120px' }}
+                        >
+                            🔄 Tentar novamente
+                        </Button>
+                        <Button 
+                            secondary 
+                            onClick={() => window.location.href = '/'} 
+                            style={{ minWidth: '120px' }}
+                        >
+                            Voltar ao cardápio
+                        </Button>
+                    </div>
+                </ErrorContainer>
             </TrackContainer>
         );
     }
@@ -293,7 +359,7 @@ const TrackOrder = () => {
 
     return (
         <TrackContainer>
-            <BackButton onClick={() => navigate('/')}>
+            <BackButton onClick={() => window.location.href = '/'}>
                 ← Voltar
             </BackButton>
 
@@ -386,7 +452,7 @@ const TrackOrder = () => {
                 </OrderDetails>
             </OrderCard>
 
-            <Button primary onClick={() => navigate('/')} style={{ width: '100%' }}>
+            <Button primary onClick={() => window.location.href = '/'} style={{ width: '100%' }}>
                 Voltar ao cardápio
             </Button>
         </TrackContainer>
