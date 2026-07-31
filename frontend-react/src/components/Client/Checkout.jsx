@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useTenant } from '../../contexts/TenantContext';
-import { useToast } from '../../contexts/ToastContext';  // <-- ADICIONADO
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import { Container, Button, Card, Input } from '../Shared/Container';
 import AddressModal from './AddressModal';
@@ -99,9 +99,12 @@ const SubmitButton = styled(Button)`
     }
 `;
 
-// ============================================================
-//  CHIPS DE PAGAMENTO
-// ============================================================
+const ErrorText = styled.span`
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+`;
+
 const ChipGroup = styled.div`
     display: flex;
     flex-wrap: wrap;
@@ -154,27 +157,63 @@ const PaymentTitle = styled.div`
 `;
 
 // ============================================================
+//  FUNÇÕES DE VALIDAÇÃO
+// ============================================================
+const validateName = (name) => {
+    if (!name || name.trim().length < 2) {
+        return 'Digite seu nome completo (mínimo 2 caracteres)';
+    }
+    if (name.trim().length > 100) {
+        return 'Nome muito longo (máximo 100 caracteres)';
+    }
+    return null;
+};
+
+const validatePhone = (phone) => {
+    const clean = phone.replace(/\D/g, '');
+    if (clean.length < 10 || clean.length > 11) {
+        return 'Digite um telefone válido com DDD (ex: 85 99999-9999)';
+    }
+    if (![10, 11].includes(clean.length)) {
+        return 'Telefone deve ter 10 ou 11 dígitos (com DDD)';
+    }
+    return null;
+};
+
+const validateAddress = (address) => {
+    if (!address || address.trim().length < 5) {
+        return 'Digite um endereço completo (mínimo 5 caracteres)';
+    }
+    // Verificar se tem pelo menos rua e número
+    const parts = address.split(',');
+    if (parts.length < 2) {
+        return 'Inclua rua e número separados por vírgula (ex: Rua Exemplo, 123)';
+    }
+    return null;
+};
+
+// ============================================================
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const Checkout = () => {
     const navigate = useNavigate();
     const { tenant } = useTenant();
     const { cart, subtotal, clearCart } = useCart();
-    const { showToast } = useToast();  // <-- ADICIONADO
+    const { showToast } = useToast();
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+    const [errors, setErrors] = useState({});
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         address: ''
     });
 
-    // Carregar configurações e dados salvos
     useEffect(() => {
         if (!tenant) return;
-
+        
         const loadConfig = async () => {
             try {
                 const res = await api.get('/config');
@@ -188,7 +227,7 @@ const Checkout = () => {
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
         const savedAddress = localStorage.getItem('user_address');
-
+        
         if (savedName) setFormData(prev => ({ ...prev, name: savedName }));
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
@@ -198,24 +237,59 @@ const Checkout = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         localStorage.setItem(`user_${name}`, value);
+        
+        // Limpar erro do campo ao digitar
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
     };
 
     const handleAddressSave = (address) => {
         setFormData(prev => ({ ...prev, address }));
         localStorage.setItem('user_address', address);
+        if (errors.address) {
+            setErrors(prev => ({ ...prev, address: null }));
+        }
+    };
+
+    // ============================================================
+    //  VALIDAÇÃO COMPLETA ANTES DE ENVIAR
+    // ============================================================
+    const validateForm = () => {
+        const newErrors = {};
+        
+        // Validar nome
+        const nameError = validateName(formData.name);
+        if (nameError) newErrors.name = nameError;
+        
+        // Validar telefone
+        const phoneError = validatePhone(formData.phone);
+        if (phoneError) newErrors.phone = phoneError;
+        
+        // Validar endereço
+        const addressError = validateAddress(formData.address);
+        if (addressError) newErrors.address = addressError;
+        
+        // Validar carrinho
+        if (cart.length === 0) {
+            showToast('Adicione itens ao carrinho antes de finalizar.', 'warning');
+            return false;
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (!formData.name || !formData.phone || !formData.address) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-
-        const phoneClean = formData.phone.replace(/\D/g, '');
-        if (phoneClean.length < 10) {
-            alert('Por favor, insira um telefone válido (DDD + número).');
+        
+        // 1. Validar formulário
+        if (!validateForm()) {
+            // Mostrar o primeiro erro
+            const firstError = Object.values(errors)[0];
+            if (firstError) {
+                showToast(firstError, 'error');
+            }
             return;
         }
 
@@ -225,15 +299,23 @@ const Checkout = () => {
             const deliveryFee = parseFloat(config?.delivery_fee) || 0;
             const total = subtotal + deliveryFee;
 
+            // 2. Validar itens do carrinho
+            const invalidItems = cart.filter(item => !item.name || !item.price || !item.qty);
+            if (invalidItems.length > 0) {
+                showToast('Alguns itens do carrinho estão inválidos.', 'error');
+                setLoading(false);
+                return;
+            }
+
             const orderData = {
-                customer_name: formData.name,
-                customer_phone: formData.phone,
-                customer_address: formData.address,
+                customer_name: formData.name.trim(),
+                customer_phone: formData.phone.trim(),
+                customer_address: formData.address.trim(),
                 items: cart.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    price: parseFloat(item.price),
-                    qty: item.qty
+                    id: item.id || 0,
+                    name: item.name || 'Produto',
+                    price: parseFloat(item.price) || 0,
+                    qty: parseInt(item.qty) || 1
                 })),
                 subtotal: subtotal,
                 delivery_fee: deliveryFee,
@@ -242,12 +324,11 @@ const Checkout = () => {
                 delivery_type: 'delivery'
             };
 
+            console.log('📦 Enviando pedido:', orderData);
+
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
 
-            // ============================================================
-            //  EXTRAIR DADOS DO PEDIDO
-            // ============================================================
             const orderNumber = response.data.data?.order_number || 'N/A';
             const accessToken = response.data.data?.access_token;
             const orderId = response.data.data?.id;
@@ -255,15 +336,11 @@ const Checkout = () => {
             console.log(`📋 Número do pedido: ${orderNumber}`);
             console.log(`🔑 Token: ${accessToken?.substring(0, 16)}...`);
 
-            // ============================================================
-            //  CRIAR LINK DE ACOMPANHAMENTO SEGURO
-            // ============================================================
+            // Criar link de acompanhamento
             const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
             console.log(`🔗 Link de acompanhamento: ${trackLink}`);
 
-            // ============================================================
-            //  MENSAGEM DO WHATSAPP COM LINK
-            // ============================================================
+            // WhatsApp
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
             let formattedPhone = cleanPhone;
@@ -271,7 +348,7 @@ const Checkout = () => {
                 formattedPhone = '55' + formattedPhone;
             }
 
-            const message =
+            const message = 
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `👤 *Cliente:* ${formData.name}\n` +
@@ -294,10 +371,29 @@ const Checkout = () => {
             clearCart();
             navigate('/');
             showToast(`Pedido #${orderNumber} enviado com sucesso!`, 'success');
-
+            
         } catch (error) {
             console.error('❌ Erro ao criar pedido:', error);
-            alert('Erro ao criar pedido. Tente novamente.');
+            
+            // 3. Mensagens de erro específicas
+            let errorMessage = 'Erro ao criar pedido. Tente novamente.';
+            
+            if (error.response) {
+                const serverError = error.response.data?.error;
+                if (serverError) {
+                    errorMessage = serverError;
+                } else if (error.response.status === 400) {
+                    errorMessage = 'Verifique os dados do pedido e tente novamente.';
+                } else if (error.response.status === 404) {
+                    errorMessage = 'Restaurante não encontrado.';
+                } else if (error.response.status === 500) {
+                    errorMessage = 'Erro interno no servidor. Tente novamente em alguns instantes.';
+                }
+            } else if (error.request) {
+                errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
+            }
+            
+            showToast(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -361,21 +457,26 @@ const Checkout = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        placeholder="Seu nome"
+                        placeholder="Seu nome completo"
                         required
+                        style={{ borderColor: errors.name ? '#e74c3c' : undefined }}
                     />
+                    {errors.name && <ErrorText>{errors.name}</ErrorText>}
                 </FormGroup>
 
                 <FormGroup>
                     <label>Telefone *</label>
                     <Input
-                        type="text"
+                        type="tel"
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
                         placeholder="(85) 99999-9999"
                         required
+                        style={{ borderColor: errors.phone ? '#e74c3c' : undefined }}
                     />
+                    <small>Digite com DDD (ex: 85 99999-9999)</small>
+                    {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
                 </FormGroup>
 
                 <FormGroup>
@@ -388,10 +489,10 @@ const Checkout = () => {
                             onChange={handleChange}
                             placeholder="Rua, número, bairro, cidade - UF"
                             required
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, borderColor: errors.address ? '#e74c3c' : undefined }}
                         />
-                        <Button
-                            secondary
+                        <Button 
+                            secondary 
                             type="button"
                             onClick={() => setIsAddressModalOpen(true)}
                             style={{ whiteSpace: 'nowrap' }}
@@ -399,33 +500,35 @@ const Checkout = () => {
                             📍 Editar
                         </Button>
                     </div>
+                    <small>Ex: Rua Exemplo, 123, Centro, Fortaleza - CE</small>
+                    {errors.address && <ErrorText>{errors.address}</ErrorText>}
                 </FormGroup>
 
                 <PaymentSection>
                     <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
-                        <Chip
+                        <Chip 
                             selected={paymentMethod === 'Dinheiro'}
                             onClick={() => setPaymentMethod('Dinheiro')}
                             type="button"
                         >
                             <span className="chip-icon">💰</span> Dinheiro
                         </Chip>
-                        <Chip
+                        <Chip 
                             selected={paymentMethod === 'Pix'}
                             onClick={() => setPaymentMethod('Pix')}
                             type="button"
                         >
                             <span className="chip-icon">📲</span> Pix
                         </Chip>
-                        <Chip
+                        <Chip 
                             selected={paymentMethod === 'Crédito'}
                             onClick={() => setPaymentMethod('Crédito')}
                             type="button"
                         >
                             <span className="chip-icon">💳</span> Crédito
                         </Chip>
-                        <Chip
+                        <Chip 
                             selected={paymentMethod === 'Débito'}
                             onClick={() => setPaymentMethod('Débito')}
                             type="button"
@@ -440,7 +543,6 @@ const Checkout = () => {
                 </SubmitButton>
             </Form>
 
-            {/* Modal de Endereço */}
             <AddressModal
                 isOpen={isAddressModalOpen}
                 onClose={() => setIsAddressModalOpen(false)}
