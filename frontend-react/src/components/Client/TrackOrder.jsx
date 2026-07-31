@@ -177,12 +177,13 @@ const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { tenant } = useTenant();
+    const { tenant: urlTenant } = useTenant();
     const { showToast } = useToast();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [socket, setSocket] = useState(null);
+    const [orderTenant, setOrderTenant] = useState(null);
 
     const token = searchParams.get('token');
 
@@ -212,6 +213,11 @@ const TrackOrder = () => {
             
             if (response.data.success) {
                 setOrder(response.data.data);
+                // Salvar o tenant do pedido
+                if (response.data.tenant) {
+                    setOrderTenant(response.data.tenant);
+                    console.log('🏷️ Tenant do pedido:', response.data.tenant);
+                }
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
             } else {
                 setError('Pedido não encontrado');
@@ -252,7 +258,7 @@ const TrackOrder = () => {
     }, [orderId]);
 
     useEffect(() => {
-        if (!tenant || !orderId || !token || !order) return;
+        if (!orderTenant || !orderId || !token || !order) return;
 
         const tokenAuth = localStorage.getItem('token');
         const socketInstance = connectSocket(tokenAuth);
@@ -279,7 +285,7 @@ const TrackOrder = () => {
             disconnectSocket();
             setSocket(null);
         };
-    }, [tenant, orderId, token, order]);
+    }, [orderTenant, orderId, token, order]);
 
     const getStatusIndex = (status) => statusOrder.indexOf(status);
 
@@ -300,25 +306,34 @@ const TrackOrder = () => {
     };
 
     // ============================================================
-    //  FUNÇÕES DE NAVEGAÇÃO - VOLTAR PARA ONDE VEIO
+    //  FUNÇÕES DE NAVEGAÇÃO - USAR O TENANT DO PEDIDO
     // ============================================================
+    const getTenantToUse = () => {
+        // Prioridade: tenant do pedido > tenant da URL
+        return orderTenant || urlTenant;
+    };
+
     const goBack = () => {
-        // Se tiver tenant, voltar com tenant
+        const tenant = getTenantToUse();
+        console.log('🔙 Voltar com tenant:', tenant);
+        
         if (tenant) {
-            navigate(`/?tenant=${tenant}`);
-        } else {
-            // Se não tiver tenant, tentar voltar para a página anterior
-            // ou ir para a raiz
-            const referrer = document.referrer;
-            if (referrer && referrer.includes(window.location.origin)) {
-                window.history.back();
+            // Verificar se veio de /orders (pelo referrer)
+            const isFromOrders = document.referrer && document.referrer.includes('/orders');
+            if (isFromOrders) {
+                navigate(`/orders?tenant=${tenant}`);
             } else {
-                navigate('/');
+                navigate(`/?tenant=${tenant}`);
             }
+        } else {
+            navigate('/');
         }
     };
 
     const goToMenu = () => {
+        const tenant = getTenantToUse();
+        console.log('🍽️ Voltar ao cardápio com tenant:', tenant);
+        
         if (tenant) {
             navigate(`/?tenant=${tenant}`);
         } else {

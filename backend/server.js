@@ -617,10 +617,8 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN (CORRIGIDA)
-//  NÃO DEPENDE DO TENANT - APENAS DO TOKEN
+//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN E RETORNA TENANT
 // ============================================================
-// backend/server.js - ROTA GET /api/orders/:id
 app.get('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
@@ -685,10 +683,11 @@ app.get('/api/orders/:id', async (req, res) => {
             ...order,
             items: typeof order.items === 'string' ?
                 JSON.parse(order.items) : order.items,
-            access_token: undefined
+            access_token: undefined,
+            tenant_id: order.tenant_id // ← ADICIONADO: retorna o tenant do pedido
         };
 
-        console.log(`✅ Pedido encontrado: ${order.order_number}`);
+        console.log(`✅ Pedido encontrado: ${order.order_number}, Tenant: ${order.tenant_id}`);
         res.json({ success: true, data: orderResponse });
     } catch (error) {
         console.error('❌ Erro ao buscar pedido:', error);
