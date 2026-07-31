@@ -15,65 +15,6 @@ import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
 
 // ============================================================
-//  PÁGINA DE BOAS-VINDAS (SEM TENANT)
-// ============================================================
-const WelcomePage = () => (
-    <div style={{
-        maxWidth: 480,
-        margin: '0 auto',
-        padding: '60px 20px',
-        textAlign: 'center',
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-    }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>🏠</div>
-        <h1 style={{ color: '#2d3436', fontSize: 28, marginBottom: 12 }}>Smart Delivery</h1>
-        <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
-            Sistema de delivery para restaurantes
-        </p>
-        <div style={{
-            background: '#f8f9fa',
-            padding: '20px',
-            borderRadius: '12px',
-            width: '100%',
-            maxWidth: 380
-        }}>
-            <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
-                Para acessar um restaurante, use o link correto:
-            </p>
-            <code style={{
-                display: 'block',
-                background: '#fff',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                wordBreak: 'break-all',
-                color: '#e67e22'
-            }}>
-                https://smart-delivery-saas.onrender.com/?tenant=fireburger
-            </code>
-            <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
-                Ou use o painel administrativo:
-            </p>
-            <code style={{
-                display: 'block',
-                background: '#fff',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                wordBreak: 'break-all',
-                color: '#e67e22'
-            }}>
-                https://smart-delivery-saas.onrender.com/admin?tenant=fireburger
-            </code>
-        </div>
-    </div>
-);
-
-// ============================================================
 //  CONTAINER PRINCIPAL
 // ============================================================
 const AppContainer = styled.div`
@@ -333,25 +274,25 @@ const MenuCount = styled.span`
 // ============================================================
 const isStoreOpen = (openTime, closeTime) => {
     if (!openTime || !closeTime) return false;
-
+    
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentMinutes = currentHour * 60 + currentMinute;
-
+    
     const [openHour, openMinute] = openTime.split(':').map(Number);
     const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-
+    
     const openMinutes = openHour * 60 + openMinute;
     let closeMinutes = closeHour * 60 + closeMinute;
-
+    
     if (closeMinutes <= openMinutes) {
         closeMinutes += 24 * 60;
         if (currentMinutes < openMinutes) return false;
         if (currentMinutes >= closeMinutes) return false;
         return true;
     }
-
+    
     return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
 };
 
@@ -437,9 +378,64 @@ const ClientLayout = () => {
 
     // ============================================================
     //  SE NÃO TIVER TENANT, MOSTRAR PÁGINA DE BOAS-VINDAS
+    //  (DENTRO DO COMPONENTE PARA TER ACESSO AOS PROVIDERS)
     // ============================================================
     if (!tenant && !tenantLoading) {
-        return <WelcomePage />;
+        return (
+            <div style={{ 
+                maxWidth: 480, 
+                margin: '0 auto', 
+                padding: '60px 20px', 
+                textAlign: 'center',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}>
+                <div style={{ fontSize: 64, marginBottom: 20 }}>🏠</div>
+                <h1 style={{ color: '#2d3436', fontSize: 28, marginBottom: 12 }}>Smart Delivery</h1>
+                <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
+                    Sistema de delivery para restaurantes
+                </p>
+                <div style={{ 
+                    background: '#f8f9fa', 
+                    padding: '20px', 
+                    borderRadius: '12px',
+                    width: '100%',
+                    maxWidth: 380
+                }}>
+                    <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
+                        Para acessar um restaurante, use o link correto:
+                    </p>
+                    <code style={{ 
+                        display: 'block',
+                        background: '#fff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        wordBreak: 'break-all',
+                        color: '#e67e22'
+                    }}>
+                        https://smart-delivery-saas.onrender.com/?tenant=fireburger
+                    </code>
+                    <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
+                        Ou use o painel administrativo:
+                    </p>
+                    <code style={{ 
+                        display: 'block',
+                        background: '#fff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        wordBreak: 'break-all',
+                        color: '#e67e22'
+                    }}>
+                        https://smart-delivery-saas.onrender.com/admin?tenant=fireburger
+                    </code>
+                </div>
+            </div>
+        );
     }
 
     useEffect(() => {
@@ -455,15 +451,15 @@ const ClientLayout = () => {
                 ]);
                 const productsData = productsRes.data.data || [];
                 const categoriesData = categoriesRes.data.data || [];
-
+                
                 setConfig(configRes.data.data);
                 setProducts(productsData);
-
+                
                 const sortedCategories = categoriesData
                     .filter(cat => productsData.some(p => p.category === cat.name && p.active))
                     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                     .map(cat => cat.name);
-
+                
                 setCategories(sortedCategories);
                 if (sortedCategories.length > 0) {
                     setActiveCategory(sortedCategories[0]);
@@ -489,15 +485,15 @@ const ClientLayout = () => {
 
     useEffect(() => {
         if (!config) return;
-
+        
         const checkStatus = () => {
             const open = isStoreOpen(config.open_time, config.close_time);
             setIsOpen(open);
         };
-
+        
         checkStatus();
         const interval = setInterval(checkStatus, 60000);
-
+        
         return () => clearInterval(interval);
     }, [config]);
 
@@ -606,7 +602,7 @@ const ClientLayout = () => {
                 )}
             </FloatingCart>
 
-            <CartDrawer
+            <CartDrawer 
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
             />
