@@ -192,6 +192,41 @@ const validateAddress = (address) => {
 };
 
 // ============================================================
+//  FUNÇÃO PARA ABRIR WHATSAPP (COMPATÍVEL COM IOS E ANDROID)
+// ============================================================
+const openWhatsApp = (phoneNumber, message) => {
+    const formattedPhone = phoneNumber.replace(/\D/g, '');
+    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    
+    console.log('📱 Abrindo WhatsApp:', url);
+    
+    // ============================================================
+    //  ESTRATÉGIA 1: Tentar abrir diretamente
+    // ============================================================
+    const newWindow = window.open(url, '_blank');
+    
+    // ============================================================
+    //  ESTRATÉGIA 2: Se falhar no iOS, usar location.href
+    // ============================================================
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        console.log('📱 Fallback: usando location.href para iOS');
+        window.location.href = url;
+    }
+    
+    // ============================================================
+    //  ESTRATÉGIA 3: Fallback para iOS Safari (popup bloqueado)
+    // ============================================================
+    setTimeout(() => {
+        // Se a janela ainda estiver aberta, não fazer nada
+        if (newWindow && !newWindow.closed) return;
+        
+        // Tentar novamente com location.href
+        console.log('📱 Segundo fallback: forçando location.href');
+        window.location.href = url;
+    }, 500);
+};
+
+// ============================================================
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const Checkout = () => {
@@ -250,9 +285,6 @@ const Checkout = () => {
         }
     };
 
-    // ============================================================
-    //  VALIDAÇÃO COMPLETA ANTES DE ENVIAR
-    // ============================================================
     const validateForm = () => {
         const newErrors = {};
         
@@ -330,8 +362,13 @@ const Checkout = () => {
             const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
             console.log(`🔗 Link de acompanhamento: ${trackLink}`);
 
+            // ============================================================
+            //  WHATSAPP - COMPATÍVEL COM IOS E ANDROID
+            // ============================================================
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
+            
+            // Garantir que o número tenha o código do país
             let formattedPhone = cleanPhone;
             if (!formattedPhone.startsWith('55')) {
                 formattedPhone = '55' + formattedPhone;
@@ -355,7 +392,8 @@ const Checkout = () => {
                 `🔗 *Acompanhe seu pedido:*\n` +
                 `${trackLink}`;
 
-            window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+            // Abrir WhatsApp com fallback para iOS
+            openWhatsApp(formattedPhone, message);
 
             clearCart();
             navigate('/');
