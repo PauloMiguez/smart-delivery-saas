@@ -2,6 +2,7 @@
 // SMART DELIVERY SAAS - SERVER COMPLETO (COM WEBSOCKET)
 // ============================================================
 require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
@@ -594,12 +595,13 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  ROTA GET /api/orders/:id - BUSCAR PEDIDO POR ID
+//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN
 // ============================================================
 app.get('/api/orders/:id', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const orderId = req.params.id;
+        const accessToken = req.query.token;
 
         if (!tenantId) {
             return res.status(404).json({ 
@@ -608,22 +610,38 @@ app.get('/api/orders/:id', async (req, res) => {
             });
         }
 
+        // Validar token
+        if (!accessToken) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Token de acesso necessário' 
+            });
+        }
+
+        // Buscar pedido com validação do token
         const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE id = ? AND tenant_id = ?',
-            [orderId, tenantId]
+            'SELECT * FROM orders WHERE id = ? AND tenant_id = ? AND access_token = ?',
+            [orderId, tenantId, accessToken]
         );
 
         if (orders.length === 0) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'Pedido não encontrado' 
+                error: 'Pedido não encontrado ou token inválido' 
             });
         }
+
+        // Incrementar visualizações
+        await pool.query(
+            'UPDATE orders SET tracking_views = tracking_views + 1 WHERE id = ?',
+            [orderId]
+        );
 
         const order = {
             ...orders[0],
             items: typeof orders[0].items === 'string' ? 
-                JSON.parse(orders[0].items) : orders[0].items
+                JSON.parse(orders[0].items) : orders[0].items,
+            access_token: undefined // Não expor o token
         };
 
         res.json({ success: true, data: order });
@@ -637,7 +655,7 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 // ============================================================
-//  ROTA POST /api/orders - COM NUMERAÇÃO SEQUENCIAL POR TENANT
+//  ROTA POST /api/orders - COM NUMERAÇÃO SEQUENCIAL E TOKEN
 // ============================================================
 app.post('/api/orders', async (req, res) => {
     try {
@@ -682,7 +700,6 @@ app.post('/api/orders', async (req, res) => {
 
         // ============================================================
         //  GERAR NÚMERO DO PEDIDO - SEQUENCIAL POR TENANT COM PREFIXO
-        //  Formato: #TENANT-000001
         // ============================================================
         const [lastOrder] = await pool.query(
             `SELECT order_number FROM orders 
@@ -694,8 +711,6 @@ app.post('/api/orders', async (req, res) => {
 
         let nextNumber = 1;
         if (lastOrder.length > 0) {
-            // Extrair o número do último pedido
-            // Formato: #TENANT-000001
             const lastNumberStr = lastOrder[0].order_number.split('-')[1];
             const lastNumber = parseInt(lastNumberStr);
             if (!isNaN(lastNumber)) {
@@ -703,21 +718,27 @@ app.post('/api/orders', async (req, res) => {
             }
         }
 
-        // Formatar com zeros à esquerda (6 dígitos)
         const sequentialNumber = String(nextNumber).padStart(6, '0');
-        // Criar o prefixo com o nome do tenant (substituir espaços por nada)
         const tenantPrefix = tenantId.replace(/\s+/g, '').toUpperCase();
-        // Formato final: #TENANT-000001
         const orderNumber = `#${tenantPrefix}-${sequentialNumber}`;
 
         console.log(`📋 Número do pedido: ${orderNumber} (Sequencial: ${nextNumber})`);
 
+        // ============================================================
+        //  GERAR TOKEN ÚNICO PARA ACOMPANHAMENTO
+        // ============================================================
+        const accessToken = crypto.randomBytes(32).toString('hex');
+        console.log(`🔑 Token gerado: ${accessToken.substring(0, 16)}...`);
+
+        // ============================================================
+        //  INSERIR PEDIDO NO BANCO
+        // ============================================================
         const [result] = await pool.query(
             `INSERT INTO orders (
                 tenant_id, order_number, customer_name, customer_phone, 
                 customer_address, items, subtotal, total, delivery_fee, 
-                payment_method, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+                payment_method, status, created_at, access_token
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
             [
                 tenantId,
                 orderNumber,
@@ -728,7 +749,8 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(subtotal || 0),
                 parseFloat(total),
                 parseFloat(delivery_fee),
-                payment_method
+                payment_method,
+                accessToken
             ]
         );
 
@@ -763,7 +785,11 @@ app.post('/api/orders', async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: { id: result.insertId, order_number: orderNumber },
+            data: { 
+                id: result.insertId, 
+                order_number: orderNumber,
+                access_token: accessToken
+            },
             message: 'Pedido criado com sucesso!'
         });
     } catch (error) {
@@ -808,7 +834,6 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
         // ============================================================
         const io = req.app.get('io');
         if (io) {
-            // Buscar o número do pedido
             const [orderInfo] = await pool.query(
                 'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
                 [orderId, tenantId]
@@ -1129,7 +1154,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const { period = 'today' } = req.query;
         console.log(`📊 Dashboard - Período: ${period}, Tenant: ${tenantId}`);
         
-        // Calcular data de início baseado no período
         let startDate = new Date();
         
         switch (period) {
@@ -1155,7 +1179,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
-        // Buscar pedidos do período
         const [orders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
@@ -1166,9 +1189,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
 
         console.log(`📦 Pedidos encontrados: ${orders.length}`);
 
-        // ============================================================
-        //  1. DADOS PARA GRÁFICO DE VENDAS DIÁRIAS
-        // ============================================================
         const salesMap = {};
         orders.forEach(order => {
             const date = new Date(order.created_at).toISOString().split('T')[0];
@@ -1179,20 +1199,15 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesMap[date].orders += 1;
         });
 
-        // Ordenar por data
         const salesData = Object.values(salesMap).sort((a, b) => 
             a.date.localeCompare(b.date)
         );
 
-        // Se não houver dados, adicionar dados do dia atual com zero
         if (salesData.length === 0) {
             const today = new Date().toISOString().split('T')[0];
             salesData.push({ date: today, total: 0, orders: 0 });
         }
 
-        // ============================================================
-        //  2. DADOS PARA GRÁFICO DE STATUS DOS PEDIDOS
-        // ============================================================
         const statusCount = {};
         orders.forEach(order => {
             const status = order.status || 'pending';
@@ -1211,14 +1226,10 @@ app.get('/api/stats/dashboard', async (req, res) => {
             value
         }));
 
-        // Se não houver status, adicionar dados padrão
         if (statusData.length === 0) {
             statusData.push({ name: '🟡 Pendente', value: 0 });
         }
 
-        // ============================================================
-        //  3. TOP PRODUTOS MAIS VENDIDOS
-        // ============================================================
         const productSales = {};
         orders.forEach(order => {
             let items = order.items;
@@ -1240,7 +1251,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
             .sort((a, b) => b.quantity - a.quantity)
             .slice(0, 5);
 
-        // Se não houver produtos, adicionar dados padrão
         if (topProducts.length === 0) {
             topProducts.push({ name: 'Nenhum produto vendido', quantity: 0 });
         }
@@ -1293,25 +1303,19 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 console.log('📁 PROJECT_ROOT:', PROJECT_ROOT);
 console.log('📁 __dirname:', __dirname);
 
-// ============================================================
-//  1. SERVE REACT BUILD (PRIORIDADE MÁXIMA)
-// ============================================================
 const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
 if (fs.existsSync(REACT_BUILD_PATH)) {
     console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
     app.use(express.static(REACT_BUILD_PATH));
     
-    // Rota específica para admin (React)
     app.get('/admin*', (req, res) => {
         res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
     });
     
-    // Rota específica para a raiz (React)
     app.get('/', (req, res) => {
         res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
     });
     
-    // Fallback para SPA (React Router)
     app.get('*', (req, res) => {
         if (!req.path.startsWith('/api/') && 
             !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
@@ -1322,9 +1326,6 @@ if (fs.existsSync(REACT_BUILD_PATH)) {
     console.log('⚠️ Build do React não encontrado. Servindo Vanilla.');
 }
 
-// ============================================================
-//  2. ROTAS HTML ESPECÍFICAS DO VANILLA (FALLBACK)
-// ============================================================
 app.get('/register.html', (req, res) => {
     const filePath = path.join(PROJECT_ROOT, 'frontend/public/register.html');
     if (fs.existsSync(filePath)) {
@@ -1343,15 +1344,9 @@ app.get('/login.html', (req, res) => {
     }
 });
 
-// ============================================================
-//  3. SERVER ARQUIVOS ESTÁTICOS DO VANILLA (FALLBACK FINAL)
-// ============================================================
 app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
 app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
 
-// ============================================================
-//  4. FALLBACK FINAL (SE NADA FUNCIONAR)
-// ============================================================
 app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ success: false, error: 'Endpoint não encontrado' });
@@ -1422,7 +1417,6 @@ app.post('/api/upload/delete', verifyToken, async (req, res) => {
 //  WEBSOCKET - NOTIFICAÇÕES EM TEMPO REAL
 // ============================================================
 
-// Criar servidor HTTP a partir do app existente
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
@@ -1431,7 +1425,6 @@ const io = socketIo(server, {
     }
 });
 
-// Middleware para autenticação do socket
 io.use((socket, next) => {
     const tenant = socket.handshake.query.tenant;
     if (!tenant) {
@@ -1441,12 +1434,10 @@ io.use((socket, next) => {
     next();
 });
 
-// Gerenciar conexões
 io.on('connection', (socket) => {
     const tenant = socket.tenant;
     console.log(`🔌 Cliente conectado ao tenant: ${tenant}`);
     
-    // Entrar na sala do tenant
     socket.join(`tenant-${tenant}`);
     
     socket.emit('connected', { 
@@ -1459,7 +1450,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// Adicionar io ao app para uso nas rotas
 app.set('io', io);
 
 // ============================================================

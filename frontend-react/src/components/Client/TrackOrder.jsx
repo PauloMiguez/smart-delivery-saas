@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -148,9 +148,6 @@ const LoadingContainer = styled.div`
     color: #888;
 `;
 
-// ============================================================
-//  STATUS DO PEDIDO - MAPEAMENTO COMPLETO
-// ============================================================
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -167,61 +164,53 @@ const statusEmojis = {
     'cancelado': '❌'
 };
 
-// ============================================================
-//  ORDEM DOS STATUS PARA TIMELINE
-// ============================================================
 const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
-
-// ============================================================
-//  CORES DOS STATUS
-// ============================================================
-const statusColors = {
-    'pending': '#f39c12',
-    'confirmado': '#27ae60',
-    'preparando': '#e67e22',
-    'entregue': '#2ecc71',
-    'cancelado': '#e74c3c'
-};
 
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
 
+    const token = searchParams.get('token');
+
     const loadOrder = async () => {
         try {
-            console.log('📦 Buscando pedido:', orderId);
-            const response = await api.get(`/orders/${orderId}`);
-            console.log('📦 Resposta:', response.data);
+            if (!token) {
+                showToast('Link inválido. Token de acesso não encontrado.', 'error');
+                navigate('/');
+                return;
+            }
+
+            console.log('📦 Buscando pedido:', orderId, 'com token:', token.substring(0, 16) + '...');
+            const response = await api.get(`/orders/${orderId}?token=${token}`);
+            
             if (response.data.success) {
                 setOrder(response.data.data);
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
-                console.log('📊 Status atual:', response.data.data.status);
             } else {
-                showToast('Pedido não encontrado', 'error');
+                showToast('Pedido não encontrado ou token inválido', 'error');
                 navigate('/');
             }
         } catch (error) {
             console.error('❌ Erro ao carregar pedido:', error);
-            showToast('Erro ao carregar pedido', 'error');
+            showToast('Erro ao carregar pedido. Verifique o link.', 'error');
             navigate('/');
         } finally {
             setLoading(false);
         }
     };
 
-    // ============================================================
-    //  WEBSOCKET - ATUALIZAÇÕES EM TEMPO REAL
-    // ============================================================
+    // Conectar socket para atualizações em tempo real
     useEffect(() => {
-        if (!tenant || !orderId) return;
+        if (!tenant || !orderId || !token) return;
 
-        const token = localStorage.getItem('token');
-        const socketInstance = connectSocket(token);
+        const tokenAuth = localStorage.getItem('token');
+        const socketInstance = connectSocket(tokenAuth);
         setSocket(socketInstance);
 
         if (socketInstance) {
@@ -245,19 +234,17 @@ const TrackOrder = () => {
             disconnectSocket();
             setSocket(null);
         };
-    }, [tenant, orderId]);
+    }, [tenant, orderId, token]);
 
     useEffect(() => {
-        if (orderId) {
+        if (orderId && token) {
             loadOrder();
         } else {
             navigate('/');
         }
-    }, [orderId]);
+    }, [orderId, token]);
 
-    const getStatusIndex = (status) => {
-        return statusOrder.indexOf(status);
-    };
+    const getStatusIndex = (status) => statusOrder.indexOf(status);
 
     const isStatusActive = (status) => {
         if (!order) return false;
@@ -292,7 +279,7 @@ const TrackOrder = () => {
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
                     <h2>Pedido não encontrado</h2>
-                    <p style={{ color: '#888' }}>O pedido que você está procurando não existe.</p>
+                    <p style={{ color: '#888' }}>O pedido que você está procurando não existe ou o link é inválido.</p>
                     <Button primary onClick={() => navigate('/')} style={{ marginTop: 16 }}>
                         Voltar ao cardápio
                     </Button>

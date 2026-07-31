@@ -174,7 +174,7 @@ const Checkout = () => {
     // Carregar configurações e dados salvos
     useEffect(() => {
         if (!tenant) return;
-        
+
         const loadConfig = async () => {
             try {
                 const res = await api.get('/config');
@@ -188,7 +188,7 @@ const Checkout = () => {
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
         const savedAddress = localStorage.getItem('user_address');
-        
+
         if (savedName) setFormData(prev => ({ ...prev, name: savedName }));
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
@@ -207,7 +207,7 @@ const Checkout = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!formData.name || !formData.phone || !formData.address) {
             alert('Por favor, preencha todos os campos obrigatórios.');
             return;
@@ -246,25 +246,32 @@ const Checkout = () => {
             console.log('✅ Pedido criado:', response.data);
 
             // ============================================================
-            //  EXTRAIR NÚMERO DO PEDIDO DA RESPOSTA
+            //  EXTRAIR DADOS DO PEDIDO
             // ============================================================
-            const orderNumber = response.data.data?.order_number || response.data.data?.id || 'N/A';
+            const orderNumber = response.data.data?.order_number || 'N/A';
+            const accessToken = response.data.data?.access_token;
+            const orderId = response.data.data?.id;
+
             console.log(`📋 Número do pedido: ${orderNumber}`);
+            console.log(`🔑 Token: ${accessToken?.substring(0, 16)}...`);
 
             // ============================================================
-            //  MENSAGEM DO WHATSAPP COM NÚMERO DO PEDIDO
+            //  CRIAR LINK DE ACOMPANHAMENTO SEGURO
+            // ============================================================
+            const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
+            console.log(`🔗 Link de acompanhamento: ${trackLink}`);
+
+            // ============================================================
+            //  MENSAGEM DO WHATSAPP COM LINK
             // ============================================================
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
-
-            // Garantir que o número tenha o código do país
             let formattedPhone = cleanPhone;
             if (!formattedPhone.startsWith('55')) {
                 formattedPhone = '55' + formattedPhone;
             }
 
-            // Construir a mensagem com o número do pedido
-            const message = 
+            const message =
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `👤 *Cliente:* ${formData.name}\n` +
@@ -279,14 +286,15 @@ const Checkout = () => {
                 `  *TOTAL: R$ ${total.toFixed(2)}*\n\n` +
                 `💳 *Pagamento:* ${paymentMethod}\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
-                `🔗 *Pedido #${orderNumber}*`;
+                `🔗 *Acompanhe seu pedido:*\n` +
+                `${trackLink}`;
 
             window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
 
             clearCart();
             navigate('/');
             showToast(`Pedido #${orderNumber} enviado com sucesso!`, 'success');
-            
+
         } catch (error) {
             console.error('❌ Erro ao criar pedido:', error);
             alert('Erro ao criar pedido. Tente novamente.');
@@ -382,8 +390,8 @@ const Checkout = () => {
                             required
                             style={{ flex: 1 }}
                         />
-                        <Button 
-                            secondary 
+                        <Button
+                            secondary
                             type="button"
                             onClick={() => setIsAddressModalOpen(true)}
                             style={{ whiteSpace: 'nowrap' }}
@@ -396,28 +404,28 @@ const Checkout = () => {
                 <PaymentSection>
                     <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Dinheiro'}
                             onClick={() => setPaymentMethod('Dinheiro')}
                             type="button"
                         >
                             <span className="chip-icon">💰</span> Dinheiro
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Pix'}
                             onClick={() => setPaymentMethod('Pix')}
                             type="button"
                         >
                             <span className="chip-icon">📲</span> Pix
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Crédito'}
                             onClick={() => setPaymentMethod('Crédito')}
                             type="button"
                         >
                             <span className="chip-icon">💳</span> Crédito
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Débito'}
                             onClick={() => setPaymentMethod('Débito')}
                             type="button"
