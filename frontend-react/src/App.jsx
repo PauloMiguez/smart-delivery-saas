@@ -12,6 +12,7 @@ import Checkout from './components/Client/Checkout';
 import Register from './components/Client/Register';
 import Login from './components/Client/Login';
 import AdminLayout from './components/Admin/AdminLayout';
+import OrderVerification from './components/Client/OrderVerification';
 
 // ============================================================
 //  LAZY LOAD - CARREGAR COMPONENTES SOB DEMANDA
@@ -141,6 +142,7 @@ const AppContent = () => {
                     <Route path="/track/:orderId" element={<TrackOrder />} />
                     <Route path="/orders" element={<OrdersHistory />} />
                     <Route path="/admin/*" element={<AdminLayout />} />
+                    <Route path="/verify-orders" element={<OrderVerification />} />
                 </Routes>
             </Suspense>
         </BrowserRouter>

@@ -129,6 +129,20 @@ const EmptyState = styled.div`
     color: #888;
 `;
 
+const CustomerInfo = styled.div`
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 14px;
+    color: #555;
+`;
+
 const OrdersHistory = () => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -136,6 +150,8 @@ const OrdersHistory = () => {
     const location = useLocation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
 
     const statusLabels = {
         'pending': 'Pendente',
@@ -152,14 +168,55 @@ const OrdersHistory = () => {
             return;
         }
 
+        // Pegar dados da URL (passados pela verificação)
+        const params = new URLSearchParams(location.search);
+        const nameFromUrl = params.get('name');
+        const phoneFromUrl = params.get('phone');
+
+        // Se não tiver dados na URL, tentar do localStorage
+        const savedName = localStorage.getItem('user_name');
+        const savedPhone = localStorage.getItem('user_phone');
+
+        const finalName = nameFromUrl || savedName;
+        const finalPhone = phoneFromUrl || savedPhone;
+
+        // Se não tiver dados do cliente, redirecionar para verificação
+        if (!finalName || !finalPhone) {
+            showToast('Por favor, verifique seus dados primeiro.', 'warning');
+            navigate(`/verify-orders?tenant=${tenant}`);
+            return;
+        }
+
+        setCustomerName(finalName);
+        setCustomerPhone(finalPhone);
+
         const loadOrders = async () => {
             try {
                 setLoading(true);
-                console.log('📋 Buscando pedidos para tenant:', tenant);
+                console.log('📋 Buscando pedidos para:', finalName, finalPhone);
+                
+                // Buscar todos os pedidos do tenant
                 const response = await api.get('/orders');
-                console.log('📋 Resposta:', response.data);
+                
                 if (response.data.success) {
-                    setOrders(response.data.data || []);
+                    // Filtrar pedidos do cliente
+                    const allOrders = response.data.data || [];
+                    const cleanPhone = finalPhone.replace(/\D/g, '');
+                    
+                    const customerOrders = allOrders.filter(order => {
+                        const orderPhone = order.customer_phone?.replace(/\D/g, '') || '';
+                        const orderName = order.customer_name?.toLowerCase() || '';
+                        const searchName = finalName.toLowerCase();
+                        
+                        // Verificar se o nome e telefone correspondem
+                        const nameMatch = orderName === searchName || orderName.includes(searchName);
+                        const phoneMatch = orderPhone === cleanPhone;
+                        
+                        return nameMatch && phoneMatch;
+                    });
+                    
+                    console.log(`✅ Encontrados ${customerOrders.length} pedidos para ${finalName}`);
+                    setOrders(customerOrders);
                 }
             } catch (error) {
                 console.error('❌ Erro ao carregar pedidos:', error);
@@ -170,11 +227,14 @@ const OrdersHistory = () => {
         };
 
         loadOrders();
-    }, [tenant]);
+    }, [tenant, location.search]);
 
-    // Função para voltar mantendo o tenant
     const handleBack = () => {
         navigate(`/?tenant=${tenant}`);
+    };
+
+    const handleVerifyAgain = () => {
+        navigate(`/verify-orders?tenant=${tenant}`);
     };
 
     if (loading) {
@@ -196,11 +256,29 @@ const OrdersHistory = () => {
 
             <Title>📋 Meus Pedidos</Title>
 
+            <CustomerInfo>
+                <span>👤 <strong>{customerName}</strong></span>
+                <span>📱 {customerPhone}</span>
+                <button 
+                    onClick={handleVerifyAgain}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#e67e22',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                    }}
+                >
+                    🔄 Trocar usuário
+                </button>
+            </CustomerInfo>
+
             {orders.length === 0 ? (
                 <EmptyState>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
                     <h3 style={{ color: '#2d3436' }}>Nenhum pedido encontrado</h3>
-                    <p>Você ainda não realizou pedidos.</p>
+                    <p>Você ainda não realizou pedidos com este nome e telefone.</p>
                     <Button primary onClick={() => navigate(`/?tenant=${tenant}`)} style={{ marginTop: 16 }}>
                         Ver cardápio
                     </Button>
@@ -208,7 +286,6 @@ const OrdersHistory = () => {
             ) : (
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-                    // Verificar se o pedido tem token
                     const hasToken = !!order.access_token;
                     return (
                         <OrderCard key={order.id}>

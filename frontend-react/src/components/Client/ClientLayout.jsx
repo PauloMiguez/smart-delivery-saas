@@ -551,7 +551,7 @@ const ClientLayout = () => {
                     </StoreMeta>
 
                     <OrdersLinkWrapper>
-                        <OrdersLink to={`/orders?tenant=${tenant}`}>
+                        <OrdersLink to={`/verify-orders?tenant=${tenant}`}>
                             <span className="icon">📋</span>
                             Meus Pedidos
                         </OrdersLink>
