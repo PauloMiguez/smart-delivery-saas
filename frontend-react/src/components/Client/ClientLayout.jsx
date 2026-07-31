@@ -18,10 +18,10 @@ import TrackOrder from './TrackOrder';
 //  PÁGINA DE BOAS-VINDAS (SEM TENANT)
 // ============================================================
 const WelcomePage = () => (
-    <div style={{ 
-        maxWidth: 480, 
-        margin: '0 auto', 
-        padding: '60px 20px', 
+    <div style={{
+        maxWidth: 480,
+        margin: '0 auto',
+        padding: '60px 20px',
         textAlign: 'center',
         minHeight: '100vh',
         display: 'flex',
@@ -34,9 +34,9 @@ const WelcomePage = () => (
         <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
             Sistema de delivery para restaurantes
         </p>
-        <div style={{ 
-            background: '#f8f9fa', 
-            padding: '20px', 
+        <div style={{
+            background: '#f8f9fa',
+            padding: '20px',
             borderRadius: '12px',
             width: '100%',
             maxWidth: 380
@@ -44,7 +44,7 @@ const WelcomePage = () => (
             <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
                 Para acessar um restaurante, use o link correto:
             </p>
-            <code style={{ 
+            <code style={{
                 display: 'block',
                 background: '#fff',
                 padding: '8px 12px',
@@ -58,7 +58,7 @@ const WelcomePage = () => (
             <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
                 Ou use o painel administrativo:
             </p>
-            <code style={{ 
+            <code style={{
                 display: 'block',
                 background: '#fff',
                 padding: '8px 12px',
@@ -333,25 +333,25 @@ const MenuCount = styled.span`
 // ============================================================
 const isStoreOpen = (openTime, closeTime) => {
     if (!openTime || !closeTime) return false;
-    
+
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentMinutes = currentHour * 60 + currentMinute;
-    
+
     const [openHour, openMinute] = openTime.split(':').map(Number);
     const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-    
+
     const openMinutes = openHour * 60 + openMinute;
     let closeMinutes = closeHour * 60 + closeMinute;
-    
+
     if (closeMinutes <= openMinutes) {
         closeMinutes += 24 * 60;
         if (currentMinutes < openMinutes) return false;
         if (currentMinutes >= closeMinutes) return false;
         return true;
     }
-    
+
     return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
 };
 
@@ -455,15 +455,15 @@ const ClientLayout = () => {
                 ]);
                 const productsData = productsRes.data.data || [];
                 const categoriesData = categoriesRes.data.data || [];
-                
+
                 setConfig(configRes.data.data);
                 setProducts(productsData);
-                
+
                 const sortedCategories = categoriesData
                     .filter(cat => productsData.some(p => p.category === cat.name && p.active))
                     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                     .map(cat => cat.name);
-                
+
                 setCategories(sortedCategories);
                 if (sortedCategories.length > 0) {
                     setActiveCategory(sortedCategories[0]);
@@ -489,15 +489,15 @@ const ClientLayout = () => {
 
     useEffect(() => {
         if (!config) return;
-        
+
         const checkStatus = () => {
             const open = isStoreOpen(config.open_time, config.close_time);
             setIsOpen(open);
         };
-        
+
         checkStatus();
         const interval = setInterval(checkStatus, 60000);
-        
+
         return () => clearInterval(interval);
     }, [config]);
 
@@ -555,7 +555,7 @@ const ClientLayout = () => {
                     </StoreMeta>
 
                     <OrdersLinkWrapper>
-                        <OrdersLink to="/orders">
+                        <OrdersLink to={`/orders?tenant=${tenant}`}>
                             <span className="icon">📋</span>
                             Meus Pedidos
                         </OrdersLink>
@@ -606,7 +606,7 @@ const ClientLayout = () => {
                 )}
             </FloatingCart>
 
-            <CartDrawer 
+            <CartDrawer
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
             />

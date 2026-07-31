@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -9,6 +9,8 @@ import { Container, Button, Card } from '../Shared/Container';
 const HistoryContainer = styled(Container)`
     padding-top: 16px;
     padding-bottom: 40px;
+    max-width: 480px;
+    margin: 0 auto;
 `;
 
 const BackButton = styled.button`
@@ -39,7 +41,6 @@ const OrderCard = styled(Card)`
     margin-bottom: 16px;
     padding: 16px;
     transition: all 0.2s ease;
-    cursor: pointer;
 
     &:hover {
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -126,51 +127,42 @@ const EmptyState = styled.div`
     text-align: center;
     padding: 60px 0;
     color: #888;
-    
-    .icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-    }
-    
-    h3 {
-        color: #2d3436;
-        margin-bottom: 8px;
-    }
-`;
-
-const LoadingContainer = styled.div`
-    text-align: center;
-    padding: 60px 0;
-    color: #888;
 `;
 
 const OrdersHistory = () => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const statusLabels = {
-        'pending': '🟡 Pendente',
-        'confirmado': '🟢 Confirmado',
-        'preparando': '🟠 Em preparo',
-        'entregue': '✅ Entregue',
-        'cancelado': '❌ Cancelado'
+        'pending': 'Pendente',
+        'confirmado': 'Confirmado',
+        'preparando': 'Em preparo',
+        'entregue': 'Entregue',
+        'cancelado': 'Cancelado'
     };
 
     useEffect(() => {
-        if (!tenant) return;
+        if (!tenant) {
+            showToast('Tenant não encontrado', 'error');
+            navigate('/');
+            return;
+        }
 
         const loadOrders = async () => {
             try {
                 setLoading(true);
+                console.log('📋 Buscando pedidos para tenant:', tenant);
                 const response = await api.get('/orders');
+                console.log('📋 Resposta:', response.data);
                 if (response.data.success) {
                     setOrders(response.data.data || []);
                 }
             } catch (error) {
-                console.error('Erro ao carregar pedidos:', error);
+                console.error('❌ Erro ao carregar pedidos:', error);
                 showToast('Erro ao carregar pedidos', 'error');
             } finally {
                 setLoading(false);
@@ -180,20 +172,25 @@ const OrdersHistory = () => {
         loadOrders();
     }, [tenant]);
 
+    // Função para voltar mantendo o tenant
+    const handleBack = () => {
+        navigate(`/?tenant=${tenant}`);
+    };
+
     if (loading) {
         return (
             <HistoryContainer>
-                <LoadingContainer>
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
                     <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
                     <p>Carregando seus pedidos...</p>
-                </LoadingContainer>
+                </div>
             </HistoryContainer>
         );
     }
 
     return (
         <HistoryContainer>
-            <BackButton onClick={() => navigate('/')}>
+            <BackButton onClick={handleBack}>
                 ← Voltar
             </BackButton>
 
@@ -201,16 +198,18 @@ const OrdersHistory = () => {
 
             {orders.length === 0 ? (
                 <EmptyState>
-                    <div className="icon">📭</div>
-                    <h3>Nenhum pedido encontrado</h3>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+                    <h3 style={{ color: '#2d3436' }}>Nenhum pedido encontrado</h3>
                     <p>Você ainda não realizou pedidos.</p>
-                    <Button primary onClick={() => navigate('/')} style={{ marginTop: 16 }}>
+                    <Button primary onClick={() => navigate(`/?tenant=${tenant}`)} style={{ marginTop: 16 }}>
                         Ver cardápio
                     </Button>
                 </EmptyState>
             ) : (
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    // Verificar se o pedido tem token
+                    const hasToken = !!order.access_token;
                     return (
                         <OrderCard key={order.id}>
                             <OrderHeader>
@@ -232,9 +231,15 @@ const OrdersHistory = () => {
                                 {items.length > 3 && ` +${items.length - 3} outros`}
                             </OrderItems>
                             <OrderTotal>Total: R$ {parseFloat(order.total).toFixed(2)}</OrderTotal>
-                            <TrackLink to={`/track/${order.id}`}>
-                                🔍 Acompanhar pedido
-                            </TrackLink>
+                            {hasToken ? (
+                                <TrackLink to={`/track/${order.id}?token=${order.access_token}`}>
+                                    🔍 Acompanhar pedido
+                                </TrackLink>
+                            ) : (
+                                <span style={{ fontSize: '13px', color: '#888' }}>
+                                    ⚠️ Link de acompanhamento indisponível
+                                </span>
+                            )}
                         </OrderCard>
                     );
                 })
