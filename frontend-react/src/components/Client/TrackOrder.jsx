@@ -211,13 +211,36 @@ const TrackOrder = () => {
 
             const response = await api.get(`/orders/${orderId}?token=${token}`);
             
+            console.log('📦 Resposta completa:', response.data);
+            
             if (response.data.success) {
                 setOrder(response.data.data);
-                // Salvar o tenant do pedido
+                
+                // ============================================================
+                //  EXTRAIR TENANT DO PEDIDO - VÁRIAS FONTES
+                // ============================================================
+                let tenantFromOrder = null;
+                
+                // 1. Tentar do response.data.tenant
                 if (response.data.tenant) {
-                    setOrderTenant(response.data.tenant);
-                    console.log('🏷️ Tenant do pedido:', response.data.tenant);
+                    tenantFromOrder = response.data.tenant;
                 }
+                // 2. Tentar do response.data.data.tenant_id
+                else if (response.data.data && response.data.data.tenant_id) {
+                    tenantFromOrder = response.data.data.tenant_id;
+                }
+                // 3. Tentar do response.data.data.tenantId
+                else if (response.data.data && response.data.data.tenantId) {
+                    tenantFromOrder = response.data.data.tenantId;
+                }
+                
+                if (tenantFromOrder) {
+                    setOrderTenant(tenantFromOrder);
+                    console.log('🏷️ Tenant do pedido:', tenantFromOrder);
+                } else {
+                    console.warn('⚠️ Nenhum tenant encontrado no pedido');
+                }
+                
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
             } else {
                 setError('Pedido não encontrado');
@@ -310,7 +333,9 @@ const TrackOrder = () => {
     // ============================================================
     const getTenantToUse = () => {
         // Prioridade: tenant do pedido > tenant da URL
-        return orderTenant || urlTenant;
+        const tenant = orderTenant || urlTenant;
+        console.log('🔍 Tenant a ser usado:', tenant);
+        return tenant;
     };
 
     const goBack = () => {
@@ -326,6 +351,7 @@ const TrackOrder = () => {
                 navigate(`/?tenant=${tenant}`);
             }
         } else {
+            console.warn('⚠️ Nenhum tenant encontrado, voltando para a raiz');
             navigate('/');
         }
     };
