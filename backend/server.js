@@ -595,36 +595,34 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN
+//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN (CORRIGIDA)
+//  NÃO DEPENDE DO TENANT - APENAS DO TOKEN
 // ============================================================
 app.get('/api/orders/:id', async (req, res) => {
     try {
-        const tenantId = req.tenantId;
         const orderId = req.params.id;
         const accessToken = req.query.token;
 
-        if (!tenantId) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
-            });
-        }
+        console.log(`📦 Buscando pedido ID: ${orderId}`);
+        console.log(`🔑 Token: ${accessToken?.substring(0, 20)}...`);
 
         // Validar token
         if (!accessToken) {
+            console.log('❌ Token não fornecido');
             return res.status(401).json({ 
                 success: false, 
                 error: 'Token de acesso necessário' 
             });
         }
 
-        // Buscar pedido com validação do token
+        // Buscar pedido SEM depender do tenant
         const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE id = ? AND tenant_id = ? AND access_token = ?',
-            [orderId, tenantId, accessToken]
+            'SELECT * FROM orders WHERE id = ? AND access_token = ?',
+            [orderId, accessToken]
         );
 
         if (orders.length === 0) {
+            console.log('❌ Pedido não encontrado ou token inválido');
             return res.status(404).json({ 
                 success: false, 
                 error: 'Pedido não encontrado ou token inválido' 
@@ -644,6 +642,7 @@ app.get('/api/orders/:id', async (req, res) => {
             access_token: undefined // Não expor o token
         };
 
+        console.log(`✅ Pedido encontrado: ${order.order_number}`);
         res.json({ success: true, data: order });
     } catch (error) {
         console.error('❌ Erro ao buscar pedido:', error);
