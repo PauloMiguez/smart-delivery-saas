@@ -5,7 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import { connectSocket, disconnectSocket } from '../../services/socket';
-import { Container, Button, Card, Input } from '../Shared/Container';
+import { Container, Button, Card } from '../Shared/Container';
 
 const TrackContainer = styled(Container)`
     padding-top: 16px;
@@ -155,52 +155,6 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
-// ============================================================
-//  FORMULÁRIO DE VERIFICAÇÃO
-// ============================================================
-const VerifyContainer = styled.div`
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 20px;
-`;
-
-const VerifyTitle = styled.h3`
-    text-align: center;
-    color: #2d3436;
-    margin-bottom: 8px;
-`;
-
-const VerifySubtitle = styled.p`
-    text-align: center;
-    color: #888;
-    font-size: 14px;
-    margin-bottom: 24px;
-`;
-
-const VerifyForm = styled.form`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-`;
-
-const FormGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    label {
-        font-weight: 600;
-        font-size: 14px;
-        color: ${props => props.theme.colors.textLight};
-    }
-`;
-
-const ErrorText = styled.span`
-    color: #e74c3c;
-    font-size: 12px;
-    margin-top: 4px;
-`;
-
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -229,60 +183,9 @@ const TrackOrder = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [socket, setSocket] = useState(null);
-    const [verifying, setVerifying] = useState(false);
-    const [verifyData, setVerifyData] = useState({
-        name: '',
-        phone: ''
-    });
-    const [verifyError, setVerifyError] = useState('');
 
     const token = searchParams.get('token');
 
-    // ============================================================
-    //  VERIFICAR DADOS DO CLIENTE
-    // ============================================================
-    const handleVerify = async (e) => {
-        e.preventDefault();
-        
-        if (!verifyData.name.trim() || !verifyData.phone.trim()) {
-            setVerifyError('Preencha nome e telefone para acessar o pedido.');
-            return;
-        }
-
-        setVerifying(true);
-        setVerifyError('');
-
-        try {
-            const name = encodeURIComponent(verifyData.name.trim());
-            const phone = encodeURIComponent(verifyData.phone.trim());
-            
-            const response = await api.get(`/orders/${orderId}?token=${token}&name=${name}&phone=${phone}`);
-            
-            if (response.data.success) {
-                setOrder(response.data.data);
-                console.log('✅ Pedido carregado:', response.data.data.order_number);
-                showToast('Pedido carregado com sucesso!', 'success');
-            } else {
-                setVerifyError('Dados não conferem. Verifique nome e telefone.');
-            }
-        } catch (error) {
-            console.error('❌ Erro ao verificar pedido:', error);
-            
-            if (error.response?.status === 403) {
-                setVerifyError('Dados não conferem. Verifique nome e telefone do pedido.');
-            } else if (error.response?.status === 404) {
-                setVerifyError('Pedido não encontrado. Verifique o link.');
-            } else {
-                setVerifyError('Erro ao verificar. Tente novamente.');
-            }
-        } finally {
-            setVerifying(false);
-        }
-    };
-
-    // ============================================================
-    //  CARREGAR PEDIDO (PRIMEIRA TENTATIVA - SEM VALIDAÇÃO)
-    // ============================================================
     const loadOrder = async () => {
         setLoading(true);
         setError(null);
@@ -305,7 +208,6 @@ const TrackOrder = () => {
                 return;
             }
 
-            // Tentar carregar sem validação (se os dados já estiverem salvos)
             const response = await api.get(`/orders/${orderId}?token=${token}`);
             
             if (response.data.success) {
@@ -318,13 +220,6 @@ const TrackOrder = () => {
         } catch (error) {
             console.error('❌ Erro ao carregar pedido:', error);
             
-            // Se for erro 403, mostrar formulário de verificação
-            if (error.response?.status === 403) {
-                setError('verification_required');
-                setLoading(false);
-                return;
-            }
-            
             let errorMessage = 'Erro ao carregar pedido. Verifique o link.';
             
             if (error.response) {
@@ -335,6 +230,7 @@ const TrackOrder = () => {
                 } else if (error.response.status === 500) {
                     errorMessage = 'Erro interno no servidor. Tente novamente.';
                 }
+                console.log('📦 Erro do servidor:', error.response.data);
             } else if (error.request) {
                 errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
             }
@@ -404,10 +300,24 @@ const TrackOrder = () => {
     };
 
     // ============================================================
-    //  RENDERIZAÇÃO CONDICIONAL
+    //  FUNÇÕES DE NAVEGAÇÃO MANTENDO O TENANT
     // ============================================================
+    const goBack = () => {
+        if (tenant) {
+            navigate(`/?tenant=${tenant}`);
+        } else {
+            navigate('/');
+        }
+    };
 
-    // LOADING
+    const goToMenu = () => {
+        if (tenant) {
+            navigate(`/?tenant=${tenant}`);
+        } else {
+            navigate('/');
+        }
+    };
+
     if (loading) {
         return (
             <TrackContainer>
@@ -419,71 +329,13 @@ const TrackOrder = () => {
         );
     }
 
-    // ERRO DE VERIFICAÇÃO - MOSTRAR FORMULÁRIO
-    if (error === 'verification_required') {
-        return (
-            <TrackContainer>
-                <BackButton onClick={() => window.location.href = '/'}>
-                    ← Voltar
-                </BackButton>
-                
-                <Title>🔒 Acesso Protegido</Title>
-                
-                <Card>
-                    <VerifyContainer>
-                        <VerifyTitle>Verifique seus dados</VerifyTitle>
-                        <VerifySubtitle>
-                            Para acessar o pedido, informe o nome e telefone que usou no cadastro.
-                        </VerifySubtitle>
-                        
-                        <VerifyForm onSubmit={handleVerify}>
-                            <FormGroup>
-                                <label>Nome completo *</label>
-                                <Input
-                                    type="text"
-                                    value={verifyData.name}
-                                    onChange={(e) => setVerifyData(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder="Seu nome completo"
-                                    required
-                                />
-                            </FormGroup>
-                            
-                            <FormGroup>
-                                <label>Telefone *</label>
-                                <Input
-                                    type="tel"
-                                    value={verifyData.phone}
-                                    onChange={(e) => setVerifyData(prev => ({ ...prev, phone: e.target.value }))}
-                                    placeholder="(85) 99999-9999"
-                                    required
-                                />
-                            </FormGroup>
-                            
-                            {verifyError && <ErrorText>{verifyError}</ErrorText>}
-                            
-                            <Button 
-                                primary 
-                                type="submit" 
-                                disabled={verifying}
-                                style={{ width: '100%' }}
-                            >
-                                {verifying ? 'Verificando...' : '🔓 Acessar Pedido'}
-                            </Button>
-                        </VerifyForm>
-                    </VerifyContainer>
-                </Card>
-            </TrackContainer>
-        );
-    }
-
-    // ERRO GERAL
-    if (error) {
+    if (error || !order) {
         return (
             <TrackContainer>
                 <ErrorContainer>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
                     <h2 style={{ color: '#e74c3c' }}>Erro ao carregar pedido</h2>
-                    <p style={{ color: '#888', marginBottom: 8 }}>{error}</p>
+                    <p style={{ color: '#888', marginBottom: 8 }}>{error || 'Pedido não encontrado'}</p>
                     <div style={{ 
                         background: '#f8f9fa', 
                         padding: '16px', 
@@ -509,7 +361,7 @@ const TrackOrder = () => {
                         </Button>
                         <Button 
                             secondary 
-                            onClick={() => window.location.href = '/'} 
+                            onClick={goBack}
                             style={{ minWidth: '120px' }}
                         >
                             Voltar ao cardápio
@@ -520,31 +372,12 @@ const TrackOrder = () => {
         );
     }
 
-    // PEDIDO NÃO ENCONTRADO
-    if (!order) {
-        return (
-            <TrackContainer>
-                <ErrorContainer>
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
-                    <h2 style={{ color: '#2d3436' }}>Pedido não encontrado</h2>
-                    <p style={{ color: '#888' }}>O pedido que você está procurando não existe ou o link é inválido.</p>
-                    <Button primary onClick={() => window.location.href = '/'} style={{ marginTop: 16 }}>
-                        Voltar ao cardápio
-                    </Button>
-                </ErrorContainer>
-            </TrackContainer>
-        );
-    }
-
-    // ============================================================
-    //  PEDIDO ENCONTRADO - EXIBIR ACOMPANHAMENTO
-    // ============================================================
     const isCancelled = order.status === 'cancelado';
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
 
     return (
         <TrackContainer>
-            <BackButton onClick={() => window.location.href = '/'}>
+            <BackButton onClick={goBack}>
                 ← Voltar
             </BackButton>
 
@@ -637,7 +470,7 @@ const TrackOrder = () => {
                 </OrderDetails>
             </OrderCard>
 
-            <Button primary onClick={() => window.location.href = '/'} style={{ width: '100%' }}>
+            <Button primary onClick={goToMenu} style={{ width: '100%' }}>
                 Voltar ao cardápio
             </Button>
         </TrackContainer>
