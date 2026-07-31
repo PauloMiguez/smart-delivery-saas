@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -155,6 +155,16 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
+// ============================================================
+//  BOTÕES DE NAVEGAÇÃO - APENAS PARA ACESSO VIA MEUS PEDIDOS
+// ============================================================
+const NavigationButtons = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+`;
+
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -176,6 +186,7 @@ const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const { tenant: urlTenant } = useTenant();
     const { showToast } = useToast();
@@ -184,8 +195,28 @@ const TrackOrder = () => {
     const [error, setError] = useState(null);
     const [socket, setSocket] = useState(null);
     const [orderTenant, setOrderTenant] = useState(null);
+    const [isFromOrders, setIsFromOrders] = useState(false);
 
     const token = searchParams.get('token');
+
+    // ============================================================
+    //  DETECTAR ORIGEM DO ACESSO
+    // ============================================================
+    useEffect(() => {
+        // Verificar se veio de /orders (Meus Pedidos)
+        const referrer = document.referrer || '';
+        const isFromOrdersPage = referrer.includes('/orders') && referrer.includes('tenant=');
+        
+        // Verificar se há parâmetros de nome e telefone na URL
+        const hasNameParam = searchParams.has('name');
+        const hasPhoneParam = searchParams.has('phone');
+        
+        // Se veio de /orders ou tem dados do cliente, é do Meus Pedidos
+        const fromOrders = isFromOrdersPage || (hasNameParam && hasPhoneParam);
+        
+        setIsFromOrders(fromOrders);
+        console.log('📱 Origem do acesso:', fromOrders ? 'Meus Pedidos' : 'Link Direto');
+    }, []);
 
     const loadOrder = async () => {
         setLoading(true);
@@ -216,21 +247,13 @@ const TrackOrder = () => {
             if (response.data.success) {
                 setOrder(response.data.data);
                 
-                // ============================================================
-                //  EXTRAIR TENANT DO PEDIDO - VÁRIAS FONTES
-                // ============================================================
+                // Extrair tenant do pedido
                 let tenantFromOrder = null;
-                
-                // 1. Tentar do response.data.tenant
                 if (response.data.tenant) {
                     tenantFromOrder = response.data.tenant;
-                }
-                // 2. Tentar do response.data.data.tenant_id
-                else if (response.data.data && response.data.data.tenant_id) {
+                } else if (response.data.data && response.data.data.tenant_id) {
                     tenantFromOrder = response.data.data.tenant_id;
-                }
-                // 3. Tentar do response.data.data.tenantId
-                else if (response.data.data && response.data.data.tenantId) {
+                } else if (response.data.data && response.data.data.tenantId) {
                     tenantFromOrder = response.data.data.tenantId;
                 }
                 
@@ -329,10 +352,9 @@ const TrackOrder = () => {
     };
 
     // ============================================================
-    //  FUNÇÕES DE NAVEGAÇÃO - USAR O TENANT DO PEDIDO
+    //  FUNÇÕES DE NAVEGAÇÃO (APENAS PARA MEUS PEDIDOS)
     // ============================================================
     const getTenantToUse = () => {
-        // Prioridade: tenant do pedido > tenant da URL
         const tenant = orderTenant || urlTenant;
         console.log('🔍 Tenant a ser usado:', tenant);
         return tenant;
@@ -343,15 +365,13 @@ const TrackOrder = () => {
         console.log('🔙 Voltar com tenant:', tenant);
         
         if (tenant) {
-            // Verificar se veio de /orders (pelo referrer)
-            const isFromOrders = document.referrer && document.referrer.includes('/orders');
-            if (isFromOrders) {
+            const isFromOrdersPage = document.referrer && document.referrer.includes('/orders');
+            if (isFromOrdersPage) {
                 navigate(`/orders?tenant=${tenant}`);
             } else {
                 navigate(`/?tenant=${tenant}`);
             }
         } else {
-            console.warn('⚠️ Nenhum tenant encontrado, voltando para a raiz');
             navigate('/');
         }
     };
@@ -367,6 +387,9 @@ const TrackOrder = () => {
         }
     };
 
+    // ============================================================
+    //  RENDERIZAÇÃO
+    // ============================================================
     if (loading) {
         return (
             <TrackContainer>
@@ -426,9 +449,14 @@ const TrackOrder = () => {
 
     return (
         <TrackContainer>
-            <BackButton onClick={goBack}>
-                ← Voltar
-            </BackButton>
+            {/* ============================================================
+                BOTÃO VOLTAR - APENAS PARA MEUS PEDIDOS
+                ============================================================ */}
+            {isFromOrders && (
+                <BackButton onClick={goBack}>
+                    ← Voltar
+                </BackButton>
+            )}
 
             <Title>📦 Acompanhar Pedido</Title>
 
@@ -519,9 +547,14 @@ const TrackOrder = () => {
                 </OrderDetails>
             </OrderCard>
 
-            <Button primary onClick={goToMenu} style={{ width: '100%' }}>
-                Voltar ao cardápio
-            </Button>
+            {/* ============================================================
+                BOTÃO VOLTAR AO CARDÁPIO - APENAS PARA MEUS PEDIDOS
+                ============================================================ */}
+            {isFromOrders && (
+                <Button primary onClick={goToMenu} style={{ width: '100%' }}>
+                    Voltar ao cardápio
+                </Button>
+            )}
         </TrackContainer>
     );
 };
