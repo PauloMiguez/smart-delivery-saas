@@ -37,7 +37,7 @@ const LoadingFallback = () => (
 );
 
 // ============================================================
-//  PÁGINA DE BOAS-VINDAS
+//  PÁGINA DE BOAS-VINDAS (COM TEXTO GENÉRICO)
 // ============================================================
 const WelcomePage = () => (
     <div style={{ 
@@ -74,11 +74,12 @@ const WelcomePage = () => (
                 borderRadius: '6px',
                 fontSize: '13px',
                 wordBreak: 'break-all',
-                color: '#e67e22'
+                color: '#e67e22',
+                marginBottom: '12px'
             }}>
-                https://smart-delivery-saas.onrender.com/?tenant=fireburger
+                https://smart-delivery-saas.onrender.com/?tenant=nome_do_restaurante
             </code>
-            <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
+            <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
                 Ou use o painel administrativo:
             </p>
             <code style={{ 
@@ -90,8 +91,16 @@ const WelcomePage = () => (
                 wordBreak: 'break-all',
                 color: '#e67e22'
             }}>
-                https://smart-delivery-saas.onrender.com/admin?tenant=fireburger
+                https://smart-delivery-saas.onrender.com/admin?tenant=nome_do_restaurante
             </code>
+            <p style={{ 
+                color: '#888', 
+                fontSize: '12px', 
+                marginTop: '16px',
+                fontStyle: 'italic'
+            }}>
+                💡 Substitua "nome_do_restaurante" pelo subdomínio cadastrado
+            </p>
         </div>
     </div>
 );
