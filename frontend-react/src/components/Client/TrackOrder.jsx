@@ -300,13 +300,21 @@ const TrackOrder = () => {
     };
 
     // ============================================================
-    //  FUNÇÕES DE NAVEGAÇÃO MANTENDO O TENANT
+    //  FUNÇÕES DE NAVEGAÇÃO - VOLTAR PARA ONDE VEIO
     // ============================================================
     const goBack = () => {
+        // Se tiver tenant, voltar com tenant
         if (tenant) {
             navigate(`/?tenant=${tenant}`);
         } else {
-            navigate('/');
+            // Se não tiver tenant, tentar voltar para a página anterior
+            // ou ir para a raiz
+            const referrer = document.referrer;
+            if (referrer && referrer.includes(window.location.origin)) {
+                window.history.back();
+            } else {
+                navigate('/');
+            }
         }
     };
 
@@ -364,7 +372,7 @@ const TrackOrder = () => {
                             onClick={goBack}
                             style={{ minWidth: '120px' }}
                         >
-                            Voltar ao cardápio
+                            Voltar
                         </Button>
                     </div>
                 </ErrorContainer>
