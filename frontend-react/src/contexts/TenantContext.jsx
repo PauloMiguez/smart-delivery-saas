@@ -8,11 +8,28 @@ export const TenantProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // ============================================================
+        //  CORREÇÃO: Limpar storage se não houver tenant na URL
+        // ============================================================
+        const params = new URLSearchParams(window.location.search);
+        const hasTenantInUrl = params.has('tenant');
+        
+        // Se não tiver tenant na URL, limpar storage
+        if (!hasTenantInUrl) {
+            console.log('🧹 Limpando storage - sem tenant na URL');
+            localStorage.removeItem('tenant');
+            sessionStorage.removeItem('tenant');
+        }
+
         const tenantId = getTenantId();
+        console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
         setTenant(tenantId);
         setLoading(false);
+        
         if (!tenantId) {
-            console.warn('⚠️ Nenhum tenant encontrado');
+            console.log('🏠 Nenhum tenant encontrado - Mostrando página de boas-vindas');
+        } else {
+            console.log('✅ Tenant definido:', tenantId);
         }
     }, []);
 
