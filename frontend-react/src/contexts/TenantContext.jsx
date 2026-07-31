@@ -1,20 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getTenantId } from '../services/api';
 
-const TenantContext = createContext();
+export const TenantContext = createContext();
 
 export const TenantProvider = ({ children }) => {
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // ============================================================
-        //  CORREÇÃO: Limpar storage se não houver tenant na URL
-        // ============================================================
+        // Limpar storage se não houver tenant na URL
         const params = new URLSearchParams(window.location.search);
         const hasTenantInUrl = params.has('tenant');
         
-        // Se não tiver tenant na URL, limpar storage
         if (!hasTenantInUrl) {
             console.log('🧹 Limpando storage - sem tenant na URL');
             localStorage.removeItem('tenant');
