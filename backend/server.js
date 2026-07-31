@@ -88,26 +88,46 @@ async function testDatabaseConnection() {
 }
 
 // ============================================================
-//  TENANT MIDDLEWARE
+//  TENANT MIDDLEWARE - CORRIGIDO (COM ROTAS DE TRACKING)
 // ============================================================
 app.use((req, res, next) => {
-    const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/register', '/api/test-db'];
+    // ROTAS PÚBLICAS - NÃO PRECISAM DE TENANT
+    const publicRoutes = [
+        '/api/health', 
+        '/api/auth/login', 
+        '/api/auth/register', 
+        '/api/test-db'
+    ];
+    
+    // ROTAS DE TRACKING - NÃO PRECISAM DE TENANT (USAM TOKEN)
+    const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
+    
+    // Verificar se é uma rota pública
     if (publicRoutes.includes(req.path)) {
         return next();
     }
+    
+    // Verificar se é uma rota de tracking
+    if (isTrackingRoute) {
+        console.log('🔓 Rota de tracking liberada (sem tenant):', req.path);
+        return next();
+    }
 
+    // Verificar tenant da query
     if (req.query.tenant) {
         req.tenantId = req.query.tenant;
         console.log('🏷️ Tenant da query:', req.tenantId);
         return next();
     }
 
+    // Verificar tenant do header
     if (req.headers['x-tenant-id']) {
         req.tenantId = req.headers['x-tenant-id'];
         console.log('🏷️ Tenant do header:', req.tenantId);
         return next();
     }
 
+    // Verificar tenant do subdomínio
     const host = req.get('host');
     if (host) {
         const parts = host.split('.');
@@ -121,10 +141,12 @@ app.use((req, res, next) => {
         }
     }
 
+    // Verificar se é arquivo estático
     if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
         return next();
     }
 
+    // Se for API e não encontrou tenant, retornar erro
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ 
             success: false, 
