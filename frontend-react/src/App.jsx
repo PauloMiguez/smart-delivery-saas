@@ -107,7 +107,7 @@ const WelcomePage = () => (
 );
 
 // ============================================================
-//  COMPONENTE PRINCIPAL COM VERIFICAÇÃO DE TENANT
+//  COMPONENTE PRINCIPAL - ROTAS DE TRACKING SÃO PRIORITÁRIAS
 // ============================================================
 const AppContent = () => {
     const { tenant, loading } = useContext(TenantContext);
@@ -117,8 +117,44 @@ const AppContent = () => {
         return <LoadingFallback />;
     }
 
+    // ============================================================
+    //  ROTAS QUE NÃO PRECISAM DE TENANT
+    //  (TRACKING, LOGIN, REGISTER, ETC)
+    // ============================================================
+    const pathname = window.location.pathname;
+    const isTrackingRoute = pathname.includes('/track/');
+    const isLoginRoute = pathname.includes('/login');
+    const isRegisterRoute = pathname.includes('/register');
+    const isCheckoutRoute = pathname.includes('/checkout');
+    const isOrdersRoute = pathname.includes('/orders');
+    const isVerifyRoute = pathname.includes('/verify-orders');
+    const isAdminRoute = pathname.includes('/admin');
+
+    // Se for uma rota que não precisa de tenant, renderizar normalmente
+    if (isTrackingRoute || isLoginRoute || isRegisterRoute || isCheckoutRoute || 
+        isOrdersRoute || isVerifyRoute || isAdminRoute) {
+        return (
+            <BrowserRouter>
+                <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
+                        <Route path="/" element={<ClientLayout />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/register.html" element={<Navigate to="/register" />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/login.html" element={<Navigate to="/login" />} />
+                        <Route path="/track/:orderId" element={<TrackOrder />} />
+                        <Route path="/orders" element={<OrdersHistory />} />
+                        <Route path="/verify-orders" element={<OrderVerification />} />
+                        <Route path="/admin/*" element={<AdminLayout />} />
+                    </Routes>
+                </Suspense>
+            </BrowserRouter>
+        );
+    }
+
     // Se não tiver tenant e estiver na raiz, mostrar página de boas-vindas
-    const isRoot = window.location.pathname === '/' || window.location.pathname === '';
+    const isRoot = pathname === '/' || pathname === '';
     if (!tenant && isRoot) {
         return <WelcomePage />;
     }
@@ -141,8 +177,8 @@ const AppContent = () => {
                     <Route path="/login.html" element={<Navigate to="/login" />} />
                     <Route path="/track/:orderId" element={<TrackOrder />} />
                     <Route path="/orders" element={<OrdersHistory />} />
-                    <Route path="/admin/*" element={<AdminLayout />} />
                     <Route path="/verify-orders" element={<OrderVerification />} />
+                    <Route path="/admin/*" element={<AdminLayout />} />
                 </Routes>
             </Suspense>
         </BrowserRouter>
