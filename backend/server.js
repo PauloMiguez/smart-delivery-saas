@@ -93,20 +93,20 @@ async function testDatabaseConnection() {
 app.use((req, res, next) => {
     // ROTAS PÚBLICAS - NÃO PRECISAM DE TENANT
     const publicRoutes = [
-        '/api/health', 
-        '/api/auth/login', 
-        '/api/auth/register', 
+        '/api/health',
+        '/api/auth/login',
+        '/api/auth/register',
         '/api/test-db'
     ];
-    
+
     // ROTAS DE TRACKING - NÃO PRECISAM DE TENANT (USAM TOKEN)
     const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
-    
+
     // Verificar se é uma rota pública
     if (publicRoutes.includes(req.path)) {
         return next();
     }
-    
+
     // Verificar se é uma rota de tracking
     if (isTrackingRoute) {
         console.log('🔓 Rota de tracking liberada (sem tenant):', req.path);
@@ -148,9 +148,9 @@ app.use((req, res, next) => {
 
     // Se for API e não encontrou tenant, retornar erro
     if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ 
-            success: false, 
-            error: 'Tenant não encontrado. Use ?tenant=seu_subdominio ou header X-Tenant-ID.' 
+        return res.status(404).json({
+            success: false,
+            error: 'Tenant não encontrado. Use ?tenant=seu_subdominio ou header X-Tenant-ID.'
         });
     }
 
@@ -161,8 +161,8 @@ app.use((req, res, next) => {
 //  HEALTH CHECK
 // ============================================================
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        success: true, 
+    res.json({
+        success: true,
         message: 'Smart Delivery SaaS API rodando!',
         timestamp: new Date().toISOString()
     });
@@ -176,16 +176,16 @@ app.get('/api/test-db', async (req, res) => {
         console.log('🔄 Testando conexão com banco...');
         const [result] = await pool.query('SELECT 1 as connected');
         console.log('✅ Conexão com banco OK:', result);
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: 'Conexão com banco OK',
-            data: result 
+            data: result
         });
     } catch (error) {
         console.error('❌ Erro no teste de conexão:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });
@@ -225,9 +225,9 @@ app.post('/api/auth/login', async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Email e senha são obrigatórios' 
+            return res.status(400).json({
+                success: false,
+                error: 'Email e senha são obrigatórios'
             });
         }
 
@@ -239,26 +239,26 @@ app.post('/api/auth/login', async (req, res) => {
         );
 
         if (users.length === 0) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Email ou senha inválidos' 
+            return res.status(401).json({
+                success: false,
+                error: 'Email ou senha inválidos'
             });
         }
 
         const user = users[0];
         const validPassword = await bcrypt.compare(password, user.password);
-        
+
         if (!validPassword) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Email ou senha inválidos' 
+            return res.status(401).json({
+                success: false,
+                error: 'Email ou senha inválidos'
             });
         }
 
         const token = generateToken(user.id, user.tenant_id);
-        
+
         console.log('✅ Login bem-sucedido:', email);
-        
+
         res.json({
             success: true,
             data: {
@@ -274,35 +274,35 @@ app.post('/api/auth/login', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erro no login:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro interno do servidor: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor: ' + error.message
         });
     }
 });
 
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { 
-            restaurantName, 
-            subdomain, 
-            ownerName, 
-            email, 
-            phone, 
-            password 
+        const {
+            restaurantName,
+            subdomain,
+            ownerName,
+            email,
+            phone,
+            password
         } = req.body;
 
         if (!restaurantName || !subdomain || !ownerName || !email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Todos os campos são obrigatórios' 
+            return res.status(400).json({
+                success: false,
+                error: 'Todos os campos são obrigatórios'
             });
         }
 
         if (password.length < 6) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'A senha deve ter no mínimo 6 caracteres' 
+            return res.status(400).json({
+                success: false,
+                error: 'A senha deve ter no mínimo 6 caracteres'
             });
         }
 
@@ -314,9 +314,9 @@ app.post('/api/auth/register', async (req, res) => {
         );
 
         if (existingTenant.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Este subdomínio já está em uso' 
+            return res.status(400).json({
+                success: false,
+                error: 'Este subdomínio já está em uso'
             });
         }
 
@@ -326,9 +326,9 @@ app.post('/api/auth/register', async (req, res) => {
         );
 
         if (existingEmail.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Este email já está cadastrado' 
+            return res.status(400).json({
+                success: false,
+                error: 'Este email já está cadastrado'
             });
         }
 
@@ -620,24 +620,29 @@ app.get('/api/orders', async (req, res) => {
 //  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN (CORRIGIDA)
 //  NÃO DEPENDE DO TENANT - APENAS DO TOKEN
 // ============================================================
+// backend/server.js - ROTA GET /api/orders/:id
 app.get('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         const accessToken = req.query.token;
+        const customerName = req.query.name;
+        const customerPhone = req.query.phone;
 
         console.log(`📦 Buscando pedido ID: ${orderId}`);
         console.log(`🔑 Token: ${accessToken?.substring(0, 20)}...`);
+        console.log(`👤 Nome: ${customerName}`);
+        console.log(`📱 Telefone: ${customerPhone}`);
 
         // Validar token
         if (!accessToken) {
             console.log('❌ Token não fornecido');
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Token de acesso necessário' 
+            return res.status(401).json({
+                success: false,
+                error: 'Token de acesso necessário'
             });
         }
 
-        // Buscar pedido SEM depender do tenant
+        // Buscar pedido
         const [orders] = await pool.query(
             'SELECT * FROM orders WHERE id = ? AND access_token = ?',
             [orderId, accessToken]
@@ -645,10 +650,29 @@ app.get('/api/orders/:id', async (req, res) => {
 
         if (orders.length === 0) {
             console.log('❌ Pedido não encontrado ou token inválido');
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Pedido não encontrado ou token inválido' 
+            return res.status(404).json({
+                success: false,
+                error: 'Pedido não encontrado ou token inválido'
             });
+        }
+
+        const order = orders[0];
+
+        // ============================================================
+        //  VALIDAÇÃO: Verificar nome e telefone do cliente
+        // ============================================================
+        if (customerName && customerPhone) {
+            const nameMatch = order.customer_name.toLowerCase() === customerName.toLowerCase();
+            const phoneMatch = order.customer_phone.replace(/\D/g, '') === customerPhone.replace(/\D/g, '');
+
+            if (!nameMatch || !phoneMatch) {
+                console.log('❌ Dados do cliente não conferem');
+                return res.status(403).json({
+                    success: false,
+                    error: 'Dados do cliente não conferem. Verifique nome e telefone.'
+                });
+            }
+            console.log('✅ Dados do cliente validados com sucesso!');
         }
 
         // Incrementar visualizações
@@ -657,20 +681,20 @@ app.get('/api/orders/:id', async (req, res) => {
             [orderId]
         );
 
-        const order = {
-            ...orders[0],
-            items: typeof orders[0].items === 'string' ? 
-                JSON.parse(orders[0].items) : orders[0].items,
-            access_token: undefined // Não expor o token
+        const orderResponse = {
+            ...order,
+            items: typeof order.items === 'string' ?
+                JSON.parse(order.items) : order.items,
+            access_token: undefined
         };
 
         console.log(`✅ Pedido encontrado: ${order.order_number}`);
-        res.json({ success: true, data: order });
+        res.json({ success: true, data: orderResponse });
     } catch (error) {
         console.error('❌ Erro ao buscar pedido:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao buscar pedido: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar pedido: ' + error.message
         });
     }
 });
@@ -696,12 +720,12 @@ app.post('/api/orders', async (req, res) => {
             payment_method = 'dinheiro'
         } = req.body;
 
-        console.log('📦 Pedido recebido:', { 
-            tenantId, 
-            customer_name, 
-            items: items?.length, 
+        console.log('📦 Pedido recebido:', {
+            tenantId,
+            customer_name,
+            items: items?.length,
             subtotal,
-            total 
+            total
         });
 
         if (!customer_name || !customer_address || !items || !total) {
@@ -790,14 +814,14 @@ app.post('/api/orders', async (req, res) => {
                 items: items,
                 status: 'pending'
             };
-            
+
             console.log('🔔 Enviando notificação de novo pedido para tenant:', tenantId);
-            
+
             io.to(`tenant-${tenantId}`).emit('new-order-notification', {
                 order: orderData,
                 timestamp: new Date().toISOString()
             });
-            
+
             io.to(`tenant-${tenantId}`).emit('order-updated', {
                 action: 'new',
                 order: orderData
@@ -806,8 +830,8 @@ app.post('/api/orders', async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: { 
-                id: result.insertId, 
+            data: {
+                id: result.insertId,
                 order_number: orderNumber,
                 access_token: accessToken
             },
@@ -815,9 +839,9 @@ app.post('/api/orders', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erro ao criar pedido:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao criar pedido: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao criar pedido: ' + error.message
         });
     }
 });
@@ -859,17 +883,17 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
                 'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
                 [orderId, tenantId]
             );
-            
+
             if (orderInfo.length > 0) {
                 console.log('🔔 Enviando notificação de atualização de status para tenant:', tenantId);
                 console.log('   Pedido:', orderInfo[0].order_number, 'Status:', status);
-                
+
                 io.to(`tenant-${tenantId}`).emit('order-updated', {
                     action: 'status_change',
-                    order: { 
-                        id: orderId, 
+                    order: {
+                        id: orderId,
                         orderNumber: orderInfo[0].order_number,
-                        status: status 
+                        status: status
                     }
                 });
             }
@@ -890,12 +914,12 @@ app.get('/api/config', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         console.log('🔧 [CONFIG] Tenant recebido:', tenantId);
-        
+
         if (!tenantId) {
             console.log('❌ [CONFIG] Tenant não encontrado');
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
             });
         }
 
@@ -907,9 +931,9 @@ app.get('/api/config', async (req, res) => {
 
         if (tenant.length === 0) {
             console.log('❌ [CONFIG] Tenant não existe:', tenantId);
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
             });
         }
 
@@ -947,9 +971,9 @@ app.get('/api/config', async (req, res) => {
     } catch (error) {
         console.error('❌ [CONFIG] Erro detalhado:', error);
         console.error('❌ [CONFIG] Stack:', error.stack);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao carregar configurações: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar configurações: ' + error.message
         });
     }
 });
@@ -1110,9 +1134,9 @@ app.get('/api/stats/orders', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         if (!tenantId) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
             });
         }
 
@@ -1124,10 +1148,10 @@ app.get('/api/stats/orders', async (req, res) => {
         );
 
         const total = orders.length;
-        const pending = orders.filter(o => 
+        const pending = orders.filter(o =>
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
-        
+
         const today = new Date().toISOString().split('T')[0];
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
@@ -1152,9 +1176,9 @@ app.get('/api/stats/orders', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erro ao buscar estatísticas:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao carregar estatísticas: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar estatísticas: ' + error.message
         });
     }
 });
@@ -1166,17 +1190,17 @@ app.get('/api/stats/dashboard', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         if (!tenantId) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Tenant não encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
             });
         }
 
         const { period = 'today' } = req.query;
         console.log(`📊 Dashboard - Período: ${period}, Tenant: ${tenantId}`);
-        
+
         let startDate = new Date();
-        
+
         switch (period) {
             case 'today':
                 startDate.setHours(0, 0, 0, 0);
@@ -1220,7 +1244,7 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesMap[date].orders += 1;
         });
 
-        const salesData = Object.values(salesMap).sort((a, b) => 
+        const salesData = Object.values(salesMap).sort((a, b) =>
             a.date.localeCompare(b.date)
         );
 
@@ -1287,9 +1311,9 @@ app.get('/api/stats/dashboard', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Erro no dashboard:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao carregar dados do dashboard: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar dados do dashboard: ' + error.message
         });
     }
 });
@@ -1301,17 +1325,17 @@ app.get('/api/stats/dashboard', async (req, res) => {
 app.get('/api/tenant', (req, res) => {
     const tenant = req.tenantId;
     if (!tenant) {
-        return res.status(404).json({ 
-            success: false, 
-            error: 'Tenant não encontrado' 
+        return res.status(404).json({
+            success: false,
+            error: 'Tenant não encontrado'
         });
     }
-    res.json({ 
-        success: true, 
-        data: { 
+    res.json({
+        success: true,
+        data: {
             subdomain: tenant,
             url: `https://${tenant}.smartdelivery.com`
-        } 
+        }
     });
 });
 
@@ -1328,17 +1352,17 @@ const REACT_BUILD_PATH = path.join(__dirname, '../frontend-react/dist');
 if (fs.existsSync(REACT_BUILD_PATH)) {
     console.log('📦 Servindo build do React:', REACT_BUILD_PATH);
     app.use(express.static(REACT_BUILD_PATH));
-    
+
     app.get('/admin*', (req, res) => {
         res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
     });
-    
+
     app.get('/', (req, res) => {
         res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
     });
-    
+
     app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api/') && 
+        if (!req.path.startsWith('/api/') &&
             !req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
             res.sendFile(path.join(REACT_BUILD_PATH, 'index.html'));
         }
@@ -1458,12 +1482,12 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
     const tenant = socket.tenant;
     console.log(`🔌 Cliente conectado ao tenant: ${tenant}`);
-    
+
     socket.join(`tenant-${tenant}`);
-    
-    socket.emit('connected', { 
+
+    socket.emit('connected', {
         message: 'Conectado ao servidor de notificações',
-        tenant: tenant 
+        tenant: tenant
     });
 
     socket.on('disconnect', () => {
