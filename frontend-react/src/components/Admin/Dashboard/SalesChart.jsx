@@ -75,16 +75,31 @@ const ChartWrapper = styled.div`
 `;
 
 // ============================================================
-//  CORES POR STATUS (SEM EMOJIS)
+//  CORES POR STATUS - CORRIGIDO COM CAPITALIZAÇÃO
 // ============================================================
 const getStatusColor = (name) => {
-    const cleanName = name.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim();
-    if (cleanName.includes('Pendente')) return '#f39c12';
-    if (cleanName.includes('Confirmado')) return '#27ae60';
-    if (cleanName.includes('Entregue')) return '#2ecc71';
-    if (cleanName.includes('Cancelado')) return '#e74c3c';
-    if (cleanName.includes('Preparando')) return '#e67e22';
+    const cleanName = name.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim().toLowerCase();
+    if (cleanName.includes('pendente')) return '#f39c12';
+    if (cleanName.includes('confirmado')) return '#27ae60';
+    if (cleanName.includes('entregue')) return '#2ecc71';
+    if (cleanName.includes('cancelado')) return '#e74c3c';
+    if (cleanName.includes('preparando')) return '#e67e22';
     return '#3498db';
+};
+
+// ============================================================
+//  FUNÇÃO PARA CAPITALIZAR STATUS
+// ============================================================
+const capitalizeStatus = (text) => {
+    const statusMap = {
+        'pendente': 'Pendente',
+        'confirmado': 'Confirmado',
+        'preparando': 'Preparando',
+        'entregue': 'Entregue',
+        'cancelado': 'Cancelado'
+    };
+    const clean = text.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim().toLowerCase();
+    return statusMap[clean] || text.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim();
 };
 
 // ============================================================
@@ -220,7 +235,7 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
 };
 
 // ============================================================
-//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - LEGENDA ABAIXO
+//  GRÁFICO DE STATUS DOS PEDIDOS (PIZZA) - CAPITALIZAÇÃO CORRIGIDA
 // ============================================================
 export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
@@ -234,9 +249,12 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
         );
     }
 
+    // ============================================================
+    //  CORREÇÃO: Capitalizar os nomes dos status
+    // ============================================================
     const cleanData = data.map(item => ({
         ...item,
-        name: cleanText(item.name)
+        name: capitalizeStatus(item.name)
     })).filter(item => item.value > 0);
 
     const isMobile = window.innerWidth < 768;
@@ -269,7 +287,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                 justifyContent: 'center'
             }}>
                 {payload.map((entry, index) => {
-                    const cleanName = cleanText(entry.value);
+                    const displayName = capitalizeStatus(entry.value);
                     const color = getStatusColor(entry.value);
                     return (
                         <li key={`legend-${index}`} style={{
@@ -290,7 +308,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                                 backgroundColor: color,
                                 flexShrink: 0
                             }} />
-                            <span>{cleanName}</span>
+                            <span>{displayName}</span>
                         </li>
                     );
                 })}
@@ -319,7 +337,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                             paddingAngle={2}
                             dataKey="value"
                             label={({ name, percent }) => 
-                                percent > 0.1 ? `${cleanText(name)} ${(percent * 100).toFixed(0)}%` : ''
+                                percent > 0.1 ? `${capitalizeStatus(name)} ${(percent * 100).toFixed(0)}%` : ''
                             }
                             labelLine={false}
                             label={{ fontSize: isMobile ? 10 : 12 }}
@@ -332,7 +350,10 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                             ))}
                         </Pie>
                         <Tooltip
-                            formatter={(value) => [`${value} pedido${value !== 1 ? 's' : ''}`, 'Quantidade']}
+                            formatter={(value, name) => {
+                                const displayName = capitalizeStatus(name);
+                                return [`${value} pedido${value !== 1 ? 's' : ''}`, displayName];
+                            }}
                             contentStyle={{
                                 background: '#fff',
                                 border: '1px solid #f0f0f0',
