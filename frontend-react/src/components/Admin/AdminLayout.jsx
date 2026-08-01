@@ -47,6 +47,10 @@ import FilterBar from './Dashboard/FilterBar';
 //  IMPORT DO COMPONENTE DE GRID RESPONSIVO
 // ============================================================
 import DashboardChartsGrid from './Dashboard/DashboardGrid';
+// ============================================================
+//  IMPORT DO MODAL DE ACOMPANHAMENTO
+// ============================================================
+import OrderTrackingModal from './OrderTrackingModal';
 
 const AdminLayout = () => {
     const { tenant, loading } = useTenant();
@@ -87,6 +91,13 @@ const AdminLayout = () => {
     const [topProducts, setTopProducts] = useState([]);
     const [lastUpdate, setLastUpdate] = useState('');
     const [dashboardLoading, setDashboardLoading] = useState(false);
+
+    // ============================================================
+    //  MODAL DE ACOMPANHAMENTO - ESTADOS
+    // ============================================================
+    const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+    const [trackingOrderId, setTrackingOrderId] = useState(null);
+    const [trackingToken, setTrackingToken] = useState(null);
 
     // ============================================================
     //  CARREGAR DADOS
@@ -251,13 +262,21 @@ const AdminLayout = () => {
     // ============================================================
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
-        // O useEffect vai carregar os dados automaticamente
     };
 
     const handleRefresh = () => {
         loadDashboardData(period);
         loadData();
         showToast('📊 Dashboard atualizado!', 'success');
+    };
+
+    // ============================================================
+    //  ABRIR MODAL DE ACOMPANHAMENTO
+    // ============================================================
+    const openTrackingModal = (orderId, token) => {
+        setTrackingOrderId(orderId);
+        setTrackingToken(token);
+        setTrackingModalOpen(true);
     };
 
     // ============================================================
@@ -274,9 +293,6 @@ const AdminLayout = () => {
         }
     }, [filteredProducts, itemsPerPage]);
 
-    // ============================================================
-    //  CORREÇÃO: applyFilters com filtro de status funcionando
-    // ============================================================
     const applyFilters = () => {
         let filtered = [...products];
         
@@ -292,9 +308,6 @@ const AdminLayout = () => {
             filtered = filtered.filter(p => p.category === filters.category);
         }
         
-        // ============================================================
-        //  CORREÇÃO: Filtro de status comparando com 1/0 ou true/false
-        // ============================================================
         if (filters.status) {
             if (filters.status === 'active') {
                 filtered = filtered.filter(p => p.active === 1 || p.active === true);
@@ -311,7 +324,6 @@ const AdminLayout = () => {
         setFilters(newFilters);
     };
 
-    // Paginação
     const getCurrentItems = () => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -510,9 +522,7 @@ const AdminLayout = () => {
                     </div>
                 </PageHeader>
 
-                {/* ============================================================
-                    DASHBOARD - COMPLETO COM GRÁFICOS RESPONSIVOS
-                    ============================================================ */}
+                {/* DASHBOARD */}
                 {activeTab === 'dashboard' && (
                     <>
                         <FilterBar
@@ -554,18 +564,13 @@ const AdminLayout = () => {
                             />
                         </StatsGrid>
 
-                        {/* Gráfico de Vendas */}
                         <SalesLineChart data={salesData} />
 
-                        {/* ============================================================
-                            GRÁFICOS DE STATUS E TOP PRODUTOS - UM POR LINHA NO MOBILE
-                            ============================================================ */}
                         <DashboardChartsGrid>
                             <OrderStatusPieChart data={statusData} />
                             <TopProductsChart data={topProducts} />
                         </DashboardChartsGrid>
 
-                        {/* Últimos Pedidos */}
                         <RecentOrders orders={orders} />
                     </>
                 )}
@@ -596,7 +601,6 @@ const AdminLayout = () => {
                             </p>
                         ) : (
                             <>
-                                {/* TABELA DESKTOP */}
                                 <TableWrapper className="desktop-table">
                                     <Table>
                                         <thead>
@@ -654,7 +658,6 @@ const AdminLayout = () => {
                                     </Table>
                                 </TableWrapper>
 
-                                {/* CARDS MOBILE PARA PRODUTOS */}
                                 <div className="mobile-cards">
                                     {currentItems.map(p => (
                                         <MobileOrderCard key={p.id}>
@@ -738,7 +741,6 @@ const AdminLayout = () => {
                             <p style={{ color: '#888', padding: '20px 0' }}>Nenhuma categoria cadastrada.</p>
                         ) : (
                             <>
-                                {/* TABELA DESKTOP */}
                                 <TableWrapper className="desktop-table">
                                     <Table>
                                         <thead>
@@ -778,7 +780,6 @@ const AdminLayout = () => {
                                     </Table>
                                 </TableWrapper>
 
-                                {/* CARDS MOBILE PARA CATEGORIAS */}
                                 <div className="mobile-cards">
                                     {categories.map(c => (
                                         <MobileOrderCard key={c.id}>
@@ -818,7 +819,7 @@ const AdminLayout = () => {
                 )}
 
                 {/* ============================================================
-                    PEDIDOS - COM BOTÃO "EM PREPARO"
+                    PEDIDOS - COM LINK CLICÁVEL NO NÚMERO DO PEDIDO
                     ============================================================ */}
                 {activeTab === 'orders' && (
                     <OrdersContainer>
@@ -883,7 +884,24 @@ const AdminLayout = () => {
 
                                                 return (
                                                     <tr key={o.id}>
-                                                        <td>#{o.order_number || o.id}</td>
+                                                        <td>
+                                                            {/* ============================================================
+                                                                NÚMERO DO PEDIDO CLICÁVEL - ABRE MODAL
+                                                                ============================================================ */}
+                                                            <span 
+                                                                style={{ 
+                                                                    color: '#e67e22', 
+                                                                    cursor: 'pointer', 
+                                                                    fontWeight: '600',
+                                                                    textDecoration: 'underline',
+                                                                    textDecorationStyle: 'dotted'
+                                                                }}
+                                                                onClick={() => openTrackingModal(o.id, o.access_token)}
+                                                                title="Clique para ver detalhes do pedido"
+                                                            >
+                                                                #{o.order_number || o.id}
+                                                            </span>
+                                                        </td>
                                                         <td>{o.customer_name || 'Cliente'}</td>
                                                         <td>
                                                             {items.map((i, idx) => (
@@ -988,7 +1006,21 @@ const AdminLayout = () => {
                                             <MobileOrderCard key={o.id}>
                                                 <MobileOrderRow>
                                                     <span className="label">Pedido</span>
-                                                    <span className="value">#{o.order_number || o.id}</span>
+                                                    <span className="value">
+                                                        <span 
+                                                            style={{ 
+                                                                color: '#e67e22', 
+                                                                cursor: 'pointer', 
+                                                                fontWeight: '600',
+                                                                textDecoration: 'underline',
+                                                                textDecorationStyle: 'dotted'
+                                                            }}
+                                                            onClick={() => openTrackingModal(o.id, o.access_token)}
+                                                            title="Clique para ver detalhes do pedido"
+                                                        >
+                                                            #{o.order_number || o.id}
+                                                        </span>
+                                                    </span>
                                                 </MobileOrderRow>
                                                 <MobileOrderRow>
                                                     <span className="label">Cliente</span>
@@ -1108,6 +1140,20 @@ const AdminLayout = () => {
                 }}
                 onSave={handleSaveCategory}
                 category={editingCategory}
+            />
+
+            {/* ============================================================
+                MODAL DE ACOMPANHAMENTO DO PEDIDO
+                ============================================================ */}
+            <OrderTrackingModal
+                isOpen={trackingModalOpen}
+                onClose={() => {
+                    setTrackingModalOpen(false);
+                    setTrackingOrderId(null);
+                    setTrackingToken(null);
+                }}
+                orderId={trackingOrderId}
+                token={trackingToken}
             />
         </AdminContainer>
     );
