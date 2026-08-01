@@ -49,7 +49,7 @@ const OrderNumber = styled.div`
     font-weight: 700;
     color: #e67e22;
     margin-bottom: 8px;
-`;
+';
 
 const StatusBadge = styled.div`
     display: inline-block;
@@ -78,10 +78,6 @@ const StatusBadge = styled.div`
         }
     }};
 `;
-
-// ============================================================
-//  CORREÇÃO: StatusLabel removido - mensagem duplicada eliminada
-// ============================================================
 
 const StatusTimeline = styled.div`
     display: flex;
@@ -114,13 +110,8 @@ const StepContent = styled.div`
 
 const StepTitle = styled.div`
     font-weight: 600;
+    font-size: 15px;
     color: ${props => props.active ? '#2d3436' : '#888'};
-`;
-
-const StepSubtitle = styled.div`
-    font-size: 12px;
-    color: ${props => props.active ? '#e67e22' : '#bbb'};
-    margin-top: 2px;
 `;
 
 const OrderDetails = styled.div`
@@ -187,14 +178,10 @@ const TrackOrder = () => {
     const token = searchParams.get('token');
     const fromParam = searchParams.get('from');
 
-    // ============================================================
-    //  DETECTAR ORIGEM DO ACESSO - PELO PARÂMETRO DA URL
-    // ============================================================
     useEffect(() => {
         const isFromOrdersPage = fromParam === 'orders';
         setIsFromOrders(isFromOrdersPage);
         console.log('📱 Origem do acesso:', isFromOrdersPage ? 'Meus Pedidos' : 'Link Direto');
-        console.log('   - fromParam:', fromParam || '(nenhum)');
     }, [fromParam]);
 
     const loadOrder = async () => {
@@ -221,8 +208,6 @@ const TrackOrder = () => {
 
             const response = await api.get(`/orders/${orderId}?token=${token}`);
             
-            console.log('📦 Resposta completa:', response.data);
-            
             if (response.data.success) {
                 setOrder(response.data.data);
                 
@@ -238,8 +223,6 @@ const TrackOrder = () => {
                 if (tenantFromOrder) {
                     setOrderTenant(tenantFromOrder);
                     console.log('🏷️ Tenant do pedido:', tenantFromOrder);
-                } else {
-                    console.warn('⚠️ Nenhum tenant encontrado no pedido');
                 }
                 
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
@@ -260,7 +243,6 @@ const TrackOrder = () => {
                 } else if (error.response.status === 500) {
                     errorMessage = 'Erro interno no servidor. Tente novamente.';
                 }
-                console.log('📦 Erro do servidor:', error.response.data);
             } else if (error.request) {
                 errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
             }
@@ -329,19 +311,12 @@ const TrackOrder = () => {
         return currentIndex > statusIndex;
     };
 
-    // ============================================================
-    //  FUNÇÕES DE NAVEGAÇÃO
-    // ============================================================
     const getTenantToUse = () => {
-        const tenant = orderTenant || urlTenant;
-        console.log('🔍 Tenant a ser usado:', tenant);
-        return tenant;
+        return orderTenant || urlTenant;
     };
 
     const goBack = () => {
         const tenant = getTenantToUse();
-        console.log('🔙 Voltar com tenant:', tenant);
-        
         if (tenant) {
             navigate(`/orders?tenant=${tenant}`);
         } else {
@@ -351,8 +326,6 @@ const TrackOrder = () => {
 
     const goToMenu = () => {
         const tenant = getTenantToUse();
-        console.log('🍽️ Voltar ao cardápio com tenant:', tenant);
-        
         if (tenant) {
             navigate(`/?tenant=${tenant}`);
         } else {
@@ -360,9 +333,6 @@ const TrackOrder = () => {
         }
     };
 
-    // ============================================================
-    //  RENDERIZAÇÃO
-    // ============================================================
     if (loading) {
         return (
             <TrackContainer>
@@ -381,34 +351,11 @@ const TrackOrder = () => {
                     <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
                     <h2 style={{ color: '#e74c3c' }}>Erro ao carregar pedido</h2>
                     <p style={{ color: '#888', marginBottom: 8 }}>{error || 'Pedido não encontrado'}</p>
-                    <div style={{ 
-                        background: '#f8f9fa', 
-                        padding: '16px', 
-                        borderRadius: '8px', 
-                        marginTop: '16px',
-                        textAlign: 'left',
-                        fontSize: '13px',
-                        color: '#555'
-                    }}>
-                        <p><strong>🔍 Diagnóstico:</strong></p>
-                        <p>• Order ID: {orderId || 'N/A'}</p>
-                        <p>• Token presente: {token ? '✅ Sim' : '❌ Não'}</p>
-                        <p>• Tamanho do token: {token?.length || 0} caracteres</p>
-                        {token && <p>• Token (início): {token.substring(0, 15)}...</p>}
-                    </div>
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '16px' }}>
-                        <Button 
-                            primary 
-                            onClick={() => window.location.reload()} 
-                            style={{ minWidth: '120px' }}
-                        >
+                        <Button primary onClick={() => window.location.reload()} style={{ minWidth: '120px' }}>
                             🔄 Tentar novamente
                         </Button>
-                        <Button 
-                            secondary 
-                            onClick={goBack}
-                            style={{ minWidth: '120px' }}
-                        >
+                        <Button secondary onClick={goBack} style={{ minWidth: '120px' }}>
                             Voltar
                         </Button>
                     </div>
@@ -433,15 +380,12 @@ const TrackOrder = () => {
             <OrderCard>
                 <OrderNumber>#{order.order_number}</OrderNumber>
                 
-                {/* ============================================================
-                    APENAS O BADGE DE STATUS - SEM MENSAGEM DUPLICADA
-                ============================================================ */}
                 <StatusBadge status={order.status}>
                     {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                 </StatusBadge>
 
                 {/* ============================================================
-                    TIMELINE DE STATUS - ÚNICA FONTE DE INFORMAÇÃO
+                    TIMELINE SIMPLIFICADA - APENAS O NOME DO STATUS
                 ============================================================ */}
                 <StatusTimeline>
                     {statusOrder.map((status) => {
@@ -456,17 +400,8 @@ const TrackOrder = () => {
                                 <StepIcon>{icon}</StepIcon>
                                 <StepContent>
                                     <StepTitle active={active}>
-                                        {statusEmojis[status]} {statusLabels[status]}
+                                        {statusLabels[status]}
                                     </StepTitle>
-                                    {completed && !isCancelled && (
-                                        <StepSubtitle active={active}>✓ Concluído</StepSubtitle>
-                                    )}
-                                    {active && !isCancelled && !completed && (
-                                        <StepSubtitle active={active}>⏳ Em andamento</StepSubtitle>
-                                    )}
-                                    {status === 'preparando' && active && !completed && (
-                                        <StepSubtitle active={active}>👨‍🍳 Cozinha preparando seu pedido</StepSubtitle>
-                                    )}
                                 </StepContent>
                             </StatusStep>
                         );
@@ -477,9 +412,8 @@ const TrackOrder = () => {
                             <StepIcon>❌</StepIcon>
                             <StepContent>
                                 <StepTitle active={true} style={{ color: '#e74c3c' }}>
-                                    Pedido Cancelado
+                                    Cancelado
                                 </StepTitle>
-                                <StepSubtitle active={true}>Pedido foi cancelado</StepSubtitle>
                             </StepContent>
                         </StatusStep>
                     )}
