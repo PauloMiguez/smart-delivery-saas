@@ -155,9 +155,6 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
-// ============================================================
-//  BOTÕES DE NAVEGAÇÃO - APENAS PARA ACESSO VIA MEUS PEDIDOS
-// ============================================================
 const NavigationButtons = styled.div`
     display: flex;
     flex-direction: column;
@@ -201,22 +198,29 @@ const TrackOrder = () => {
 
     // ============================================================
     //  DETECTAR ORIGEM DO ACESSO
-    // ============================================================
+    //  ============================================================
     useEffect(() => {
-        // Verificar se veio de /orders (Meus Pedidos)
-        const referrer = document.referrer || '';
-        const isFromOrdersPage = referrer.includes('/orders') && referrer.includes('tenant=');
-        
-        // Verificar se há parâmetros de nome e telefone na URL
+        // 1. Verificar se há parâmetros name e phone na URL
         const hasNameParam = searchParams.has('name');
         const hasPhoneParam = searchParams.has('phone');
         
-        // Se veio de /orders ou tem dados do cliente, é do Meus Pedidos
-        const fromOrders = isFromOrdersPage || (hasNameParam && hasPhoneParam);
+        // 2. Verificar se o referrer contém /orders (veio do link do Meus Pedidos)
+        const referrer = document.referrer || '';
+        const isFromOrdersPage = referrer.includes('/orders') && referrer.includes('tenant=');
+        
+        // 3. Verificar se a URL atual contém parâmetros de cliente
+        const isFromOrders = hasNameParam && hasPhoneParam;
+        
+        // Se veio de /orders OU tem dados do cliente, é do Meus Pedidos
+        const fromOrders = isFromOrdersPage || isFromOrders;
         
         setIsFromOrders(fromOrders);
         console.log('📱 Origem do acesso:', fromOrders ? 'Meus Pedidos' : 'Link Direto');
-    }, []);
+        console.log('   - hasNameParam:', hasNameParam);
+        console.log('   - hasPhoneParam:', hasPhoneParam);
+        console.log('   - isFromOrdersPage:', isFromOrdersPage);
+        console.log('   - Referrer:', referrer);
+    }, [location.search]);
 
     const loadOrder = async () => {
         setLoading(true);
@@ -352,7 +356,7 @@ const TrackOrder = () => {
     };
 
     // ============================================================
-    //  FUNÇÕES DE NAVEGAÇÃO (APENAS PARA MEUS PEDIDOS)
+    //  FUNÇÕES DE NAVEGAÇÃO
     // ============================================================
     const getTenantToUse = () => {
         const tenant = orderTenant || urlTenant;
@@ -365,12 +369,7 @@ const TrackOrder = () => {
         console.log('🔙 Voltar com tenant:', tenant);
         
         if (tenant) {
-            const isFromOrdersPage = document.referrer && document.referrer.includes('/orders');
-            if (isFromOrdersPage) {
-                navigate(`/orders?tenant=${tenant}`);
-            } else {
-                navigate(`/?tenant=${tenant}`);
-            }
+            navigate(`/orders?tenant=${tenant}&name=${encodeURIComponent(order.customer_name || '')}&phone=${encodeURIComponent(order.customer_phone || '')}`);
         } else {
             navigate('/');
         }
