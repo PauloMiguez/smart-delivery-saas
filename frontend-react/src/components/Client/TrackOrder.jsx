@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -155,13 +155,6 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
-const NavigationButtons = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 20px;
-`;
-
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -183,7 +176,6 @@ const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
-    const location = useLocation();
     const [searchParams] = useSearchParams();
     const { tenant: urlTenant } = useTenant();
     const { showToast } = useToast();
@@ -197,30 +189,17 @@ const TrackOrder = () => {
     const token = searchParams.get('token');
 
     // ============================================================
-    //  DETECTAR ORIGEM DO ACESSO
-    //  ============================================================
+    //  DETECTAR ORIGEM DO ACESSO - CORRIGIDO
+    // ============================================================
     useEffect(() => {
-        // 1. Verificar se há parâmetros name e phone na URL
-        const hasNameParam = searchParams.has('name');
-        const hasPhoneParam = searchParams.has('phone');
-        
-        // 2. Verificar se o referrer contém /orders (veio do link do Meus Pedidos)
+        // Verificar se veio de /orders (Meus Pedidos) pelo referrer
         const referrer = document.referrer || '';
         const isFromOrdersPage = referrer.includes('/orders') && referrer.includes('tenant=');
         
-        // 3. Verificar se a URL atual contém parâmetros de cliente
-        const isFromOrders = hasNameParam && hasPhoneParam;
-        
-        // Se veio de /orders OU tem dados do cliente, é do Meus Pedidos
-        const fromOrders = isFromOrdersPage || isFromOrders;
-        
-        setIsFromOrders(fromOrders);
-        console.log('📱 Origem do acesso:', fromOrders ? 'Meus Pedidos' : 'Link Direto');
-        console.log('   - hasNameParam:', hasNameParam);
-        console.log('   - hasPhoneParam:', hasPhoneParam);
-        console.log('   - isFromOrdersPage:', isFromOrdersPage);
-        console.log('   - Referrer:', referrer);
-    }, [location.search]);
+        setIsFromOrders(isFromOrdersPage);
+        console.log('📱 Origem do acesso:', isFromOrdersPage ? 'Meus Pedidos' : 'Link Direto');
+        console.log('   - Referrer:', referrer || '(nenhum)');
+    }, []);
 
     const loadOrder = async () => {
         setLoading(true);
@@ -369,7 +348,7 @@ const TrackOrder = () => {
         console.log('🔙 Voltar com tenant:', tenant);
         
         if (tenant) {
-            navigate(`/orders?tenant=${tenant}&name=${encodeURIComponent(order.customer_name || '')}&phone=${encodeURIComponent(order.customer_phone || '')}`);
+            navigate(`/orders?tenant=${tenant}`);
         } else {
             navigate('/');
         }
