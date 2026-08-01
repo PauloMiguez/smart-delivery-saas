@@ -79,11 +79,9 @@ const StatusBadge = styled.div`
     }};
 `;
 
-const StatusLabel = styled.div`
-    font-size: 14px;
-    color: #888;
-    margin-top: 4px;
-`;
+// ============================================================
+//  CORREÇÃO: StatusLabel removido - mensagem duplicada eliminada
+// ============================================================
 
 const StatusTimeline = styled.div`
     display: flex;
@@ -193,9 +191,7 @@ const TrackOrder = () => {
     //  DETECTAR ORIGEM DO ACESSO - PELO PARÂMETRO DA URL
     // ============================================================
     useEffect(() => {
-        // Verificar se veio de /orders (Meus Pedidos) pelo parâmetro from
         const isFromOrdersPage = fromParam === 'orders';
-        
         setIsFromOrders(isFromOrdersPage);
         console.log('📱 Origem do acesso:', isFromOrdersPage ? 'Meus Pedidos' : 'Link Direto');
         console.log('   - fromParam:', fromParam || '(nenhum)');
@@ -230,7 +226,6 @@ const TrackOrder = () => {
             if (response.data.success) {
                 setOrder(response.data.data);
                 
-                // Extrair tenant do pedido
                 let tenantFromOrder = null;
                 if (response.data.tenant) {
                     tenantFromOrder = response.data.tenant;
@@ -427,9 +422,6 @@ const TrackOrder = () => {
 
     return (
         <TrackContainer>
-            {/* ============================================================
-                BOTÃO VOLTAR - APENAS PARA MEUS PEDIDOS
-                ============================================================ */}
             {isFromOrders && (
                 <BackButton onClick={goBack}>
                     ← Voltar
@@ -440,17 +432,17 @@ const TrackOrder = () => {
 
             <OrderCard>
                 <OrderNumber>#{order.order_number}</OrderNumber>
+                
+                {/* ============================================================
+                    APENAS O BADGE DE STATUS - SEM MENSAGEM DUPLICADA
+                ============================================================ */}
                 <StatusBadge status={order.status}>
                     {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                 </StatusBadge>
-                <StatusLabel>
-                    {order.status === 'pending' && 'Aguardando confirmação do restaurante'}
-                    {order.status === 'confirmado' && 'Pedido confirmado! Estamos preparando seu pedido'}
-                    {order.status === 'preparando' && 'Seu pedido está sendo preparado!'}
-                    {order.status === 'entregue' && 'Pedido entregue! Aproveite!'}
-                    {order.status === 'cancelado' && 'Pedido cancelado'}
-                </StatusLabel>
 
+                {/* ============================================================
+                    TIMELINE DE STATUS - ÚNICA FONTE DE INFORMAÇÃO
+                ============================================================ */}
                 <StatusTimeline>
                     {statusOrder.map((status) => {
                         const active = !isCancelled && isStatusActive(status);
@@ -525,9 +517,6 @@ const TrackOrder = () => {
                 </OrderDetails>
             </OrderCard>
 
-            {/* ============================================================
-                BOTÃO VOLTAR AO CARDÁPIO - APENAS PARA MEUS PEDIDOS
-                ============================================================ */}
             {isFromOrders && (
                 <Button primary onClick={goToMenu} style={{ width: '100%' }}>
                     Voltar ao cardápio
