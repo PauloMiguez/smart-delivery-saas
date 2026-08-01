@@ -49,7 +49,7 @@ const OrderNumber = styled.div`
     font-weight: 700;
     color: #e67e22;
     margin-bottom: 8px;
-';
+`;
 
 const StatusBadge = styled.div`
     display: inline-block;
@@ -384,9 +384,6 @@ const TrackOrder = () => {
                     {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                 </StatusBadge>
 
-                {/* ============================================================
-                    TIMELINE SIMPLIFICADA - APENAS O NOME DO STATUS
-                ============================================================ */}
                 <StatusTimeline>
                     {statusOrder.map((status) => {
                         const active = !isCancelled && isStatusActive(status);
