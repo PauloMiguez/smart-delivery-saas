@@ -187,19 +187,19 @@ const TrackOrder = () => {
     const [isFromOrders, setIsFromOrders] = useState(false);
 
     const token = searchParams.get('token');
+    const fromParam = searchParams.get('from');
 
     // ============================================================
-    //  DETECTAR ORIGEM DO ACESSO - CORRIGIDO
+    //  DETECTAR ORIGEM DO ACESSO - PELO PARÂMETRO DA URL
     // ============================================================
     useEffect(() => {
-        // Verificar se veio de /orders (Meus Pedidos) pelo referrer
-        const referrer = document.referrer || '';
-        const isFromOrdersPage = referrer.includes('/orders') && referrer.includes('tenant=');
+        // Verificar se veio de /orders (Meus Pedidos) pelo parâmetro from
+        const isFromOrdersPage = fromParam === 'orders';
         
         setIsFromOrders(isFromOrdersPage);
         console.log('📱 Origem do acesso:', isFromOrdersPage ? 'Meus Pedidos' : 'Link Direto');
-        console.log('   - Referrer:', referrer || '(nenhum)');
-    }, []);
+        console.log('   - fromParam:', fromParam || '(nenhum)');
+    }, [fromParam]);
 
     const loadOrder = async () => {
         setLoading(true);

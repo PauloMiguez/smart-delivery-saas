@@ -309,7 +309,10 @@ const OrdersHistory = () => {
                             </OrderItems>
                             <OrderTotal>Total: R$ {parseFloat(order.total).toFixed(2)}</OrderTotal>
                             {hasToken ? (
-                                <TrackLink to={`/track/${order.id}?token=${order.access_token}`}>
+                                // ============================================================
+                                //  CORREÇÃO: Adicionar parâmetro from=orders
+                                // ============================================================
+                                <TrackLink to={`/track/${order.id}?token=${order.access_token}&from=orders`}>
                                     🔍 Acompanhar pedido
                                 </TrackLink>
                             ) : (
