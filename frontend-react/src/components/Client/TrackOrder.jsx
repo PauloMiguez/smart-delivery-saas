@@ -149,7 +149,8 @@ const statusLabels = {
     'confirmado': 'Confirmado',
     'preparando': 'Em preparação',
     'entregue': 'Entregue',
-    'cancelado': 'Cancelado'
+    'cancelado': 'Cancelado',
+    'scheduled': 'Agendado'
 };
 
 const statusEmojis = {

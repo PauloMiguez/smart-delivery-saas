@@ -158,7 +158,8 @@ const OrdersHistory = () => {
         'confirmado': 'Confirmado',
         'preparando': 'Em preparo',
         'entregue': 'Entregue',
-        'cancelado': 'Cancelado'
+        'cancelado': 'Cancelado',
+        'scheduled': 'Agendado'
     };
 
     useEffect(() => {

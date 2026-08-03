@@ -7,6 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import { Container, Button, Card, Input } from '../Shared/Container';
 import AddressModal from './AddressModal';
+import DateTimePicker from './DateTimePicker';
 
 const CheckoutContainer = styled(Container)`
     padding-top: 16px;
@@ -157,6 +158,99 @@ const PaymentTitle = styled.div`
 `;
 
 // ============================================================
+//  SEÇÃO DE AGENDAMENTO
+// ============================================================
+const ScheduleSection = styled.div`
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #f0f0f0;
+    margin-bottom: 16px;
+`;
+
+const StoreClosedWarning = styled.div`
+    padding: 12px 16px;
+    background: #fef9e7;
+    border: 2px solid #f39c12;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #856404;
+
+    .title {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .sub {
+        display: block;
+        margin-top: 4px;
+        font-size: 13px;
+    }
+`;
+
+const ScheduleToggle = styled.label`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #2d3436;
+    
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #e67e22;
+    }
+`;
+
+const ScheduleInfo = styled.div`
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #f0faf4;
+    border-radius: 8px;
+    border: 2px solid #2ecc71;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+`;
+
+const SelectScheduleButton = styled.button`
+    padding: 10px 20px;
+    background: #e67e22;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #d35400;
+        transform: translateY(-1px);
+    }
+`;
+
+const ChangeScheduleButton = styled.button`
+    padding: 4px 12px;
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #c0392b;
+    }
+`;
+
+// ============================================================
 //  FUNÇÕES DE VALIDAÇÃO
 // ============================================================
 const validateName = (name) => {
@@ -192,7 +286,7 @@ const validateAddress = (address) => {
 };
 
 // ============================================================
-//  FUNÇÃO PARA ABRIR WHATSAPP (COMPATÍVEL COM IOS E ANDROID)
+//  FUNÇÃO PARA ABRIR WHATSAPP
 // ============================================================
 const openWhatsApp = (phoneNumber, message) => {
     const formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -200,27 +294,15 @@ const openWhatsApp = (phoneNumber, message) => {
     
     console.log('📱 Abrindo WhatsApp:', url);
     
-    // ============================================================
-    //  ESTRATÉGIA 1: Tentar abrir diretamente
-    // ============================================================
     const newWindow = window.open(url, '_blank');
     
-    // ============================================================
-    //  ESTRATÉGIA 2: Se falhar no iOS, usar location.href
-    // ============================================================
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
         console.log('📱 Fallback: usando location.href para iOS');
         window.location.href = url;
     }
     
-    // ============================================================
-    //  ESTRATÉGIA 3: Fallback para iOS Safari (popup bloqueado)
-    // ============================================================
     setTimeout(() => {
-        // Se a janela ainda estiver aberta, não fazer nada
         if (newWindow && !newWindow.closed) return;
-        
-        // Tentar novamente com location.href
         console.log('📱 Segundo fallback: forçando location.href');
         window.location.href = url;
     }, 500);
@@ -245,18 +327,33 @@ const Checkout = () => {
         address: ''
     });
 
+    // ============================================================
+    //  STATE PARA AGENDAMENTO E STATUS DA LOJA
+    // ============================================================
+    const [isScheduled, setIsScheduled] = useState(false);
+    const [selectedSchedule, setSelectedSchedule] = useState(null);
+    const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+    const [isStoreOpen, setIsStoreOpen] = useState(true);
+
     useEffect(() => {
         if (!tenant) return;
         
-        const loadConfig = async () => {
+        const loadData = async () => {
             try {
+                // Carregar config
                 const res = await api.get('/config');
                 setConfig(res.data.data);
+                
+                // Carregar status da loja
+                const statusRes = await api.get('/store/status');
+                if (statusRes.data.success) {
+                    setIsStoreOpen(statusRes.data.data.is_open);
+                }
             } catch (error) {
-                console.error('Erro ao carregar config:', error);
+                console.error('Erro ao carregar dados:', error);
             }
         };
-        loadConfig();
+        loadData();
 
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
@@ -266,6 +363,24 @@ const Checkout = () => {
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
     }, [tenant]);
+
+    // ============================================================
+    //  FUNÇÕES DE AGENDAMENTO
+    // ============================================================
+    const toggleSchedule = () => {
+        setIsScheduled(!isScheduled);
+        if (isScheduled) {
+            setSelectedSchedule(null);
+            setShowSchedulePicker(false);
+        }
+    };
+
+    const handleScheduleSelect = (schedule) => {
+        setSelectedSchedule(schedule);
+        if (schedule) {
+            setShowSchedulePicker(false);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -285,6 +400,9 @@ const Checkout = () => {
         }
     };
 
+    // ============================================================
+    //  ✅ CORREÇÃO: VALIDAÇÃO COM LÓGICA DE LOJA FECHADA
+    // ============================================================
     const validateForm = () => {
         const newErrors = {};
         
@@ -296,6 +414,20 @@ const Checkout = () => {
         
         const addressError = validateAddress(formData.address);
         if (addressError) newErrors.address = addressError;
+        
+        // ============================================================
+        //  ✅ CORREÇÃO: Agendamento é OBRIGATÓRIO quando loja fechada
+        // ============================================================
+        if (!isStoreOpen && !selectedSchedule) {
+            showToast('🔴 Loja fechada. Selecione um horário de agendamento para continuar.', 'warning');
+            return false;
+        }
+        
+        // Se o agendamento está ativo mas não selecionou horário
+        if (isScheduled && !selectedSchedule) {
+            showToast('Selecione uma data e horário para o agendamento.', 'warning');
+            return false;
+        }
         
         if (cart.length === 0) {
             showToast('Adicione itens ao carrinho antes de finalizar.', 'warning');
@@ -344,8 +476,20 @@ const Checkout = () => {
                 delivery_fee: deliveryFee,
                 total: total,
                 payment_method: paymentMethod,
-                delivery_type: 'delivery'
+                delivery_type: 'delivery',
+                // ============================================================
+                //  CAMPOS DE AGENDAMENTO
+                // ============================================================
+                is_scheduled: isScheduled || !isStoreOpen ? true : false,
+                scheduled_time: selectedSchedule ? selectedSchedule.datetime : null
             };
+
+            // Se a loja está fechada, força o agendamento
+            if (!isStoreOpen && !selectedSchedule) {
+                showToast('Loja fechada. Selecione um horário de agendamento.', 'warning');
+                setLoading(false);
+                return;
+            }
 
             console.log('📦 Enviando pedido:', orderData);
 
@@ -363,23 +507,32 @@ const Checkout = () => {
             console.log(`🔗 Link de acompanhamento: ${trackLink}`);
 
             // ============================================================
-            //  WHATSAPP - COMPATÍVEL COM IOS E ANDROID
+            //  WHATSAPP
             // ============================================================
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
             
-            // Garantir que o número tenha o código do país
             let formattedPhone = cleanPhone;
             if (!formattedPhone.startsWith('55')) {
                 formattedPhone = '55' + formattedPhone;
             }
+
+            const scheduledText = (isScheduled || !isStoreOpen) && selectedSchedule
+                ? `\n📅 *Agendado para:* ${new Date(selectedSchedule.datetime).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}`
+                : '';
 
             const message = 
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `👤 *Cliente:* ${formData.name}\n` +
                 `📱 *Telefone:* ${formData.phone}\n` +
-                `📍 *Endereço:* ${formData.address}\n\n` +
+                `📍 *Endereço:* ${formData.address}${scheduledText}\n\n` +
                 `🛒 *Itens:*\n` +
                 cart.map(i => `  • ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') +
                 `\n\n💰 *Resumo:*\n` +
@@ -392,7 +545,6 @@ const Checkout = () => {
                 `🔗 *Acompanhe seu pedido:*\n` +
                 `${trackLink}`;
 
-            // Abrir WhatsApp com fallback para iOS
             openWhatsApp(formattedPhone, message);
 
             clearCart();
@@ -530,6 +682,80 @@ const Checkout = () => {
                     {errors.address && <ErrorText>{errors.address}</ErrorText>}
                 </FormGroup>
 
+                {/* ============================================================
+                    SEÇÃO DE AGENDAMENTO - CORRIGIDA
+                    ============================================================ */}
+                <ScheduleSection>
+                    {/* ============================================================
+                        AVISO QUANDO LOJA FECHADA
+                        ============================================================ */}
+                    {!isStoreOpen && (
+                        <StoreClosedWarning>
+                            <span className="title">🔴 Loja fechada no momento</span>
+                            <span className="sub">
+                                Para fazer um pedido, selecione um horário de agendamento abaixo.
+                                Seu pedido será preparado quando a loja abrir.
+                            </span>
+                        </StoreClosedWarning>
+                    )}
+
+                    {/* ============================================================
+                        CHECKBOX DE AGENDAMENTO
+                        ============================================================ */}
+                    <ScheduleToggle>
+                        <input
+                            type="checkbox"
+                            checked={isScheduled}
+                            onChange={toggleSchedule}
+                            disabled={!isStoreOpen} // Se loja fechada, agendamento é obrigatório
+                        />
+                        <span>
+                            {!isStoreOpen ? '📅 Agendar entrega (obrigatório)' : '📅 Agendar entrega para outro dia/horário'}
+                        </span>
+                    </ScheduleToggle>
+                    
+                    {/* ============================================================
+                        SELEÇÃO DE DATA/HORÁRIO
+                        ============================================================ */}
+                    {(isScheduled || !isStoreOpen) && (
+                        <div style={{ marginTop: '12px' }}>
+                            {!showSchedulePicker && !selectedSchedule && (
+                                <SelectScheduleButton
+                                    type="button"
+                                    onClick={() => setShowSchedulePicker(true)}
+                                >
+                                    Selecionar data e horário
+                                </SelectScheduleButton>
+                            )}
+                            
+                            {showSchedulePicker && (
+                                <DateTimePicker
+                                    isOpen={true}
+                                    onSelect={handleScheduleSelect}
+                                    selectedDateTime={selectedSchedule}
+                                />
+                            )}
+                            
+                            {selectedSchedule && !showSchedulePicker && (
+                                <ScheduleInfo>
+                                    <span>
+                                        📅 {selectedSchedule.date} às {selectedSchedule.time}
+                                    </span>
+                                    <ChangeScheduleButton
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedSchedule(null);
+                                            setShowSchedulePicker(true);
+                                        }}
+                                    >
+                                        Alterar
+                                    </ChangeScheduleButton>
+                                </ScheduleInfo>
+                            )}
+                        </div>
+                    )}
+                </ScheduleSection>
+
                 <PaymentSection>
                     <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
@@ -564,9 +790,26 @@ const Checkout = () => {
                     </ChipGroup>
                 </PaymentSection>
 
-                <SubmitButton primary disabled={loading}>
+                <SubmitButton 
+                    primary 
+                    disabled={loading || (!isStoreOpen && !selectedSchedule)}
+                >
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
                 </SubmitButton>
+                
+                {/* ============================================================
+                    MENSAGEM QUANDO BOTÃO DESABILITADO
+                    ============================================================ */}
+                {!isStoreOpen && !selectedSchedule && !loading && (
+                    <div style={{ 
+                        textAlign: 'center', 
+                        fontSize: '13px', 
+                        color: '#e74c3c',
+                        marginTop: '-8px'
+                    }}>
+                        ⚠️ Selecione um horário de agendamento para finalizar o pedido
+                    </div>
+                )}
             </Form>
 
             <AddressModal

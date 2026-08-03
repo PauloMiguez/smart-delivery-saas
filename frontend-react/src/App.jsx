@@ -7,20 +7,26 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ModalProvider } from './contexts/ModalContext';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
-import ClientLayout from './components/Client/ClientLayout';
-import Checkout from './components/Client/Checkout';
-import Register from './components/Client/Register';
-import Login from './components/Client/Login';
-import AdminLayout from './components/Admin/AdminLayout';
-import OrderVerification from './components/Client/OrderVerification';
 
 // ============================================================
-//  LAZY LOAD - CARREGAR COMPONENTES SOB DEMANDA
+//  LAZY LOAD - TODOS OS COMPONENTES PESADOS
 // ============================================================
+
+// Cliente - já estavam lazy
 const TrackOrder = lazy(() => import('./components/Client/TrackOrder'));
 const OrdersHistory = lazy(() => import('./components/Client/OrdersHistory'));
 
-// Componente de loading
+// Cliente - agora também lazy (componentes que só são usados em rotas específicas)
+const ClientLayout = lazy(() => import('./components/Client/ClientLayout'));
+const Checkout = lazy(() => import('./components/Client/Checkout'));
+const Register = lazy(() => import('./components/Client/Register'));
+const Login = lazy(() => import('./components/Client/Login'));
+const OrderVerification = lazy(() => import('./components/Client/OrderVerification'));
+
+// Admin - AGORA LAZY (era carregado diretamente antes)
+const AdminLayout = lazy(() => import('./components/Admin/AdminLayout'));
+
+// Componente de loading melhorado
 const LoadingFallback = () => (
     <div style={{
         display: 'flex',
@@ -28,17 +34,32 @@ const LoadingFallback = () => (
         alignItems: 'center',
         minHeight: '100vh',
         fontSize: '18px',
-        color: '#888'
+        color: '#888',
+        background: '#fff'
     }}>
         <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+            <div style={{ 
+                width: 40, 
+                height: 40, 
+                border: '4px solid #f3f3f3',
+                borderTop: '4px solid #e67e22',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 16px'
+            }} />
             <p>Carregando...</p>
+            <style>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     </div>
 );
 
 // ============================================================
-//  PÁGINA DE BOAS-VINDAS (COM TEXTO GENÉRICO)
+//  PÁGINA DE BOAS-VINDAS (OTIMIZADA)
 // ============================================================
 const WelcomePage = () => (
     <div style={{ 
@@ -107,21 +128,18 @@ const WelcomePage = () => (
 );
 
 // ============================================================
-//  COMPONENTE PRINCIPAL - ROTAS DE TRACKING SÃO PRIORITÁRIAS
+//  COMPONENTE PRINCIPAL
 // ============================================================
 const AppContent = () => {
     const { tenant, loading } = useContext(TenantContext);
 
-    // Enquanto carrega, mostrar loading
     if (loading) {
         return <LoadingFallback />;
     }
 
-    // ============================================================
-    //  ROTAS QUE NÃO PRECISAM DE TENANT
-    //  (TRACKING, LOGIN, REGISTER, ETC)
-    // ============================================================
     const pathname = window.location.pathname;
+    
+    // Rotas que não precisam de tenant
     const isTrackingRoute = pathname.includes('/track/');
     const isLoginRoute = pathname.includes('/login');
     const isRegisterRoute = pathname.includes('/register');
@@ -130,22 +148,27 @@ const AppContent = () => {
     const isVerifyRoute = pathname.includes('/verify-orders');
     const isAdminRoute = pathname.includes('/admin');
 
-    // Se for uma rota que não precisa de tenant, renderizar normalmente
+    // Rotas que não precisam de tenant
     if (isTrackingRoute || isLoginRoute || isRegisterRoute || isCheckoutRoute || 
         isOrdersRoute || isVerifyRoute || isAdminRoute) {
         return (
             <BrowserRouter>
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>
+                        {/* Rotas públicas */}
                         <Route path="/" element={<ClientLayout />} />
                         <Route path="/checkout" element={<Checkout />} />
                         <Route path="/register" element={<Register />} />
                         <Route path="/register.html" element={<Navigate to="/register" />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/login.html" element={<Navigate to="/login" />} />
+                        
+                        {/* Rotas com lazy loading */}
                         <Route path="/track/:orderId" element={<TrackOrder />} />
                         <Route path="/orders" element={<OrdersHistory />} />
                         <Route path="/verify-orders" element={<OrderVerification />} />
+                        
+                        {/* Admin - agora lazy! */}
                         <Route path="/admin/*" element={<AdminLayout />} />
                     </Routes>
                 </Suspense>
@@ -153,18 +176,17 @@ const AppContent = () => {
         );
     }
 
-    // Se não tiver tenant e estiver na raiz, mostrar página de boas-vindas
     const isRoot = pathname === '/' || pathname === '';
     if (!tenant && isRoot) {
         return <WelcomePage />;
     }
 
-    // Se não tiver tenant e não estiver na raiz, redirecionar para a raiz
     if (!tenant && !isRoot) {
         window.location.href = '/';
         return <LoadingFallback />;
     }
 
+    // Rotas com tenant
     return (
         <BrowserRouter>
             <Suspense fallback={<LoadingFallback />}>

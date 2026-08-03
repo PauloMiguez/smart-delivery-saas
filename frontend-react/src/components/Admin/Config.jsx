@@ -58,25 +58,6 @@ const FormRow = styled.div`
     }
 `;
 
-const CheckboxGroup = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    label {
-        font-weight: 400;
-        cursor: pointer;
-        color: ${props => props.theme.colors.text};
-    }
-
-    input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        accent-color: ${props => props.theme.colors.primary};
-    }
-`;
-
 const ImageUploadArea = styled.div`
     border: 2px dashed ${props => props.theme.colors.border};
     border-radius: ${props => props.theme.borderRadius.md};
@@ -172,18 +153,21 @@ const Message = styled.div`
     `}
 `;
 
+// ============================================================
+//  COMPONENTE PRINCIPAL - CORRIGIDO
+// ============================================================
 const Config = () => {
     const { tenant } = useTenant();
     const [config, setConfig] = useState({
         store_name: '',
         store_phone: '',
         delivery_fee: '3.00',
-        open_time: '09:00',
-        close_time: '22:00',
-        is_open: true,
         store_address: '',
         banner_image: '',
         logo_image: ''
+        // ❌ is_open REMOVIDO - agora gerenciado na aba Horários
+        // ❌ open_time REMOVIDO - agora gerenciado na aba Horários
+        // ❌ close_time REMOVIDO - agora gerenciado na aba Horários
     });
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
@@ -205,12 +189,10 @@ const Config = () => {
                 store_name: data.store_name || '',
                 store_phone: data.store_phone || '',
                 delivery_fee: data.delivery_fee || '3.00',
-                open_time: data.open_time || '09:00',
-                close_time: data.close_time || '22:00',
-                is_open: data.is_open === 'true' || data.is_open === true,
                 store_address: data.store_address || '',
                 banner_image: data.banner_image || '',
                 logo_image: data.logo_image || ''
+                // ❌ open_time, close_time, is_open NÃO são mais carregados
             });
             setBannerPreview(data.banner_image || '');
             setLogoPreview(data.logo_image || '');
@@ -221,10 +203,10 @@ const Config = () => {
     };
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
+        const { name, value } = e.target;
         setConfig(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: value
         }));
     };
 
@@ -290,8 +272,7 @@ const Config = () => {
                 formData.append('image', bannerFile);
                 const response = await api.post('/upload/banner', formData, {
                     headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        'Content-Type': 'multipart/form-data'
                     }
                 });
                 if (response.data.success) {
@@ -304,8 +285,7 @@ const Config = () => {
                 formData.append('image', logoFile);
                 const response = await api.post('/upload/logo', formData, {
                     headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        'Content-Type': 'multipart/form-data'
                     }
                 });
                 if (response.data.success) {
@@ -313,13 +293,13 @@ const Config = () => {
                 }
             }
 
+            // ============================================================
+            //  DADOS A SEREM SALVOS (sem is_open, open_time, close_time)
+            // ============================================================
             const data = {
                 store_name: config.store_name,
                 store_phone: config.store_phone,
                 delivery_fee: config.delivery_fee,
-                open_time: config.open_time,
-                close_time: config.close_time,
-                is_open: config.is_open ? 'true' : 'false',
                 store_address: config.store_address,
                 banner_image: bannerUrl,
                 logo_image: logoUrl
@@ -386,36 +366,10 @@ const Config = () => {
                         />
                     </FormGroup>
 
-                    <FormRow>
-                        <FormGroup>
-                            <label>Horário de Abertura</label>
-                            <Input
-                                type="time"
-                                name="open_time"
-                                value={config.open_time}
-                                onChange={handleChange}
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <label>Horário de Fechamento</label>
-                            <Input
-                                type="time"
-                                name="close_time"
-                                value={config.close_time}
-                                onChange={handleChange}
-                            />
-                        </FormGroup>
-                    </FormRow>
-
-                    <CheckboxGroup>
-                        <input
-                            type="checkbox"
-                            name="is_open"
-                            checked={config.is_open}
-                            onChange={handleChange}
-                        />
-                        <label>Loja aberta para pedidos</label>
-                    </CheckboxGroup>
+                    {/* ============================================================
+                        ❌ CAMPOS REMOVIDOS: open_time, close_time, is_open
+                        Agora gerenciados na aba "Horários" do admin
+                        ============================================================ */}
                 </ConfigSection>
 
                 <ConfigSection>

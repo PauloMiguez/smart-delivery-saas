@@ -25,99 +25,6 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProduction = NODE_ENV === 'production';
 
 // ============================================================
-//  FUNÇÕES AUXILIARES PARA DATA COM FUSO HORÁRIO LOCAL
-// ============================================================
-function getTodayLocal() {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function createLocalDate(dateStr) {
-    if (!dateStr) return null;
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-}
-
-// ============================================================
-//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA
-// ============================================================
-// ============================================================
-//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA - CORRIGIDA
-// ============================================================
-async function checkStoreOpenNow(tenantId) {
-    try {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const currentTime = now.toTimeString().split(' ')[0];
-
-        // 1. Verificar se está manualmente aberta
-        const [configRows] = await pool.query(
-            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
-            [tenantId, 'is_open']
-        );
-
-        const isManuallyOpen = configRows.length > 0 && configRows[0].config_value === 'true';
-        if (!isManuallyOpen) {
-            console.log('🏪 Loja desativada manualmente');
-            return false;
-        }
-
-        // 2. Verificar horário de funcionamento
-        const [operatingHours] = await pool.query(
-            `SELECT * FROM operating_hours 
-             WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
-            [tenantId, dayOfWeek]
-        );
-
-        if (operatingHours.length === 0) {
-            console.log('🏪 Sem horário configurado para hoje');
-            return false;
-        }
-
-        const hours = operatingHours[0];
-
-        // ✅ CORREÇÃO: Converter horários para minutos para comparação numérica
-        const [currentHour, currentMinute] = currentTime.split(':').map(Number);
-        const [openHour, openMinute] = hours.open_time.split(':').map(Number);
-        const [closeHour, closeMinute] = hours.close_time.split(':').map(Number);
-
-        const currentMinutes = currentHour * 60 + currentMinute;
-        const openMinutes = openHour * 60 + openMinute;
-        let closeMinutes = closeHour * 60 + closeMinute;
-
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
-        if (closeMinutes <= openMinutes) {
-            closeMinutes += 24 * 60;
-        }
-
-        console.log(`🕐 Comparação de horários:`);
-        console.log(`   Atual: ${currentTime} (${currentMinutes} min)`);
-        console.log(`   Abertura: ${hours.open_time} (${openMinutes} min)`);
-        console.log(`   Fechamento: ${hours.close_time} (${closeMinutes} min)`);
-
-        const isOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
-
-        // Verificar horário de almoço
-        let isBreak = false;
-        if (hours.break_start && hours.break_end) {
-            const [breakHour, breakMinute] = hours.break_start.split(':').map(Number);
-            const [breakEndHour, breakEndMinute] = hours.break_end.split(':').map(Number);
-            const breakStartMinutes = breakHour * 60 + breakMinute;
-            const breakEndMinutes = breakEndHour * 60 + breakEndMinute;
-
-            isBreak = currentMinutes >= breakStartMinutes && currentMinutes <= breakEndMinutes;
-        }
-
-        const result = isOpen && !isBreak;
-        console.log(`🏪 Loja ${result ? 'ABERTA' : 'FECHADA'} agora`);
-        return result;
-    } catch (error) {
-        console.error('❌ Erro ao verificar status da loja:', error);
-        return false;
-    }
-}
-
-// ============================================================
 //  VALIDAÇÃO DE VARIÁVEIS DE AMBIENTE
 // ============================================================
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
@@ -208,8 +115,7 @@ app.use((req, res, next) => {
         '/api/health',
         '/api/auth/login',
         '/api/auth/register',
-        '/api/test-db',
-        '/api/orders/available-slots'
+        '/api/test-db'
     ];
 
     // ROTAS DE TRACKING - NÃO PRECISAM DE TENANT (USAM TOKEN)
@@ -515,7 +421,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE PRODUTOS
+//  ROTAS DE PRODUTOS (MANTIDAS IGUAIS)
 // ============================================================
 
 app.get('/api/products', async (req, res) => {
@@ -613,7 +519,7 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE CATEGORIAS
+//  ROTAS DE CATEGORIAS (MANTIDAS IGUAIS)
 // ============================================================
 
 app.get('/api/categories', async (req, res) => {
@@ -710,186 +616,35 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE PEDIDOS - ORDEM CORRETA
-//  1. ROTAS ESPECÍFICAS (SEM PARÂMETROS)
-//  2. ROTAS COM PARÂMETROS
-//  3. ROTAS GERAIS
+//  ROTAS DE PEDIDOS (MANTIDAS IGUAIS)
 // ============================================================
 
-// ============================================================
-//  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS
-//     - DEVE VIR ANTES DE /api/orders/:id
-// ============================================================
-app.get('/api/orders/available-slots', async (req, res) => {
-    const tenantId = req.query.tenant || req.tenantId;
-
+app.get('/api/orders', async (req, res) => {
     try {
+        const tenantId = req.tenantId;
         if (!tenantId) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tenant não encontrado. Use ?tenant=seu_subdominio'
-            });
+            return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
         }
 
-        const { date } = req.query;
-        if (!date) {
-            return res.status(400).json({
-                success: false,
-                error: 'Data é obrigatória'
-            });
-        }
-
-        console.log(`📅 Buscando slots para: ${date}, tenant: ${tenantId}`);
-
-        // ============================================================
-        //  Criar data com fuso horário LOCAL
-        // ============================================================
-        const [year, month, day] = date.split('-').map(Number);
-        const selectedDate = new Date(year, month - 1, day);
-        const dayOfWeek = selectedDate.getDay();
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-        console.log(`📅 Data selecionada: ${dateStr}, Dia da semana: ${dayOfWeek}`);
-
-        // ============================================================
-        //  VERIFICAR LIMITE DE 2 DIAS
-        // ============================================================
-        const now = new Date();
-        const maxDate = new Date();
-        maxDate.setDate(maxDate.getDate() + 2);
-
-        const today = getTodayLocal();
-        const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-        const requestedDay = new Date(year, month - 1, day);
-
-        const todayTime = today.getTime();
-        const maxDayTime = maxDay.getTime();
-        const requestedTime = requestedDay.getTime();
-
-        if (requestedTime < todayTime || requestedTime > maxDayTime) {
-            return res.json({
-                success: true,
-                data: {
-                    date: dateStr,
-                    day_of_week: dayOfWeek,
-                    available: false,
-                    message: 'Apenas é possível agendar para hoje, amanhã ou depois de amanhã',
-                    slots: []
-                }
-            });
-        }
-
-        // ============================================================
-        //  BUSCAR HORÁRIOS DE FUNCIONAMENTO
-        // ============================================================
-        const [operatingHours] = await pool.query(
-            `SELECT * FROM operating_hours 
-             WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
-            [tenantId, dayOfWeek]
+        const [orders] = await pool.query(
+            'SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC',
+            [tenantId]
         );
 
-        console.log(`📊 Horários encontrados: ${operatingHours.length}`);
+        const processedOrders = orders.map(o => ({
+            ...o,
+            items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
+        }));
 
-        let openTime = '09:00:00';
-        let closeTime = '22:00:00';
-        let breakStart = null;
-        let breakEnd = null;
-
-        if (operatingHours.length > 0) {
-            openTime = operatingHours[0].open_time;
-            closeTime = operatingHours[0].close_time;
-            breakStart = operatingHours[0].break_start;
-            breakEnd = operatingHours[0].break_end;
-        }
-
-        console.log(`⏰ Horário de funcionamento: ${openTime} - ${closeTime}`);
-
-        // ============================================================
-        //  GERAR SLOTS DE 30 EM 30 MINUTOS - COM FILTRO DE HORÁRIOS PASSADOS
-        // ============================================================
-        const availableSlots = [];
-
-        // Converter horários para minutos
-        const [openHour, openMinute] = openTime.split(':').map(Number);
-        const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-
-        let startMinutes = openHour * 60 + openMinute;
-        let endMinutes = closeHour * 60 + closeMinute;
-
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
-        if (endMinutes <= startMinutes) {
-            endMinutes += 24 * 60;
-        }
-
-        // ✅ Verificar se a data é HOJE
-        const isToday = dateStr === today.toISOString().split('T')[0];
-        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-
-        console.log(`🔄 Gerando slots de ${startMinutes} até ${endMinutes} minutos`);
-        console.log(`📅 É hoje? ${isToday}`);
-        console.log(`🕐 Horário atual: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} (${currentTimeMinutes} min)`);
-
-        // Gerar slots de 30 em 30 minutos
-        for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-            const hours = Math.floor(minutes / 60) % 24;
-            const mins = minutes % 60;
-            const timeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
-            const displayTime = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-
-            // ✅ CORREÇÃO: Se for hoje, pular horários que já passaram
-            if (isToday && minutes <= currentTimeMinutes) {
-                console.log(`⏭️ Pulando horário passado: ${displayTime}`);
-                continue;
-            }
-
-            // Verificar se é horário de almoço
-            let isBreak = false;
-            if (breakStart && breakEnd) {
-                if (timeStr >= breakStart && timeStr <= breakEnd) {
-                    isBreak = true;
-                }
-            }
-
-            // ✅ Sem limite de pedidos - sempre disponível
-            if (!isBreak) {
-                availableSlots.push({
-                    time: displayTime,
-                    available: true,
-                    remaining: 999
-                });
-            } else {
-                console.log(`⏸️ Pulando horário de almoço: ${displayTime}`);
-            }
-        }
-        console.log(`✅ Slots disponíveis: ${availableSlots.length}`);
-
-        res.json({
-            success: true,
-            data: {
-                date: dateStr,
-                day_of_week: dayOfWeek,
-                available: availableSlots.length > 0,
-                open_time: openTime.substring(0, 5),
-                close_time: closeTime.substring(0, 5),
-                slots: availableSlots,
-                limits: {
-                    max_days_ahead: 2,
-                    max_orders_per_slot: 999
-                }
-            }
-        });
+        res.json({ success: true, data: processedOrders });
     } catch (error) {
-        console.error('❌ Erro ao buscar horários disponíveis:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao buscar horários: ' + error.message
-        });
+        console.error('Erro ao listar pedidos:', error);
+        res.status(500).json({ success: false, error: 'Erro ao carregar pedidos' });
     }
 });
 
 // ============================================================
-//  2. ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN
-//     - DEVE VIR DEPOIS DAS ROTAS ESPECÍFICAS
+//  ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN E RETORNA TENANT
 // ============================================================
 app.get('/api/orders/:id', async (req, res) => {
     try {
@@ -971,35 +726,7 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 // ============================================================
-//  3. ROTA GET /api/orders - LISTAR TODOS OS PEDIDOS
-//     - DEVE VIR DEPOIS DAS ROTAS COM PARÂMETROS
-// ============================================================
-app.get('/api/orders', async (req, res) => {
-    try {
-        const tenantId = req.tenantId;
-        if (!tenantId) {
-            return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
-        }
-
-        const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC',
-            [tenantId]
-        );
-
-        const processedOrders = orders.map(o => ({
-            ...o,
-            items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
-        }));
-
-        res.json({ success: true, data: processedOrders });
-    } catch (error) {
-        console.error('Erro ao listar pedidos:', error);
-        res.status(500).json({ success: false, error: 'Erro ao carregar pedidos' });
-    }
-});
-
-// ============================================================
-//  4. ROTA POST /api/orders - CRIAR PEDIDO
+//  ROTA POST /api/orders - COM NUMERAÇÃO SEQUENCIAL E TOKEN
 // ============================================================
 app.post('/api/orders', async (req, res) => {
     try {
@@ -1021,8 +748,8 @@ app.post('/api/orders', async (req, res) => {
             payment_method = 'dinheiro',
             delivery_type = 'delivery',
             notes = '',
-            scheduled_time,
-            is_scheduled = false
+            scheduled_time,      // NOVO: data/hora agendada (YYYY-MM-DD HH:MM:SS)
+            is_scheduled = false // NOVO: indica se é agendado
         } = req.body;
 
         console.log('📦 Pedido recebido:', {
@@ -1051,7 +778,7 @@ app.post('/api/orders', async (req, res) => {
         }
 
         // ============================================================
-        //  VALIDAÇÃO DO AGENDAMENTO - SEM LIMITE DE PEDIDOS
+        //  VALIDAÇÃO DO AGENDAMENTO - LIMITE DE 2 DIAS
         // ============================================================
         let finalScheduledTime = null;
         let finalStatus = 'pending';
@@ -1060,6 +787,7 @@ app.post('/api/orders', async (req, res) => {
         if (is_scheduled && scheduled_time) {
             const scheduledDate = new Date(scheduled_time);
 
+            // Verificar se a data é válida
             if (isNaN(scheduledDate.getTime())) {
                 return res.status(400).json({
                     success: false,
@@ -1067,22 +795,27 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
+            // ============================================================
+            //  VERIFICAR LIMITE DE 2 DIAS
+            // ============================================================
             const now = new Date();
             const maxDate = new Date();
             maxDate.setDate(maxDate.getDate() + 2);
 
-            const today = getTodayLocal();
+            // Normalizar para comparar apenas datas
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
             const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
 
-            // Verificar se é hoje ou futuro (dentro do limite de 2 dias)
+            // Verificar se é no futuro
             if (scheduledDay < today) {
                 return res.status(400).json({
                     success: false,
-                    error: 'A data do agendamento deve ser hoje ou no futuro'
+                    error: 'A data do agendamento deve ser no futuro'
                 });
             }
 
+            // Verificar limite de 2 dias
             if (scheduledDay > maxDay) {
                 return res.status(400).json({
                     success: false,
@@ -1090,7 +823,7 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Verificar disponibilidade do horário (sem limite de pedidos)
+            // Verificar disponibilidade do horário
             const isAvailable = await checkSlotAvailability(tenantId, scheduled_time);
             if (!isAvailable) {
                 return res.status(400).json({
@@ -1105,7 +838,7 @@ app.post('/api/orders', async (req, res) => {
         }
 
         // ============================================================
-        //  GERAR NÚMERO DO PEDIDO
+        //  GERAR NÚMERO DO PEDIDO - SEQUENCIAL POR TENANT COM PREFIXO
         // ============================================================
         const [lastOrder] = await pool.query(
             `SELECT order_number FROM orders 
@@ -1130,11 +863,14 @@ app.post('/api/orders', async (req, res) => {
 
         console.log(`📋 Número do pedido: ${orderNumber} (Sequencial: ${nextNumber})`);
 
+        // ============================================================
+        //  GERAR TOKEN ÚNICO PARA ACOMPANHAMENTO
+        // ============================================================
         const accessToken = crypto.randomBytes(32).toString('hex');
         console.log(`🔑 Token gerado: ${accessToken.substring(0, 16)}...`);
 
         // ============================================================
-        //  INSERIR PEDIDO
+        //  INSERIR PEDIDO NO BANCO - COM SUPORTE A AGENDAMENTO
         // ============================================================
         const [result] = await pool.query(
             `INSERT INTO orders (
@@ -1170,7 +906,7 @@ app.post('/api/orders', async (req, res) => {
         console.log(`✅ Pedido criado: ${orderNumber} ${is_scheduled ? '(Agendado para ' + scheduled_time + ')' : ''}`);
 
         // ============================================================
-        //  NOTIFICAÇÃO EM TEMPO REAL
+        //  NOTIFICAÇÃO EM TEMPO REAL - NOVO PEDIDO
         // ============================================================
         const io = req.app.get('io');
         if (io) {
@@ -1219,7 +955,9 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  FUNÇÃO PARA VERIFICAR DISPONIBILIDADE DE HORÁRIO - CORRIGIDA
+//  FUNÇÃO PARA VERIFICAR DISPONIBILIDADE DE HORÁRIO
+//  - Limite de 2 dias seguintes
+//  - Respeita dias e horários de funcionamento
 // ============================================================
 async function checkSlotAvailability(tenantId, scheduledTime) {
     try {
@@ -1228,118 +966,224 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
         const timeStr = scheduledDate.toTimeString().split(' ')[0];
         const dayOfWeek = scheduledDate.getDay();
 
-        console.log(`🔍 [checkSlotAvailability] Iniciando verificação`);
-        console.log(`   Tenant: ${tenantId}`);
-        console.log(`   Data: ${dateStr}`);
-        console.log(`   Horário: ${timeStr}`);
-        console.log(`   Dia da semana: ${dayOfWeek}`);
-
-        // Verificar limite de 2 dias
+        // ============================================================
+        //  1. VERIFICAR LIMITE DE 2 DIAS
+        // ============================================================
         const now = new Date();
         const maxDate = new Date();
-        maxDate.setDate(maxDate.getDate() + 2);
+        maxDate.setDate(maxDate.getDate() + 2); // +2 dias
 
-        const today = getTodayLocal();
+        // Normalizar para comparar apenas datas (sem hora)
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
         const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
 
-        console.log(`   Hoje: ${today.toISOString().split('T')[0]}`);
-        console.log(`   Max: ${maxDay.toISOString().split('T')[0]}`);
-        console.log(`   Agendado: ${scheduledDay.toISOString().split('T')[0]}`);
-
-        if (scheduledDay < today || scheduledDay > maxDay) {
-            console.log(`❌ [checkSlotAvailability] Data fora do limite de 2 dias`);
-            return false;
+        if (scheduledDay < today) {
+            return false; // Data passada
         }
 
-        // Buscar horários de funcionamento
-        console.log(`🔍 [checkSlotAvailability] Buscando horários de funcionamento...`);
+        if (scheduledDay > maxDay) {
+            return false; // Mais de 2 dias no futuro
+        }
+
+        // ============================================================
+        //  2. VERIFICAR DIA DE FUNCIONAMENTO
+        // ============================================================
         const [operatingHours] = await pool.query(
             `SELECT * FROM operating_hours 
              WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
             [tenantId, dayOfWeek]
         );
 
-        console.log(`   Horários encontrados: ${operatingHours.length}`);
-
+        // Se não tiver configuração, usa horário padrão (09:00 - 22:00)
         let openTime = '09:00:00';
         let closeTime = '22:00:00';
         let breakStart = null;
         let breakEnd = null;
+        let maxOrdersPerSlot = 5;
 
         if (operatingHours.length > 0) {
             openTime = operatingHours[0].open_time;
             closeTime = operatingHours[0].close_time;
             breakStart = operatingHours[0].break_start;
             breakEnd = operatingHours[0].break_end;
-            console.log(`   Horário configurado: ${openTime} - ${closeTime}`);
-        } else {
-            console.log(`   ⚠️ Nenhum horário configurado, usando padrão: ${openTime} - ${closeTime}`);
+            maxOrdersPerSlot = operatingHours[0].max_orders_per_day || 5;
         }
 
-        console.log(`   Horário solicitado: ${timeStr}`);
+        // ============================================================
+        //  3. VERIFICAR HORÁRIO DE FUNCIONAMENTO
+        // ============================================================
+        const requestedTime = timeStr;
 
-        // ✅ CORREÇÃO: Converter para minutos para comparação numérica
-        const [requestHour, requestMinute] = timeStr.split(':').map(Number);
-        const [openHour, openMinute] = openTime.split(':').map(Number);
-        const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-
-        const requestMinutes = requestHour * 60 + requestMinute;
-        const openMinutes = openHour * 60 + openMinute;
-        let closeMinutes = closeHour * 60 + closeMinute;
-
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
-        if (closeMinutes <= openMinutes) {
-            closeMinutes += 24 * 60;
-            // Se o horário solicitado for antes da abertura, considerar como dia seguinte
-            if (requestMinutes < openMinutes) {
-                // Ajustar para o dia seguinte (adicionar 24h)
-                const adjustedRequestMinutes = requestMinutes + 24 * 60;
-                console.log(`   🔄 Ajustando horário para o dia seguinte: ${timeStr} -> ${adjustedRequestMinutes} min`);
-
-                // Verificar se está dentro do expediente (com ajuste)
-                const isOpenAdjusted = adjustedRequestMinutes >= openMinutes && adjustedRequestMinutes <= closeMinutes;
-                if (isOpenAdjusted) {
-                    console.log(`✅ [checkSlotAvailability] Horário DISPONÍVEL!`);
-                    return true;
-                }
-                console.log(`❌ [checkSlotAvailability] Horário fora do expediente (${openTime} - ${closeTime})`);
-                return false;
-            }
-        }
-
-        console.log(`   Horário em minutos: solicitado=${requestMinutes}, abertura=${openMinutes}, fechamento=${closeMinutes}`);
-
-        // Verificar se está dentro do horário de funcionamento
-        if (requestMinutes < openMinutes || requestMinutes > closeMinutes) {
-            console.log(`❌ [checkSlotAvailability] Horário fora do expediente (${openTime} - ${closeTime})`);
+        // Verificar se o horário está dentro do expediente
+        if (requestedTime < openTime || requestedTime > closeTime) {
             return false;
         }
 
-        // Verificar horário de almoço
+        // Verificar horário de almoço (se tiver)
         if (breakStart && breakEnd) {
-            const [breakHour, breakMinute] = breakStart.split(':').map(Number);
-            const [breakEndHour, breakEndMinute] = breakEnd.split(':').map(Number);
-            const breakStartMinutes = breakHour * 60 + breakMinute;
-            const breakEndMinutes = breakEndHour * 60 + breakEndMinute;
-
-            if (requestMinutes >= breakStartMinutes && requestMinutes <= breakEndMinutes) {
-                console.log(`❌ [checkSlotAvailability] Horário de almoço (${breakStart} - ${breakEnd})`);
+            if (requestedTime >= breakStart && requestedTime <= breakEnd) {
                 return false;
             }
         }
 
-        // ✅ SEM LIMITE DE PEDIDOS - sempre disponível se estiver no horário
-        console.log(`✅ [checkSlotAvailability] Horário DISPONÍVEL!`);
-        return true;
+        // ============================================================
+        //  4. VERIFICAR LIMITE DE PEDIDOS POR SLOT
+        // ============================================================
+        const [countResult] = await pool.query(
+            `SELECT COUNT(*) as total FROM orders 
+             WHERE tenant_id = ? 
+               AND DATE(scheduled_time) = ? 
+               AND TIME(scheduled_time) = ? 
+               AND status != 'canceled'`,
+            [tenantId, dateStr, timeStr]
+        );
+
+        return countResult[0].total < maxOrdersPerSlot;
     } catch (error) {
-        console.error('❌ [checkSlotAvailability] Erro:', error);
+        console.error('❌ Erro ao verificar disponibilidade:', error);
         return false;
     }
 }
+
 // ============================================================
-//  5. ROTA PUT /api/orders/:id/status - ATUALIZAR STATUS
+//  ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS
+//  - Retorna slots para os próximos 2 dias
 // ============================================================
+app.get('/api/orders/available-slots', async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        if (!tenantId) {
+            return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
+        }
+
+        const { date } = req.query;
+        if (!date) {
+            return res.status(400).json({ success: false, error: 'Data é obrigatória' });
+        }
+
+        const selectedDate = new Date(date);
+        const dayOfWeek = selectedDate.getDay();
+        const dateStr = selectedDate.toISOString().split('T')[0];
+
+        // ============================================================
+        //  VERIFICAR LIMITE DE 2 DIAS
+        // ============================================================
+        const now = new Date();
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + 2);
+        
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+        const requestedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        
+        if (requestedDay < today || requestedDay > maxDay) {
+            return res.json({
+                success: true,
+                data: {
+                    date: dateStr,
+                    day_of_week: dayOfWeek,
+                    available: false,
+                    message: 'Apenas é possível agendar para hoje, amanhã ou depois de amanhã',
+                    slots: []
+                }
+            });
+        }
+
+        // ============================================================
+        //  BUSCAR HORÁRIOS DE FUNCIONAMENTO
+        // ============================================================
+        const [operatingHours] = await pool.query(
+            `SELECT * FROM operating_hours 
+             WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
+            [tenantId, dayOfWeek]
+        );
+
+        let openTime = '09:00:00';
+        let closeTime = '22:00:00';
+        let breakStart = null;
+        let breakEnd = null;
+        let maxOrdersPerSlot = 5;
+
+        if (operatingHours.length > 0) {
+            openTime = operatingHours[0].open_time;
+            closeTime = operatingHours[0].close_time;
+            breakStart = operatingHours[0].break_start;
+            breakEnd = operatingHours[0].break_end;
+            maxOrdersPerSlot = operatingHours[0].max_orders_per_day || 5;
+        }
+
+        const availableSlots = [];
+
+        // ============================================================
+        //  GERAR SLOTS DE 30 EM 30 MINUTOS
+        // ============================================================
+        let current = new Date(`${dateStr}T${openTime}`);
+        const close = new Date(`${dateStr}T${closeTime}`);
+
+        while (current < close) {
+            const timeStr = current.toTimeString().split(' ')[0];
+            
+            // Verificar se está no horário de almoço
+            let isBreak = false;
+            if (breakStart && breakEnd) {
+                if (timeStr >= breakStart && timeStr <= breakEnd) {
+                    isBreak = true;
+                }
+            }
+
+            // Se não estiver no almoço, verificar disponibilidade
+            if (!isBreak) {
+                const [countResult] = await pool.query(
+                    `SELECT COUNT(*) as total FROM orders 
+                     WHERE tenant_id = ? 
+                       AND DATE(scheduled_time) = ? 
+                       AND TIME(scheduled_time) = ? 
+                       AND status != 'canceled'`,
+                    [tenantId, dateStr, timeStr]
+                );
+
+                const available = countResult[0].total < maxOrdersPerSlot;
+                const remaining = maxOrdersPerSlot - countResult[0].total;
+
+                // Formatar hora para exibição (HH:MM)
+                const displayTime = timeStr.substring(0, 5);
+                
+                availableSlots.push({
+                    time: displayTime,
+                    available: available,
+                    remaining: remaining
+                });
+            }
+
+            // Avançar 30 minutos
+            current.setMinutes(current.getMinutes() + 30);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                date: dateStr,
+                day_of_week: dayOfWeek,
+                available: availableSlots.length > 0,
+                open_time: openTime.substring(0, 5),
+                close_time: closeTime.substring(0, 5),
+                slots: availableSlots,
+                limits: {
+                    max_days_ahead: 2,
+                    max_orders_per_slot: maxOrdersPerSlot
+                }
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro ao buscar horários disponíveis:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar horários: ' + error.message
+        });
+    }
+});
+
 app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -1368,6 +1212,9 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
         }
 
+        // ============================================================
+        //  NOTIFICAÇÃO EM TEMPO REAL - STATUS ATUALIZADO
+        // ============================================================
         const io = req.app.get('io');
         if (io) {
             const [orderInfo] = await pool.query(
@@ -1398,7 +1245,7 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR)
+//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR) - CORRIGIDA
 // ============================================================
 
 app.get('/api/config', async (req, res) => {
@@ -1445,7 +1292,10 @@ app.get('/api/config', async (req, res) => {
 
         const defaultConfig = {
             store_name: 'Minha Loja',
+            is_open: 'true',
             delivery_fee: '3.00',
+            open_time: '09:00',
+            close_time: '22:00',
             store_address: '',
             store_phone: '',
             banner_image: '',
@@ -1462,122 +1312,6 @@ app.get('/api/config', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro ao carregar configurações: ' + error.message
-        });
-    }
-});
-
-// ============================================================
-//  ENDPOINT PARA VERIFICAR STATUS DA LOJA - CORRIGIDO
-// ============================================================
-app.get('/api/store/status', async (req, res) => {
-    try {
-        const tenantId = req.tenantId;
-        if (!tenantId) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tenant não encontrado'
-            });
-        }
-
-        // 1. Verificar se a loja está manualmente aberta
-        const [configRows] = await pool.query(
-            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
-            [tenantId, 'is_open']
-        );
-
-        const isManuallyOpen = configRows.length > 0 && configRows[0].config_value === 'true';
-
-        // Se estiver manualmente fechada, retorna fechado
-        if (!isManuallyOpen) {
-            return res.json({
-                success: true,
-                data: {
-                    is_open: false,
-                    reason: 'Loja desativada manualmente',
-                    manual_override: true
-                }
-            });
-        }
-
-        // 2. Verificar horários de funcionamento
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const currentTime = now.toTimeString().split(' ')[0];
-
-        const [operatingHours] = await pool.query(
-            `SELECT * FROM operating_hours 
-             WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
-            [tenantId, dayOfWeek]
-        );
-
-        if (operatingHours.length === 0) {
-            return res.json({
-                success: true,
-                data: {
-                    is_open: false,
-                    reason: 'Restaurante fechado hoje',
-                    manual_override: false
-                }
-            });
-        }
-
-        const hours = operatingHours[0];
-
-        // ============================================================
-        //  ✅ CORREÇÃO: Converter horários para minutos
-        // ============================================================
-        const [currentHour, currentMinute] = currentTime.split(':').map(Number);
-        const [openHour, openMinute] = hours.open_time.split(':').map(Number);
-        const [closeHour, closeMinute] = hours.close_time.split(':').map(Number);
-
-        const currentMinutes = currentHour * 60 + currentMinute;
-        const openMinutes = openHour * 60 + openMinute;
-        let closeMinutes = closeHour * 60 + closeMinute;
-
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
-        if (closeMinutes <= openMinutes) {
-            closeMinutes += 24 * 60;
-        }
-
-        console.log(`🕐 [store/status] Comparação:`);
-        console.log(`   Atual: ${currentTime} (${currentMinutes} min)`);
-        console.log(`   Abertura: ${hours.open_time} (${openMinutes} min)`);
-        console.log(`   Fechamento: ${hours.close_time} (${closeMinutes} min)`);
-
-        const isOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
-
-        // Verificar horário de almoço
-        let isBreak = false;
-        if (hours.break_start && hours.break_end) {
-            const [breakHour, breakMinute] = hours.break_start.split(':').map(Number);
-            const [breakEndHour, breakEndMinute] = hours.break_end.split(':').map(Number);
-            const breakStartMinutes = breakHour * 60 + breakMinute;
-            const breakEndMinutes = breakEndHour * 60 + breakEndMinute;
-
-            isBreak = currentMinutes >= breakStartMinutes && currentMinutes <= breakEndMinutes;
-        }
-
-        const result = isOpen && !isBreak;
-
-        res.json({
-            success: true,
-            data: {
-                is_open: result,
-                reason: result ? 'Aberto' : (isBreak ? 'Horário de almoço' : 'Fechado'),
-                manual_override: false,
-                day_of_week: dayOfWeek,
-                current_time: currentTime,
-                open_time: hours.open_time,
-                close_time: hours.close_time,
-                break_start: hours.break_start,
-                break_end: hours.break_end
-            }
-        });
-    } catch (error) {
-        console.error('❌ Erro ao verificar status da loja:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao verificar status da loja: ' + error.message
         });
     }
 });
@@ -1625,6 +1359,7 @@ app.put('/api/config', verifyToken, async (req, res) => {
 //  ENDPOINTS PARA GERENCIAR HORÁRIOS DE FUNCIONAMENTO
 // ============================================================
 
+// GET - Buscar todos os horários do tenant
 app.get('/api/operating-hours', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -1632,19 +1367,20 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
             'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
             [tenantId]
         );
-
+        
+        // Se não tiver configuração, criar padrão
         if (hours.length === 0) {
             const defaultHours = [];
             for (let i = 0; i < 7; i++) {
                 defaultHours.push({
                     day_of_week: i,
-                    is_open: i !== 0,
+                    is_open: i !== 0, // Domingo fechado por padrão
                     open_time: '09:00:00',
                     close_time: i === 0 ? '18:00:00' : '22:00:00',
                     max_orders_per_day: i === 0 ? 3 : 5
                 });
             }
-
+            
             for (const h of defaultHours) {
                 await pool.query(
                     `INSERT INTO operating_hours 
@@ -1653,14 +1389,14 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
                     [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.max_orders_per_day]
                 );
             }
-
+            
             const [newHours] = await pool.query(
                 'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
                 [tenantId]
             );
             return res.json({ success: true, data: newHours });
         }
-
+        
         res.json({ success: true, data: hours });
     } catch (error) {
         console.error('❌ Erro ao buscar horários:', error);
@@ -1668,6 +1404,7 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
     }
 });
 
+// PUT - Atualizar horário de um dia específico
 app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -1678,12 +1415,14 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Dia inválido (0-6)' });
         }
 
+        // Verificar se já existe
         const [existing] = await pool.query(
             'SELECT * FROM operating_hours WHERE tenant_id = ? AND day_of_week = ?',
             [tenantId, dayOfWeek]
         );
 
         if (existing.length === 0) {
+            // Criar novo registro
             await pool.query(
                 `INSERT INTO operating_hours 
                  (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
@@ -1691,6 +1430,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
                 [tenantId, dayOfWeek, is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 5]
             );
         } else {
+            // Atualizar existente
             await pool.query(
                 `UPDATE operating_hours 
                  SET is_open = ?, open_time = ?, close_time = ?, 
@@ -1700,6 +1440,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
             );
         }
 
+        // Buscar o registro atualizado
         const [updated] = await pool.query(
             'SELECT * FROM operating_hours WHERE tenant_id = ? AND day_of_week = ?',
             [tenantId, dayOfWeek]
@@ -1708,7 +1449,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
         res.json({
             success: true,
             data: updated[0],
-            message: `Horário do dia ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][dayOfWeek]} atualizado com sucesso!`
+            message: `Horário do dia ${['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dayOfWeek]} atualizado com sucesso!`
         });
     } catch (error) {
         console.error('❌ Erro ao atualizar horário:', error);
@@ -1716,10 +1457,11 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
     }
 });
 
+// PUT - Atualizar todos os horários de uma vez
 app.put('/api/operating-hours', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const { hours } = req.body;
+        const { hours } = req.body; // Array com 7 dias
 
         if (!Array.isArray(hours) || hours.length !== 7) {
             return res.status(400).json({ success: false, error: 'É necessário enviar os 7 dias da semana' });
@@ -1748,6 +1490,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
             await connection.commit();
             connection.release();
 
+            // Buscar todos os horários atualizados
             const [updated] = await pool.query(
                 'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
                 [tenantId]
@@ -1770,7 +1513,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE UPLOAD DE IMAGENS (CLOUDINARY)
+//  ROTAS DE UPLOAD DE IMAGENS (CLOUDINARY) - MANTIDAS IGUAIS
 // ============================================================
 
 app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async (req, res) => {
@@ -1879,7 +1622,7 @@ app.post('/api/upload/product', verifyToken, uploadProduct.single('image'), asyn
 });
 
 // ============================================================
-//  ROTAS DE ESTATÍSTICAS (DASHBOARD)
+//  ROTAS DE ESTATÍSTICAS (DASHBOARD) - MANTIDAS IGUAIS
 // ============================================================
 
 app.get('/api/stats/orders', async (req, res) => {
@@ -1935,6 +1678,9 @@ app.get('/api/stats/orders', async (req, res) => {
     }
 });
 
+// ============================================================
+//  ROTA DE DASHBOARD - ESTATÍSTICAS AVANÇADAS (NOVA)
+// ============================================================
 app.get('/api/stats/dashboard', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -2090,7 +1836,7 @@ app.get('/api/tenant', (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE ARQUIVOS ESTÁTICOS
+//  ROTAS DE ARQUIVOS ESTÁTICOS (VERSÃO RENDER - CORRIGIDA)
 // ============================================================
 
 const PROJECT_ROOT = path.join(__dirname, '..');
@@ -2165,6 +1911,7 @@ const tenantLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 100,
     keyGenerator: (req) => {
+        // Usa tenantId se existir, senão usa a função padrão para IP
         return req.tenantId || rateLimit.ipKeyGenerator(req);
     },
     handler: (req, res) => {
@@ -2178,7 +1925,7 @@ const tenantLimiter = rateLimit({
 app.use('/api/', tenantLimiter);
 
 // ============================================================
-//  ROTA DE DELETE DE IMAGEM
+//  ROTA DE DELETE DE IMAGEM (CORRIGIDA - ÚNICA VERSÃO)
 // ============================================================
 app.post('/api/upload/delete', verifyToken, async (req, res) => {
     try {
@@ -2248,7 +1995,7 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 // ============================================================
-//  INICIAR SERVIDOR
+//  INICIAR SERVIDOR COM WEBSOCKET
 // ============================================================
 
 testDatabaseConnection().then(() => {

@@ -1,3 +1,4 @@
+// frontend-react/src/components/Client/ClientLayout.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -147,6 +148,20 @@ const MetaRow = styled.div`
     }
 `;
 
+const StoreHoursInfo = styled.div`
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    
+    .highlight {
+        color: #e67e22;
+        font-weight: 600;
+    }
+`;
+
 // ============================================================
 //  LINK DE MEUS PEDIDOS
 // ============================================================
@@ -270,33 +285,6 @@ const MenuCount = styled.span`
 `;
 
 // ============================================================
-//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA
-// ============================================================
-const isStoreOpen = (openTime, closeTime) => {
-    if (!openTime || !closeTime) return false;
-    
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentMinutes = currentHour * 60 + currentMinute;
-    
-    const [openHour, openMinute] = openTime.split(':').map(Number);
-    const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-    
-    const openMinutes = openHour * 60 + openMinute;
-    let closeMinutes = closeHour * 60 + closeMinute;
-    
-    if (closeMinutes <= openMinutes) {
-        closeMinutes += 24 * 60;
-        if (currentMinutes < openMinutes) return false;
-        if (currentMinutes >= closeMinutes) return false;
-        return true;
-    }
-    
-    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-};
-
-// ============================================================
 //  CARRINHO FLUTUANTE
 // ============================================================
 const FloatingCart = styled.button`
@@ -372,20 +360,21 @@ const ClientLayout = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const [storeStatus, setStoreStatus] = useState(null);
+    const [operatingHours, setOperatingHours] = useState([]);
 
     // Forçar referência aos componentes (evita tree-shaking)
     const _forceComponents = [OrdersHistory, TrackOrder];
 
     // ============================================================
     //  SE NÃO TIVER TENANT, MOSTRAR PÁGINA DE BOAS-VINDAS
-    //  (DENTRO DO COMPONENTE PARA TER ACESSO AOS PROVIDERS)
     // ============================================================
     if (!tenant && !tenantLoading) {
         return (
-            <div style={{ 
-                maxWidth: 480, 
-                margin: '0 auto', 
-                padding: '60px 20px', 
+            <div style={{
+                maxWidth: 480,
+                margin: '0 auto',
+                padding: '60px 20px',
                 textAlign: 'center',
                 minHeight: '100vh',
                 display: 'flex',
@@ -398,9 +387,9 @@ const ClientLayout = () => {
                 <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
                     Sistema de delivery para restaurantes
                 </p>
-                <div style={{ 
-                    background: '#f8f9fa', 
-                    padding: '20px', 
+                <div style={{
+                    background: '#f8f9fa',
+                    padding: '20px',
                     borderRadius: '12px',
                     width: '100%',
                     maxWidth: 380
@@ -408,7 +397,7 @@ const ClientLayout = () => {
                     <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
                         Para acessar um restaurante, use o link correto:
                     </p>
-                    <code style={{ 
+                    <code style={{
                         display: 'block',
                         background: '#fff',
                         padding: '8px 12px',
@@ -417,12 +406,12 @@ const ClientLayout = () => {
                         wordBreak: 'break-all',
                         color: '#e67e22'
                     }}>
-                        https://smart-delivery-saas.onrender.com/?tenant=fireburger
+                        https://smart-delivery-saas.onrender.com/?tenant=seu_subdominio
                     </code>
                     <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
                         Ou use o painel administrativo:
                     </p>
-                    <code style={{ 
+                    <code style={{
                         display: 'block',
                         background: '#fff',
                         padding: '8px 12px',
@@ -431,35 +420,56 @@ const ClientLayout = () => {
                         wordBreak: 'break-all',
                         color: '#e67e22'
                     }}>
-                        https://smart-delivery-saas.onrender.com/admin?tenant=fireburger
+                        https://smart-delivery-saas.onrender.com/admin?tenant=seu_subdominio
                     </code>
+                    <p style={{
+                        color: '#888',
+                        fontSize: '12px',
+                        marginTop: 16,
+                        fontStyle: 'italic'
+                    }}>
+                        💡 Substitua "seu_subdominio" pelo subdomínio cadastrado
+                    </p>
                 </div>
             </div>
         );
     }
 
+    // ============================================================
+    //  CARREGAR DADOS
+    // ============================================================
     useEffect(() => {
         if (!tenant) return;
 
         const loadData = async () => {
             try {
                 setIsLoading(true);
-                const [configRes, productsRes, categoriesRes] = await Promise.all([
+                const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
                     api.get('/config'),
                     api.get('/products?active_only=true'),
-                    api.get('/categories')
+                    api.get('/categories'),
+                    api.get('/store/status'),
+                    api.get('/operating-hours')
                 ]);
+
                 const productsData = productsRes.data.data || [];
                 const categoriesData = categoriesRes.data.data || [];
-                
+
                 setConfig(configRes.data.data);
                 setProducts(productsData);
-                
+                setStoreStatus(statusRes.data.data);
+                setOperatingHours(hoursRes.data.data || []);
+
+                // Verificar status da loja
+                if (statusRes.data.success) {
+                    setIsOpen(statusRes.data.data.is_open);
+                }
+
                 const sortedCategories = categoriesData
                     .filter(cat => productsData.some(p => p.category === cat.name && p.active))
                     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                     .map(cat => cat.name);
-                
+
                 setCategories(sortedCategories);
                 if (sortedCategories.length > 0) {
                     setActiveCategory(sortedCategories[0]);
@@ -475,6 +485,33 @@ const ClientLayout = () => {
         loadData();
     }, [tenant]);
 
+    // ============================================================
+    //  ATUALIZAR STATUS DA LOJA A CADA 60 SEGUNDOS
+    // ============================================================
+    useEffect(() => {
+        if (!tenant) return;
+
+        const checkStatus = async () => {
+            try {
+                const response = await api.get('/store/status');
+                if (response.data.success) {
+                    setIsOpen(response.data.data.is_open);
+                    setStoreStatus(response.data.data);
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+            }
+        };
+
+        checkStatus();
+        const interval = setInterval(checkStatus, 60000);
+
+        return () => clearInterval(interval);
+    }, [tenant]);
+
+    // ============================================================
+    //  FILTRAR PRODUTOS POR CATEGORIA
+    // ============================================================
     useEffect(() => {
         if (activeCategory) {
             setFilteredProducts(products.filter(p => p.category === activeCategory));
@@ -483,20 +520,6 @@ const ClientLayout = () => {
         }
     }, [activeCategory, products]);
 
-    useEffect(() => {
-        if (!config) return;
-        
-        const checkStatus = () => {
-            const open = isStoreOpen(config.open_time, config.close_time);
-            setIsOpen(open);
-        };
-        
-        checkStatus();
-        const interval = setInterval(checkStatus, 60000);
-        
-        return () => clearInterval(interval);
-    }, [config]);
-
     const scrollToCategory = (category) => {
         setActiveCategory(category);
         const element = document.getElementById(`category-${category}`);
@@ -504,6 +527,17 @@ const ClientLayout = () => {
             element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     };
+
+    // ============================================================
+    //  OBTER HORÁRIO DO DIA ATUAL
+    // ============================================================
+    const getTodayHours = () => {
+        const today = new Date().getDay();
+        const todayHours = operatingHours.find(h => h.day_of_week === today);
+        return todayHours;
+    };
+
+    const todayHours = getTodayHours();
 
     if (tenantLoading || (isLoading && !config)) {
         return <div className="loader">Carregando...</div>;
@@ -543,11 +577,44 @@ const ClientLayout = () => {
                             <Badge status={isOpen ? 'open' : 'closed'}>
                                 {isOpen ? '🟢 Aberto' : '🔴 Fechado'}
                             </Badge>
-                            <span>{config?.open_time || '09:00'} – {config?.close_time || '22:00'}</span>
-                            {config?.store_address && (
-                                <span className="address">📍 {config.store_address}</span>
+                            {!isOpen && (
+                                <span style={{ fontSize: '12px', color: '#e67e22' }}>
+                                    📅 Agende seu pedido para o próximo horário disponível
+                                </span>
+                            )}
+                            {storeStatus?.reason && (
+                                <span style={{ fontSize: '12px', color: '#888' }}>
+                                    {storeStatus.reason}
+                                </span>
                             )}
                         </MetaRow>
+
+                        {todayHours && (
+                            <StoreHoursInfo>
+                                {todayHours.is_open ? (
+                                    <>
+                                        🕐 Aberto das <span className="highlight">
+                                            {todayHours.open_time?.substring(0, 5)}
+                                        </span> às <span className="highlight">
+                                            {todayHours.close_time?.substring(0, 5)}
+                                        </span>
+                                        {todayHours.break_start && todayHours.break_end && (
+                                            <span style={{ fontSize: '12px', color: '#aaa', display: 'block', marginTop: '2px' }}>
+                                                ⏸️ Intervalo: {todayHours.break_start?.substring(0, 5)} - {todayHours.break_end?.substring(0, 5)}
+                                            </span>
+                                        )}
+                                    </>
+                                ) : (
+                                    <span style={{ color: '#e74c3c' }}>🔴 Fechado hoje</span>
+                                )}
+                            </StoreHoursInfo>
+                        )}
+
+                        {config?.store_address && (
+                            <MetaRow>
+                                <span className="address">📍 {config.store_address}</span>
+                            </MetaRow>
+                        )}
                     </StoreMeta>
 
                     <OrdersLinkWrapper>
@@ -602,7 +669,7 @@ const ClientLayout = () => {
                 )}
             </FloatingCart>
 
-            <CartDrawer 
+            <CartDrawer
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
             />

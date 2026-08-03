@@ -46,7 +46,7 @@ api.interceptors.request.use(config => {
     // ============================================================
     //  CORREÇÃO: Não adicionar tenant para rotas de tracking
     // ============================================================
-    const publicRoutes = ['/auth/login', '/auth/register', '/health', '/test-db'];
+    const publicRoutes = ['/auth/login', '/auth/register', '/health', '/test-db', '/orders/available-slots'];
     const isPublicRoute = publicRoutes.some(route => config.url?.includes(route));
     
     // Verificar se é uma rota de tracking (contém 'token=' na URL)
