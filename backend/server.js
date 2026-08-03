@@ -1550,23 +1550,32 @@ app.put('/api/config', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINTS PARA GERENCIAR HORÁRIOS DE FUNCIONAMENTO
+//  ENDPOINT PARA BUSCAR HORÁRIOS - PÚBLICO (SEM AUTENTICAÇÃO)
 // ============================================================
-
-app.get('/api/operating-hours', verifyToken, async (req, res) => {
+app.get('/api/operating-hours', async (req, res) => {
     try {
         const tenantId = req.tenantId;
+        console.log('🔍 Buscando horários para tenant:', tenantId);
+        
+        if (!tenantId) {
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
+            });
+        }
+
         const [hours] = await pool.query(
             'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
             [tenantId]
         );
 
         if (hours.length === 0) {
+            console.log('📝 Criando horários padrão para tenant:', tenantId);
             const defaultHours = [];
             for (let i = 0; i < 7; i++) {
                 defaultHours.push({
                     day_of_week: i,
-                    is_open: i !== 0,
+                    is_open: i !== 0 ? 1 : 0,
                     open_time: '09:00:00',
                     close_time: i === 0 ? '18:00:00' : '22:00:00',
                     max_orders_per_day: 999
@@ -1578,7 +1587,7 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
                     `INSERT INTO operating_hours 
                      (tenant_id, day_of_week, is_open, open_time, close_time, max_orders_per_day)
                      VALUES (?, ?, ?, ?, ?, ?)`,
-                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.max_orders_per_day]
+                    [tenantId, h.day_of_week, h.is_open, h.open_time, h.close_time, h.max_orders_per_day]
                 );
             }
 
@@ -1592,10 +1601,65 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
         res.json({ success: true, data: hours });
     } catch (error) {
         console.error('❌ Erro ao buscar horários:', error);
-        res.status(500).json({ success: false, error: 'Erro ao buscar horários' });
+        res.status(500).json({ success: false, error: 'Erro ao buscar horários: ' + error.message });
     }
 });
 
+// ============================================================
+//  ENDPOINT PARA ATUALIZAR HORÁRIOS - PROTEGIDO (COM AUTENTICAÇÃO)
+// ============================================================
+app.put('/api/operating-hours', verifyToken, async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        const { hours } = req.body;
+
+        if (!Array.isArray(hours) || hours.length !== 7) {
+            return res.status(400).json({ success: false, error: 'É necessário enviar os 7 dias da semana' });
+        }
+
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            for (const h of hours) {
+                await connection.query(
+                    `INSERT INTO operating_hours 
+                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE 
+                     is_open = VALUES(is_open),
+                     open_time = VALUES(open_time),
+                     close_time = VALUES(close_time),
+                     break_start = VALUES(break_start),
+                     break_end = VALUES(break_end),
+                     max_orders_per_day = VALUES(max_orders_per_day)`,
+                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null, h.max_orders_per_day || 999]
+                );
+            }
+
+            await connection.commit();
+            connection.release();
+
+            const [updated] = await pool.query(
+                'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
+                [tenantId]
+            );
+
+            res.json({
+                success: true,
+                data: updated,
+                message: 'Horários de funcionamento atualizados com sucesso!'
+            });
+        } catch (error) {
+            await connection.rollback();
+            connection.release();
+            throw error;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao atualizar horários:', error);
+        res.status(500).json({ success: false, error: 'Erro ao atualizar horários: ' + error.message });
+    }
+});
 app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
