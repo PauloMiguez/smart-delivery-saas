@@ -1,4 +1,3 @@
-// frontend-react/vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -28,20 +27,21 @@ export default defineConfig({
                     'styled-vendor': ['styled-components'],
                     'socket-vendor': ['socket.io-client'],
                     'date-vendor': ['date-fns'],
-                    // REMOVA 'react-icons' se estiver causando problema
+                    'icons-vendor': ['react-icons'],
+                    'axios-vendor': ['axios'],
                 }
             }
         },
         minify: 'terser',
         terserOptions: {
             compress: {
-                drop_console: process.env.NODE_ENV === 'production',
-                drop_debugger: process.env.NODE_ENV === 'production',
-                pure_funcs: ['console.log', 'console.debug']
+                drop_console: false,
+                drop_debugger: false,
+                pure_funcs: []
             }
         },
         cssCodeSplit: true,
-        sourcemap: process.env.NODE_ENV !== 'production',
+        sourcemap: true,
         chunkSizeWarningLimit: 500,
         reportCompressed: true
     },
@@ -54,10 +54,8 @@ export default defineConfig({
             'recharts',
             'socket.io-client',
             'axios'
-            // REMOVA 'react-icons' se estiver causando problema
         ]
     },
-    // ADICIONE esta configuração para resolver problemas de resolução
     resolve: {
         alias: {
             'react-icons': 'react-icons'
