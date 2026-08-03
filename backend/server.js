@@ -689,8 +689,7 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS
-//     - SEM LIMITE DE PEDIDOS POR HORÁRIO
+//  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS - CORRIGIDO
 // ============================================================
 app.get('/api/orders/available-slots', async (req, res) => {
     const tenantId = req.query.tenant || req.tenantId;
@@ -765,11 +764,23 @@ app.get('/api/orders/available-slots', async (req, res) => {
             closeTime = operatingHours[0].close_time;
             breakStart = operatingHours[0].break_start;
             breakEnd = operatingHours[0].break_end;
+        } else {
+            // Se não tem horário configurado, considerar fechado
+            return res.json({
+                success: true,
+                data: {
+                    date: dateStr,
+                    day_of_week: dayOfWeek,
+                    available: false,
+                    message: 'Restaurante fechado neste dia',
+                    slots: []
+                }
+            });
         }
 
         console.log(`⏰ Horário de funcionamento: ${openTime} - ${closeTime}`);
 
-        // Gerar slots de 30 em 30 minutos - SEM LIMITE DE PEDIDOS
+        // Gerar slots de 30 em 30 minutos
         const availableSlots = [];
 
         const [openHour, openMinute] = openTime.split(':').map(Number);
@@ -778,6 +789,13 @@ app.get('/api/orders/available-slots', async (req, res) => {
         let startMinutes = openHour * 60 + openMinute;
         let endMinutes = closeHour * 60 + closeMinute;
 
+        // ✅ CORREÇÃO: Se fechar meia-noite (00:00), ajustar para 24:00 (1440 minutos)
+        if (endMinutes === 0) {
+            endMinutes = 24 * 60; // 1440 minutos
+            console.log(`   🔄 Ajustando fechamento para 24:00 (${endMinutes} min)`);
+        }
+
+        // Se o horário de fechamento for menor que o de abertura (ex: 14:00 - 00:00)
         if (endMinutes <= startMinutes) {
             endMinutes += 24 * 60;
         }
@@ -787,39 +805,64 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`🔄 Gerando slots de ${startMinutes} até ${endMinutes} minutos`);
         console.log(`📅 É hoje? ${isToday}`);
+        console.log(`🕐 Horário atual: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} (${currentTimeMinutes} min)`);
 
-        for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-            const hours = Math.floor(minutes / 60) % 24;
-            const mins = minutes % 60;
+        // ✅ CORREÇÃO: Para hoje, só mostrar horários a partir do próximo horário cheio
+        // Arredondar para o próximo horário de 30 em 30 minutos
+        let startFromMinutes = startMinutes;
+        if (isToday) {
+            // Arredondar para o próximo múltiplo de 30
+            const nextSlotMinutes = Math.ceil(currentTimeMinutes / 30) * 30;
+            startFromMinutes = Math.max(startMinutes, nextSlotMinutes);
+            console.log(`   🔄 Ajustando início para o próximo slot: ${startFromMinutes} min`);
+        }
+
+        // Gerar slots de 30 em 30 minutos
+        let slotCount = 0;
+        for (let minutes = startFromMinutes; minutes < endMinutes; minutes += 30) {
+            // Ajustar para o dia seguinte se necessário
+            let adjustedMinutes = minutes;
+            if (minutes >= 24 * 60) {
+                adjustedMinutes = minutes - 24 * 60;
+            }
+            
+            const hours = Math.floor(adjustedMinutes / 60);
+            const mins = adjustedMinutes % 60;
             const timeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
             const displayTime = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-
-            // Se for hoje, pular horários que já passaram
-            if (isToday && minutes <= currentTimeMinutes) {
-                console.log(`⏭️ Pulando horário passado: ${displayTime}`);
-                continue;
-            }
 
             // Verificar se é horário de almoço
             let isBreak = false;
             if (breakStart && breakEnd) {
-                if (timeStr >= breakStart && timeStr <= breakEnd) {
+                const [breakHour, breakMinute] = breakStart.split(':').map(Number);
+                const [breakEndHour, breakEndMinute] = breakEnd.split(':').map(Number);
+                let breakStartMinutes = breakHour * 60 + breakMinute;
+                let breakEndMinutes = breakEndHour * 60 + breakEndMinute;
+
+                // Ajustar horário de almoço para meia-noite
+                if (breakEndMinutes === 0) {
+                    breakEndMinutes = 24 * 60;
+                }
+                if (breakEndMinutes <= breakStartMinutes) {
+                    breakEndMinutes += 24 * 60;
+                }
+
+                if (minutes >= breakStartMinutes && minutes <= breakEndMinutes) {
                     isBreak = true;
+                    console.log(`⏸️ Pulando horário de almoço: ${displayTime}`);
                 }
             }
 
-            // ✅ SEM LIMITE DE PEDIDOS - sempre disponível se não for horário de almoço
             if (!isBreak) {
                 availableSlots.push({
                     time: displayTime,
                     available: true,
-                    remaining: 999 // Sem limite
+                    remaining: 999
                 });
-            } else {
-                console.log(`⏸️ Pulando horário de almoço: ${displayTime}`);
+                slotCount++;
             }
         }
-        console.log(`✅ Slots disponíveis: ${availableSlots.length}`);
+        console.log(`✅ ${slotCount} slots disponíveis gerados`);
 
         res.json({
             success: true,
@@ -832,7 +875,7 @@ app.get('/api/orders/available-slots', async (req, res) => {
                 slots: availableSlots,
                 limits: {
                     max_days_ahead: 2,
-                    max_orders_per_slot: 999 // Sem limite
+                    max_orders_per_slot: 999
                 }
             }
         });
