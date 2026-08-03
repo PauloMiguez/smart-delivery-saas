@@ -41,9 +41,6 @@ function createLocalDate(dateStr) {
 // ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA
 // ============================================================
-// ============================================================
-//  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA - CORRIGIDA
-// ============================================================
 async function checkStoreOpenNow(tenantId) {
     try {
         const now = new Date();
@@ -76,7 +73,6 @@ async function checkStoreOpenNow(tenantId) {
 
         const hours = operatingHours[0];
 
-        // ✅ CORREÇÃO: Converter horários para minutos para comparação numérica
         const [currentHour, currentMinute] = currentTime.split(':').map(Number);
         const [openHour, openMinute] = hours.open_time.split(':').map(Number);
         const [closeHour, closeMinute] = hours.close_time.split(':').map(Number);
@@ -85,19 +81,12 @@ async function checkStoreOpenNow(tenantId) {
         const openMinutes = openHour * 60 + openMinute;
         let closeMinutes = closeHour * 60 + closeMinute;
 
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
         if (closeMinutes <= openMinutes) {
             closeMinutes += 24 * 60;
         }
 
-        console.log(`🕐 Comparação de horários:`);
-        console.log(`   Atual: ${currentTime} (${currentMinutes} min)`);
-        console.log(`   Abertura: ${hours.open_time} (${openMinutes} min)`);
-        console.log(`   Fechamento: ${hours.close_time} (${closeMinutes} min)`);
-
         const isOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
 
-        // Verificar horário de almoço
         let isBreak = false;
         if (hours.break_start && hours.break_end) {
             const [breakHour, breakMinute] = hours.break_start.split(':').map(Number);
@@ -146,7 +135,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
-//  CONEXÃO COM O BANCO DE DADOS (APENAS VARIÁVEIS DE AMBIENTE)
+//  CONEXÃO COM O BANCO DE DADOS
 // ============================================================
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
@@ -165,7 +154,6 @@ const pool = mysql.createPool({
     connectTimeout: 60000
 });
 
-// Reconexão automática
 pool.on('connection', (connection) => {
     console.log('🔄 Nova conexão com o banco estabelecida');
 });
@@ -200,10 +188,9 @@ async function testDatabaseConnection() {
 }
 
 // ============================================================
-//  TENANT MIDDLEWARE - CORRIGIDO (COM ROTAS DE TRACKING)
+//  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
-    // ROTAS PÚBLICAS - NÃO PRECISAM DE TENANT
     const publicRoutes = [
         '/api/health',
         '/api/auth/login',
@@ -212,35 +199,29 @@ app.use((req, res, next) => {
         '/api/orders/available-slots'
     ];
 
-    // ROTAS DE TRACKING - NÃO PRECISAM DE TENANT (USAM TOKEN)
     const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
 
-    // Verificar se é uma rota pública
     if (publicRoutes.includes(req.path)) {
         return next();
     }
 
-    // Verificar se é uma rota de tracking
     if (isTrackingRoute) {
         console.log('🔓 Rota de tracking liberada (sem tenant):', req.path);
         return next();
     }
 
-    // Verificar tenant da query
     if (req.query.tenant) {
         req.tenantId = req.query.tenant;
         console.log('🏷️ Tenant da query:', req.tenantId);
         return next();
     }
 
-    // Verificar tenant do header
     if (req.headers['x-tenant-id']) {
         req.tenantId = req.headers['x-tenant-id'];
         console.log('🏷️ Tenant do header:', req.tenantId);
         return next();
     }
 
-    // Verificar tenant do subdomínio
     const host = req.get('host');
     if (host) {
         const parts = host.split('.');
@@ -254,12 +235,10 @@ app.use((req, res, next) => {
         }
     }
 
-    // Verificar se é arquivo estático
     if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
         return next();
     }
 
-    // Se for API e não encontrou tenant, retornar erro
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({
             success: false,
@@ -710,15 +689,8 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE PEDIDOS - ORDEM CORRETA
-//  1. ROTAS ESPECÍFICAS (SEM PARÂMETROS)
-//  2. ROTAS COM PARÂMETROS
-//  3. ROTAS GERAIS
-// ============================================================
-
-// ============================================================
 //  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS
-//     - DEVE VIR ANTES DE /api/orders/:id
+//     - SEM LIMITE DE PEDIDOS POR HORÁRIO
 // ============================================================
 app.get('/api/orders/available-slots', async (req, res) => {
     const tenantId = req.query.tenant || req.tenantId;
@@ -741,9 +713,6 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`📅 Buscando slots para: ${date}, tenant: ${tenantId}`);
 
-        // ============================================================
-        //  Criar data com fuso horário LOCAL
-        // ============================================================
         const [year, month, day] = date.split('-').map(Number);
         const selectedDate = new Date(year, month - 1, day);
         const dayOfWeek = selectedDate.getDay();
@@ -751,9 +720,7 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`📅 Data selecionada: ${dateStr}, Dia da semana: ${dayOfWeek}`);
 
-        // ============================================================
-        //  VERIFICAR LIMITE DE 2 DIAS
-        // ============================================================
+        // Verificar limite de 2 dias
         const now = new Date();
         const maxDate = new Date();
         maxDate.setDate(maxDate.getDate() + 2);
@@ -779,9 +746,7 @@ app.get('/api/orders/available-slots', async (req, res) => {
             });
         }
 
-        // ============================================================
-        //  BUSCAR HORÁRIOS DE FUNCIONAMENTO
-        // ============================================================
+        // Buscar horários de funcionamento
         const [operatingHours] = await pool.query(
             `SELECT * FROM operating_hours 
              WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
@@ -804,39 +769,32 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`⏰ Horário de funcionamento: ${openTime} - ${closeTime}`);
 
-        // ============================================================
-        //  GERAR SLOTS DE 30 EM 30 MINUTOS - COM FILTRO DE HORÁRIOS PASSADOS
-        // ============================================================
+        // Gerar slots de 30 em 30 minutos - SEM LIMITE DE PEDIDOS
         const availableSlots = [];
 
-        // Converter horários para minutos
         const [openHour, openMinute] = openTime.split(':').map(Number);
         const [closeHour, closeMinute] = closeTime.split(':').map(Number);
 
         let startMinutes = openHour * 60 + openMinute;
         let endMinutes = closeHour * 60 + closeMinute;
 
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
         if (endMinutes <= startMinutes) {
             endMinutes += 24 * 60;
         }
 
-        // ✅ Verificar se a data é HOJE
         const isToday = dateStr === today.toISOString().split('T')[0];
         const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
 
         console.log(`🔄 Gerando slots de ${startMinutes} até ${endMinutes} minutos`);
         console.log(`📅 É hoje? ${isToday}`);
-        console.log(`🕐 Horário atual: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} (${currentTimeMinutes} min)`);
 
-        // Gerar slots de 30 em 30 minutos
         for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
             const hours = Math.floor(minutes / 60) % 24;
             const mins = minutes % 60;
             const timeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
             const displayTime = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 
-            // ✅ CORREÇÃO: Se for hoje, pular horários que já passaram
+            // Se for hoje, pular horários que já passaram
             if (isToday && minutes <= currentTimeMinutes) {
                 console.log(`⏭️ Pulando horário passado: ${displayTime}`);
                 continue;
@@ -850,12 +808,12 @@ app.get('/api/orders/available-slots', async (req, res) => {
                 }
             }
 
-            // ✅ Sem limite de pedidos - sempre disponível
+            // ✅ SEM LIMITE DE PEDIDOS - sempre disponível se não for horário de almoço
             if (!isBreak) {
                 availableSlots.push({
                     time: displayTime,
                     available: true,
-                    remaining: 999
+                    remaining: 999 // Sem limite
                 });
             } else {
                 console.log(`⏸️ Pulando horário de almoço: ${displayTime}`);
@@ -874,7 +832,7 @@ app.get('/api/orders/available-slots', async (req, res) => {
                 slots: availableSlots,
                 limits: {
                     max_days_ahead: 2,
-                    max_orders_per_slot: 999
+                    max_orders_per_slot: 999 // Sem limite
                 }
             }
         });
@@ -889,7 +847,6 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
 // ============================================================
 //  2. ROTA GET /api/orders/:id - COM VALIDAÇÃO DE TOKEN
-//     - DEVE VIR DEPOIS DAS ROTAS ESPECÍFICAS
 // ============================================================
 app.get('/api/orders/:id', async (req, res) => {
     try {
@@ -900,10 +857,7 @@ app.get('/api/orders/:id', async (req, res) => {
 
         console.log(`📦 Buscando pedido ID: ${orderId}`);
         console.log(`🔑 Token: ${accessToken?.substring(0, 20)}...`);
-        console.log(`👤 Nome: ${customerName}`);
-        console.log(`📱 Telefone: ${customerPhone}`);
 
-        // Validar token
         if (!accessToken) {
             console.log('❌ Token não fornecido');
             return res.status(401).json({
@@ -912,7 +866,6 @@ app.get('/api/orders/:id', async (req, res) => {
             });
         }
 
-        // Buscar pedido
         const [orders] = await pool.query(
             'SELECT * FROM orders WHERE id = ? AND access_token = ?',
             [orderId, accessToken]
@@ -928,9 +881,7 @@ app.get('/api/orders/:id', async (req, res) => {
 
         const order = orders[0];
 
-        // ============================================================
-        //  VALIDAÇÃO: Verificar nome e telefone do cliente
-        // ============================================================
+        // Validar nome e telefone do cliente
         if (customerName && customerPhone) {
             const nameMatch = order.customer_name.toLowerCase() === customerName.toLowerCase();
             const phoneMatch = order.customer_phone.replace(/\D/g, '') === customerPhone.replace(/\D/g, '');
@@ -945,7 +896,6 @@ app.get('/api/orders/:id', async (req, res) => {
             console.log('✅ Dados do cliente validados com sucesso!');
         }
 
-        // Incrementar visualizações
         await pool.query(
             'UPDATE orders SET tracking_views = tracking_views + 1 WHERE id = ?',
             [orderId]
@@ -959,7 +909,7 @@ app.get('/api/orders/:id', async (req, res) => {
             tenant_id: order.tenant_id
         };
 
-        console.log(`✅ Pedido encontrado: ${order.order_number}, Tenant: ${order.tenant_id}`);
+        console.log(`✅ Pedido encontrado: ${order.order_number}`);
         res.json({ success: true, data: orderResponse });
     } catch (error) {
         console.error('❌ Erro ao buscar pedido:', error);
@@ -972,7 +922,6 @@ app.get('/api/orders/:id', async (req, res) => {
 
 // ============================================================
 //  3. ROTA GET /api/orders - LISTAR TODOS OS PEDIDOS
-//     - DEVE VIR DEPOIS DAS ROTAS COM PARÂMETROS
 // ============================================================
 app.get('/api/orders', async (req, res) => {
     try {
@@ -999,7 +948,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  4. ROTA POST /api/orders - CRIAR PEDIDO
+//  4. ROTA POST /api/orders - CRIAR PEDIDO (COM AGENDAMENTO)
 // ============================================================
 app.post('/api/orders', async (req, res) => {
     try {
@@ -1075,7 +1024,6 @@ app.post('/api/orders', async (req, res) => {
             const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
             const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
 
-            // Verificar se é hoje ou futuro (dentro do limite de 2 dias)
             if (scheduledDay < today) {
                 return res.status(400).json({
                     success: false,
@@ -1219,7 +1167,8 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  FUNÇÃO PARA VERIFICAR DISPONIBILIDADE DE HORÁRIO - CORRIGIDA
+//  FUNÇÃO PARA VERIFICAR DISPONIBILIDADE DE HORÁRIO
+//  - SEM LIMITE DE PEDIDOS
 // ============================================================
 async function checkSlotAvailability(tenantId, scheduledTime) {
     try {
@@ -1228,11 +1177,10 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
         const timeStr = scheduledDate.toTimeString().split(' ')[0];
         const dayOfWeek = scheduledDate.getDay();
 
-        console.log(`🔍 [checkSlotAvailability] Iniciando verificação`);
+        console.log(`🔍 [checkSlotAvailability] Verificando horário`);
         console.log(`   Tenant: ${tenantId}`);
         console.log(`   Data: ${dateStr}`);
         console.log(`   Horário: ${timeStr}`);
-        console.log(`   Dia da semana: ${dayOfWeek}`);
 
         // Verificar limite de 2 dias
         const now = new Date();
@@ -1243,17 +1191,12 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
         const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
         const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
 
-        console.log(`   Hoje: ${today.toISOString().split('T')[0]}`);
-        console.log(`   Max: ${maxDay.toISOString().split('T')[0]}`);
-        console.log(`   Agendado: ${scheduledDay.toISOString().split('T')[0]}`);
-
         if (scheduledDay < today || scheduledDay > maxDay) {
             console.log(`❌ [checkSlotAvailability] Data fora do limite de 2 dias`);
             return false;
         }
 
         // Buscar horários de funcionamento
-        console.log(`🔍 [checkSlotAvailability] Buscando horários de funcionamento...`);
         const [operatingHours] = await pool.query(
             `SELECT * FROM operating_hours 
              WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
@@ -1279,7 +1222,7 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
 
         console.log(`   Horário solicitado: ${timeStr}`);
 
-        // ✅ CORREÇÃO: Converter para minutos para comparação numérica
+        // Converter para minutos para comparação numérica
         const [requestHour, requestMinute] = timeStr.split(':').map(Number);
         const [openHour, openMinute] = openTime.split(':').map(Number);
         const [closeHour, closeMinute] = closeTime.split(':').map(Number);
@@ -1291,13 +1234,10 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
         // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
         if (closeMinutes <= openMinutes) {
             closeMinutes += 24 * 60;
-            // Se o horário solicitado for antes da abertura, considerar como dia seguinte
             if (requestMinutes < openMinutes) {
-                // Ajustar para o dia seguinte (adicionar 24h)
                 const adjustedRequestMinutes = requestMinutes + 24 * 60;
                 console.log(`   🔄 Ajustando horário para o dia seguinte: ${timeStr} -> ${adjustedRequestMinutes} min`);
 
-                // Verificar se está dentro do expediente (com ajuste)
                 const isOpenAdjusted = adjustedRequestMinutes >= openMinutes && adjustedRequestMinutes <= closeMinutes;
                 if (isOpenAdjusted) {
                     console.log(`✅ [checkSlotAvailability] Horário DISPONÍVEL!`);
@@ -1337,6 +1277,7 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
         return false;
     }
 }
+
 // ============================================================
 //  5. ROTA PUT /api/orders/:id/status - ATUALIZAR STATUS
 // ============================================================
@@ -1398,7 +1339,7 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  ROTAS DE CONFIGURAÇÕES (CHAVE-VALOR)
+//  ROTAS DE CONFIGURAÇÕES
 // ============================================================
 
 app.get('/api/config', async (req, res) => {
@@ -1467,7 +1408,7 @@ app.get('/api/config', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT PARA VERIFICAR STATUS DA LOJA - CORRIGIDO
+//  ENDPOINT PARA VERIFICAR STATUS DA LOJA
 // ============================================================
 app.get('/api/store/status', async (req, res) => {
     try {
@@ -1479,7 +1420,6 @@ app.get('/api/store/status', async (req, res) => {
             });
         }
 
-        // 1. Verificar se a loja está manualmente aberta
         const [configRows] = await pool.query(
             'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
             [tenantId, 'is_open']
@@ -1487,7 +1427,6 @@ app.get('/api/store/status', async (req, res) => {
 
         const isManuallyOpen = configRows.length > 0 && configRows[0].config_value === 'true';
 
-        // Se estiver manualmente fechada, retorna fechado
         if (!isManuallyOpen) {
             return res.json({
                 success: true,
@@ -1499,7 +1438,6 @@ app.get('/api/store/status', async (req, res) => {
             });
         }
 
-        // 2. Verificar horários de funcionamento
         const now = new Date();
         const dayOfWeek = now.getDay();
         const currentTime = now.toTimeString().split(' ')[0];
@@ -1523,9 +1461,6 @@ app.get('/api/store/status', async (req, res) => {
 
         const hours = operatingHours[0];
 
-        // ============================================================
-        //  ✅ CORREÇÃO: Converter horários para minutos
-        // ============================================================
         const [currentHour, currentMinute] = currentTime.split(':').map(Number);
         const [openHour, openMinute] = hours.open_time.split(':').map(Number);
         const [closeHour, closeMinute] = hours.close_time.split(':').map(Number);
@@ -1534,19 +1469,12 @@ app.get('/api/store/status', async (req, res) => {
         const openMinutes = openHour * 60 + openMinute;
         let closeMinutes = closeHour * 60 + closeMinute;
 
-        // Se o horário de fechamento for menor que o de abertura (ex: 18:00 - 00:00)
         if (closeMinutes <= openMinutes) {
             closeMinutes += 24 * 60;
         }
 
-        console.log(`🕐 [store/status] Comparação:`);
-        console.log(`   Atual: ${currentTime} (${currentMinutes} min)`);
-        console.log(`   Abertura: ${hours.open_time} (${openMinutes} min)`);
-        console.log(`   Fechamento: ${hours.close_time} (${closeMinutes} min)`);
-
         const isOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
 
-        // Verificar horário de almoço
         let isBreak = false;
         if (hours.break_start && hours.break_end) {
             const [breakHour, breakMinute] = hours.break_start.split(':').map(Number);
@@ -1641,7 +1569,7 @@ app.get('/api/operating-hours', verifyToken, async (req, res) => {
                     is_open: i !== 0,
                     open_time: '09:00:00',
                     close_time: i === 0 ? '18:00:00' : '22:00:00',
-                    max_orders_per_day: i === 0 ? 3 : 5
+                    max_orders_per_day: 999
                 });
             }
 
@@ -1688,7 +1616,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
                 `INSERT INTO operating_hours 
                  (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [tenantId, dayOfWeek, is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 5]
+                [tenantId, dayOfWeek, is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 999]
             );
         } else {
             await pool.query(
@@ -1696,7 +1624,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
                  SET is_open = ?, open_time = ?, close_time = ?, 
                      break_start = ?, break_end = ?, max_orders_per_day = ?
                  WHERE tenant_id = ? AND day_of_week = ?`,
-                [is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 5, tenantId, dayOfWeek]
+                [is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 999, tenantId, dayOfWeek]
             );
         }
 
@@ -1741,7 +1669,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
                      break_start = VALUES(break_start),
                      break_end = VALUES(break_end),
                      max_orders_per_day = VALUES(max_orders_per_day)`,
-                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null, h.max_orders_per_day || 5]
+                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null, h.max_orders_per_day || 999]
                 );
             }
 
@@ -2262,5 +2190,11 @@ testDatabaseConnection().then(() => {
         console.log('🔒 Conexão SSL com TiDB Cloud ativada');
         console.log('☁️ Cloudinary integrado para upload de imagens');
         console.log('✅ Server ready!');
+        console.log('');
+        console.log('📅 AGENDAMENTO:');
+        console.log('   ✅ Sem limite de pedidos por horário');
+        console.log('   ✅ Limite de 2 dias para agendamento');
+        console.log('   ✅ Horários configuráveis por dia');
+        console.log('   ✅ Status "📅 Agendado" nos pedidos');
     });
 });
