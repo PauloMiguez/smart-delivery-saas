@@ -110,7 +110,7 @@ const SlotButton = styled.button`
 
 const SlotInfo = styled.div`
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-top: 12px;
     padding: 8px 12px;
@@ -163,10 +163,7 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                 const month = date.getMonth() + 1;
                 const year = date.getFullYear();
                 
-                // Formatar data para YYYY-MM-DD
                 const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
-                
-                // Verificar se é hoje
                 const isToday = i === 0;
                 
                 daysArray.push({
@@ -182,7 +179,6 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
             
             setDays(daysArray);
             
-            // Selecionar o primeiro dia por padrão (hoje)
             if (daysArray.length > 0) {
                 setSelectedDay(daysArray[0]);
             }
@@ -199,58 +195,55 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
     }, [selectedDay, tenant]);
 
     const fetchSlots = async (date) => {
-    try {
-        setLoading(true);
-        setError(null);
-        setSelectedSlot(null);
-        setSlots([]);
-        
-        console.log('📤 Buscando slots para:', date);
-        console.log('🔑 Tenant:', tenant);
-        
-        const response = await api.get(`/orders/available-slots?date=${date}&tenant=${tenant}`);
-        console.log('📥 Resposta STATUS:', response.status);
-        console.log('📥 Resposta DATA:', response.data);
-        console.log('📥 Resposta COMPLETA:', response);
-        
-        // ✅ Verificar se a resposta existe
-        if (response && response.data) {
-            console.log('✅ Resposta recebida');
+        try {
+            setLoading(true);
+            setError(null);
+            setSelectedSlot(null);
+            setSlots([]);
             
-            if (response.data.success) {
-                const data = response.data.data;
-                console.log('📊 Dados:', data);
+            console.log('📤 Buscando slots para:', date);
+            console.log('🔑 Tenant:', tenant);
+            
+            const response = await api.get(`/orders/available-slots?date=${date}&tenant=${tenant}`);
+            console.log('📥 Resposta STATUS:', response.status);
+            console.log('📥 Resposta DATA:', response.data);
+            
+            if (response && response.data) {
+                console.log('✅ Resposta recebida');
                 
-                if (data.available && data.slots && data.slots.length > 0) {
-                    console.log('✅ Slots encontrados:', data.slots.length);
-                    setSlots(data.slots);
+                if (response.data.success) {
+                    const data = response.data.data;
+                    console.log('📊 Dados:', data);
+                    
+                    if (data.available && data.slots && data.slots.length > 0) {
+                        console.log('✅ Slots encontrados:', data.slots.length);
+                        setSlots(data.slots);
+                    } else {
+                        console.log('⚠️ Sem slots disponíveis');
+                        setSlots([]);
+                        setError(data.message || 'Nenhum horário disponível para este dia.');
+                    }
                 } else {
-                    console.log('⚠️ Sem slots disponíveis');
-                    setSlots([]);
-                    setError(data.message || 'Nenhum horário disponível para este dia.');
+                    console.error('❌ Resposta com success: false');
+                    setError('Erro ao buscar horários disponíveis.');
                 }
             } else {
-                console.error('❌ Resposta com success: false');
-                setError('Erro ao buscar horários disponíveis.');
+                console.error('❌ Resposta vazia ou inválida');
+                setError('Resposta inválida do servidor.');
             }
-        } else {
-            console.error('❌ Resposta vazia ou inválida');
-            setError('Resposta inválida do servidor.');
+        } catch (error) {
+            console.error('❌ Erro ao buscar slots:', error);
+            console.error('❌ Detalhes:', error.response?.data || error.message);
+            setError('Erro ao buscar horários disponíveis. Tente novamente.');
+        } finally {
+            setLoading(false);
+            console.log('🏁 Carregamento finalizado');
         }
-    } catch (error) {
-        console.error('❌ Erro ao buscar slots:', error);
-        console.error('❌ Detalhes:', error.response?.data || error.message);
-        setError('Erro ao buscar horários disponíveis. Tente novamente.');
-    } finally {
-        setLoading(false);
-        console.log('🏁 Carregamento finalizado');
-    }
-};
+    };
 
     const handleDaySelect = (day) => {
         setSelectedDay(day);
         setSelectedSlot(null);
-        // Limpar a seleção no pai
         if (onSelect) {
             onSelect(null);
         }
@@ -261,7 +254,6 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
         
         setSelectedSlot(slot);
         
-        // Criar datetime completo
         const dateTime = `${selectedDay.date}T${slot.time}:00`;
         
         if (onSelect) {
@@ -324,8 +316,8 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                             </SlotButton>
                         ))}
                     </SlotsContainer>
+                    {/* ✅ REMOVIDA a mensagem "Cada horário tem limite de pedidos" */}
                     <SlotInfo>
-                        <span>🕐 Cada horário tem limite de pedidos</span>
                         <span>
                             {slots.filter(s => s.available).length} horários disponíveis
                         </span>
