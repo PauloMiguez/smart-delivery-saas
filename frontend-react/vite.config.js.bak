@@ -29,6 +29,7 @@ export default defineConfig({
                     'socket-vendor': ['socket.io-client'],
                     'date-vendor': ['date-fns'],
                     // REMOVA 'react-icons' se estiver causando problema
+                    // 'icons-vendor': ['react-icons'],  // <-- COMENTE OU REMOVA
                 }
             }
         },
