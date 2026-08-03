@@ -194,6 +194,9 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
         }
     }, [selectedDay, tenant]);
 
+    // ============================================================
+    //  FETCH SLOTS CORRIGIDO - GARANTE TENANT
+    // ============================================================
     const fetchSlots = async (date) => {
         try {
             setLoading(true);
@@ -202,9 +205,23 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
             setSlots([]);
             
             console.log('📤 Buscando slots para:', date);
-            console.log('🔑 Tenant:', tenant);
+            console.log('🔑 Tenant do contexto:', tenant);
             
-            const response = await api.get(`/orders/available-slots?date=${date}&tenant=${tenant}`);
+            // ✅ GARANTIR QUE O TENANT ESTÁ SENDO PASSADO
+            const tenantId = tenant || sessionStorage.getItem('tenant') || localStorage.getItem('tenant');
+            console.log('🔑 Tenant final:', tenantId);
+            
+            if (!tenantId) {
+                console.error('❌ Tenant não encontrado!');
+                setError('Tenant não encontrado. Recarregue a página.');
+                setLoading(false);
+                return;
+            }
+            
+            const url = `/orders/available-slots?date=${date}&tenant=${tenantId}`;
+            console.log('📤 URL:', url);
+            
+            const response = await api.get(url);
             console.log('📥 Resposta STATUS:', response.status);
             console.log('📥 Resposta DATA:', response.data);
             
@@ -215,17 +232,18 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                     const data = response.data.data;
                     console.log('📊 Dados:', data);
                     
-                    if (data.available && data.slots && data.slots.length > 0) {
+                    if (data && data.slots && data.slots.length > 0) {
                         console.log('✅ Slots encontrados:', data.slots.length);
                         setSlots(data.slots);
+                        setError(null);
                     } else {
                         console.log('⚠️ Sem slots disponíveis');
                         setSlots([]);
-                        setError(data.message || 'Nenhum horário disponível para este dia.');
+                        setError(data?.message || 'Nenhum horário disponível para este dia.');
                     }
                 } else {
                     console.error('❌ Resposta com success: false');
-                    setError('Erro ao buscar horários disponíveis.');
+                    setError(response.data?.error || 'Erro ao buscar horários disponíveis.');
                 }
             } else {
                 console.error('❌ Resposta vazia ou inválida');
@@ -316,7 +334,6 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                             </SlotButton>
                         ))}
                     </SlotsContainer>
-                    {/* ✅ REMOVIDA a mensagem "Cada horário tem limite de pedidos" */}
                     <SlotInfo>
                         <span>
                             {slots.filter(s => s.available).length} horários disponíveis
