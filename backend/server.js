@@ -1628,7 +1628,7 @@ app.get('/api/operating-hours', async (req, res) => {
             for (const h of defaultHours) {
                 await pool.query(
                     `INSERT INTO operating_hours 
-                     (tenant_id, day_of_week, is_open, open_time, close_time, max_orders_per_day)
+                     (tenant_id, day_of_week, is_open, open_time, close_time)
                      VALUES (?, ?, ?, ?, ?, ?)`,
                     [tenantId, h.day_of_week, h.is_open, h.open_time, h.close_time, h.max_orders_per_day]
                 );
@@ -1667,7 +1667,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
             for (const h of hours) {
                 await connection.query(
                     `INSERT INTO operating_hours 
-                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
+                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE 
                      is_open = VALUES(is_open),
@@ -1676,7 +1676,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
                      break_start = VALUES(break_start),
                      break_end = VALUES(break_end),
                      max_orders_per_day = VALUES(max_orders_per_day)`,
-                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null, h.max_orders_per_day || 999]
+                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null]
                 );
             }
 
@@ -1707,7 +1707,7 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const dayOfWeek = parseInt(req.params.dayOfWeek);
-        const { is_open, open_time, close_time, break_start, break_end, max_orders_per_day } = req.body;
+        const { is_open, open_time, close_time, break_start, break_end } = req.body;
 
         if (dayOfWeek < 0 || dayOfWeek > 6) {
             return res.status(400).json({ success: false, error: 'Dia inválido (0-6)' });
@@ -1721,17 +1721,17 @@ app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
         if (existing.length === 0) {
             await pool.query(
                 `INSERT INTO operating_hours 
-                 (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
+                 (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [tenantId, dayOfWeek, is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 999]
+                [tenantId, dayOfWeek, is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null || 999]
             );
         } else {
             await pool.query(
                 `UPDATE operating_hours 
                  SET is_open = ?, open_time = ?, close_time = ?, 
-                     break_start = ?, break_end = ?, max_orders_per_day = ?
+                     break_start = ?, break_end = ? = ?
                  WHERE tenant_id = ? AND day_of_week = ?`,
-                [is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null, max_orders_per_day || 999, tenantId, dayOfWeek]
+                [is_open ? 1 : 0, open_time, close_time, break_start || null, break_end || null || 999, tenantId, dayOfWeek]
             );
         }
 
@@ -1767,7 +1767,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
             for (const h of hours) {
                 await connection.query(
                     `INSERT INTO operating_hours 
-                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end, max_orders_per_day)
+                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE 
                      is_open = VALUES(is_open),
@@ -1776,7 +1776,7 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
                      break_start = VALUES(break_start),
                      break_end = VALUES(break_end),
                      max_orders_per_day = VALUES(max_orders_per_day)`,
-                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null, h.max_orders_per_day || 999]
+                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null]
                 );
             }
 
