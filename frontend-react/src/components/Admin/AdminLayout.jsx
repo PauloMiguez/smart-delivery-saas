@@ -75,7 +75,7 @@ const ComponentLoader = () => (
 // ============================================================
 const AdminLayout = () => {
     const navigate = useNavigate();
-    const { tenant, loading } = useTenant();
+    const { tenant, loading: tenantLoading } = useTenant();
     const { showToast } = useToast();
     
     // ============================================================
@@ -113,7 +113,7 @@ const AdminLayout = () => {
     const [trackingOrderId, setTrackingOrderId] = useState(null);
     const [trackingToken, setTrackingToken] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [authLoading, setAuthLoading] = useState(true);
+    const [authChecked, setAuthChecked] = useState(false);
 
     // ============================================================
     //  VERIFICAÇÃO DE AUTENTICAÇÃO
@@ -129,29 +129,43 @@ const AdminLayout = () => {
         if (!token || !tenantId) {
             console.log('❌ Não autenticado - Redirecionando para login');
             navigate(`/login?tenant=${tenantId || ''}`);
+            setAuthChecked(true);
             return;
         }
         
         setIsAuthenticated(true);
-        setAuthLoading(false);
+        setAuthChecked(true);
     }, [navigate, tenant]);
+
+    // ============================================================
+    //  CARREGAR DADOS (só executa se autenticado)
+    // ============================================================
+    useEffect(() => {
+        if (!authChecked || !isAuthenticated || !tenant) return;
+        loadData();
+    }, [authChecked, isAuthenticated, tenant]);
 
     // ============================================================
     //  CONDICIONAIS (DEPOIS DE TODOS OS HOOKS)
     // ============================================================
-    if (authLoading) {
-        return <div style={{ textAlign: 'center', padding: '40px' }}>Carregando...</div>;
+    if (!authChecked) {
+        return <div style={{ textAlign: 'center', padding: '40px' }}>Verificando autenticação...</div>;
     }
 
     if (!isAuthenticated) {
         return null;
     }
 
-    if (loading) return <div className="loader">Carregando...</div>;
-    if (!tenant) return <div>Tenant não encontrado</div>;
+    if (tenantLoading) {
+        return <div className="loader">Carregando tenant...</div>;
+    }
+
+    if (!tenant) {
+        return <div>Tenant não encontrado</div>;
+    }
 
     // ============================================================
-    //  CARREGAR DADOS
+    //  FUNÇÕES
     // ============================================================
     const loadData = async () => {
         try {
@@ -175,16 +189,11 @@ const AdminLayout = () => {
         }
     };
 
-    useEffect(() => {
-        if (!tenant) return;
-        loadData();
-    }, [tenant]);
-
     // ============================================================
     //  WEBSOCKET
     // ============================================================
     useEffect(() => {
-        if (!tenant) {
+        if (!tenant || !isAuthenticated) {
             console.log('⏳ Aguardando tenant para conectar socket...');
             return;
         }
@@ -251,7 +260,7 @@ const AdminLayout = () => {
             disconnectSocket();
             setSocketStatus('desconectado');
         };
-    }, [tenant]);
+    }, [tenant, isAuthenticated]);
 
     useEffect(() => {
         if (activeTab === 'orders') {
@@ -285,10 +294,10 @@ const AdminLayout = () => {
     }, [tenant, showToast]);
 
     useEffect(() => {
-        if (activeTab === 'dashboard' && tenant) {
+        if (activeTab === 'dashboard' && tenant && isAuthenticated) {
             loadDashboardData(period);
         }
-    }, [activeTab, tenant, period, loadDashboardData]);
+    }, [activeTab, tenant, period, loadDashboardData, isAuthenticated]);
 
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
