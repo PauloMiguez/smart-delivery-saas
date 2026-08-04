@@ -1649,35 +1649,60 @@ app.get('/api/operating-hours', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT PARA ATUALIZAR HORÁRIOS - PROTEGIDO (COM AUTENTICAÇÃO)
+//  ENDPOINT PARA ATUALIZAR HORÁRIOS - CORRIGIDO (SEM OPERADORES OPCIONAIS)
 // ============================================================
 app.put('/api/operating-hours', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const { hours } = req.body;
 
+        console.log('📝 Atualizando horários para tenant:', tenantId);
+
         if (!Array.isArray(hours) || hours.length !== 7) {
-            return res.status(400).json({ success: false, error: 'É necessário enviar os 7 dias da semana' });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'É necessário enviar os 7 dias da semana' 
+            });
         }
 
         const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         try {
-            for (const h of hours) {
-                await connection.query(
-                    `INSERT INTO operating_hours 
-                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE 
-                     is_open = VALUES(is_open),
-                     open_time = VALUES(open_time),
-                     close_time = VALUES(close_time),
-                     break_start = VALUES(break_start),
-                     break_end = VALUES(break_end),
-                     max_orders_per_day = VALUES(max_orders_per_day)`,
-                    [tenantId, h.day_of_week, h.is_open ? 1 : 0, h.open_time, h.close_time, h.break_start || null, h.break_end || null]
-                );
+            for (let i = 0; i < hours.length; i++) {
+                const h = hours[i];
+                
+                // Verificar se os campos existem
+                const isOpen = h.is_open ? 1 : 0;
+                const openTime = h.open_time || '09:00:00';
+                const closeTime = h.close_time || '22:00:00';
+                const breakStart = h.break_start || null;
+                const breakEnd = h.break_end || null;
+                
+                console.log(`📝 Salvando dia ${h.day_of_week}: aberto=${isOpen}, ${openTime} - ${closeTime}`);
+                
+                // Query sem operadores opcionais
+                const query = `
+                    INSERT INTO operating_hours 
+                    (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                    is_open = VALUES(is_open),
+                    open_time = VALUES(open_time),
+                    close_time = VALUES(close_time),
+                    break_start = VALUES(break_start),
+                    break_end = VALUES(break_end)
+                `;
+                
+                await connection.query(query, [
+                    tenantId, 
+                    h.day_of_week, 
+                    isOpen, 
+                    openTime, 
+                    closeTime, 
+                    breakStart, 
+                    breakEnd
+                ]);
             }
 
             await connection.commit();
@@ -1700,9 +1725,13 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Erro ao atualizar horários:', error);
-        res.status(500).json({ success: false, error: 'Erro ao atualizar horários: ' + error.message });
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao atualizar horários: ' + error.message 
+        });
     }
 });
+
 app.put('/api/operating-hours/:dayOfWeek', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
