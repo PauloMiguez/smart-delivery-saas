@@ -401,6 +401,60 @@ const Checkout = () => {
     };
 
     // ============================================================
+    //  ✅ CORREÇÃO: Função para formatar scheduled_time
+    // ============================================================
+    const formatScheduledTime = (datetime) => {
+        if (!datetime) return null;
+        
+        try {
+            // Se for uma string, remover qualquer timezone
+            let clean = datetime;
+            
+            // Remover 'Z' (UTC) e qualquer offset (+03:00, -03:00, etc)
+            clean = clean.replace('Z', '');
+            clean = clean.replace(/[+-]\d{2}:\d{2}$/, '');
+            
+            // Se tiver espaço, converter para T
+            clean = clean.replace(' ', 'T');
+            
+            // Garantir formato YYYY-MM-DDTHH:MM:SS
+            const parts = clean.split('T');
+            if (parts.length !== 2) {
+                console.error('❌ Formato inválido:', datetime);
+                return null;
+            }
+            
+            const datePart = parts[0];
+            const timePart = parts[1];
+            
+            // Validar data
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(datePart)) {
+                console.error('❌ Data inválida:', datePart);
+                return null;
+            }
+            
+            // Validar hora
+            const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+            if (!timeRegex.test(timePart)) {
+                console.error('❌ Hora inválida:', timePart);
+                return null;
+            }
+            
+            // Garantir segundos
+            const timeWithSeconds = timePart.split(':').length === 2 ? `${timePart}:00` : timePart;
+            
+            const formatted = `${datePart}T${timeWithSeconds}`;
+            console.log('📅 Data formatada:', datetime, '->', formatted);
+            
+            return formatted;
+        } catch (error) {
+            console.error('❌ Erro ao formatar data:', error);
+            return null;
+        }
+    };
+
+    // ============================================================
     //  ✅ CORREÇÃO: VALIDAÇÃO COM LÓGICA DE LOJA FECHADA
     // ============================================================
     const validateForm = () => {
@@ -463,10 +517,12 @@ const Checkout = () => {
             }
 
             // ============================================================
-            //  ✅ CORREÇÃO: scheduled_time já está no formato local correto
-            //  O DateTimePicker retorna no formato YYYY-MM-DDTHH:MM:SS
-            //  Não fazer nenhuma conversão!
+            //  ✅ CORREÇÃO: Formatar scheduled_time antes de enviar
             // ============================================================
+            const scheduledTimeToSend = selectedSchedule 
+                ? formatScheduledTime(selectedSchedule.datetime) 
+                : null;
+
             const orderData = {
                 customer_name: formData.name.trim(),
                 customer_phone: formData.phone.trim(),
@@ -483,7 +539,7 @@ const Checkout = () => {
                 payment_method: paymentMethod,
                 delivery_type: 'delivery',
                 is_scheduled: isScheduled || !isStoreOpen ? true : false,
-                scheduled_time: selectedSchedule ? selectedSchedule.datetime : null  // ✅ JÁ ESTÁ NO FORMATO CORRETO
+                scheduled_time: scheduledTimeToSend
             };
 
             // Se a loja está fechada, força o agendamento
