@@ -30,26 +30,21 @@ import {
 } from './AdminLayout.styled';
 
 // ============================================================
-//  IMPORTS LAZY - CARREGADOS SOB DEMANDA
+//  IMPORTS LAZY
 // ============================================================
-
-// COMPONENTES PRINCIPAIS - Carregados quando a aba é acessada
 const Dashboard = lazy(() => import('./Dashboard'));
 const Products = lazy(() => import('./Products'));
 const Categories = lazy(() => import('./Categories'));
 const Orders = lazy(() => import('./Orders'));
 const Config = lazy(() => import('./Config'));
 const OperatingHours = lazy(() => import('./OperatingHours'));
-
-// MODAIS - Carregados apenas quando abertos
 const ProductModal = lazy(() => import('./ProductModal'));
 const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
 
 // ============================================================
-//  FALLBACK PARA CARREGAMENTO DE COMPONENTES
+//  FALLBACK
 // ============================================================
-
 const ComponentLoader = () => (
     <div style={{
         display: 'flex',
@@ -76,13 +71,16 @@ const ComponentLoader = () => (
 );
 
 // ============================================================
-//  ADMIN LAYOUT PRINCIPAL
+//  ADMIN LAYOUT
 // ============================================================
-
 const AdminLayout = () => {
     const navigate = useNavigate();
     const { tenant, loading } = useTenant();
     const { showToast } = useToast();
+    
+    // ============================================================
+    //  TODOS OS HOOKS PRIMEIRO
+    // ============================================================
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
     const [products, setProducts] = useState([]);
@@ -97,13 +95,29 @@ const AdminLayout = () => {
     const [unreadOrders, setUnreadOrders] = useState(0);
     const [socket, setSocket] = useState(null);
     const [socketStatus, setSocketStatus] = useState('desconectado');
-    
-    // ============================================================
-    //  ✅ AUTENTICAÇÃO - VERIFICAR SE O USUÁRIO ESTÁ LOGADO
-    // ============================================================
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+    const [filters, setFilters] = useState({
+        search: '',
+        category: '',
+        status: ''
+    });
+    const [period, setPeriod] = useState('today');
+    const [salesData, setSalesData] = useState([]);
+    const [statusData, setStatusData] = useState([]);
+    const [topProducts, setTopProducts] = useState([]);
+    const [lastUpdate, setLastUpdate] = useState('');
+    const [dashboardLoading, setDashboardLoading] = useState(false);
+    const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+    const [trackingOrderId, setTrackingOrderId] = useState(null);
+    const [trackingToken, setTrackingToken] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
 
+    // ============================================================
+    //  VERIFICAÇÃO DE AUTENTICAÇÃO
+    // ============================================================
     useEffect(() => {
         const token = localStorage.getItem('token');
         const tenantId = localStorage.getItem('tenant') || tenant;
@@ -122,55 +136,19 @@ const AdminLayout = () => {
         setAuthLoading(false);
     }, [navigate, tenant]);
 
+    // ============================================================
+    //  CONDICIONAIS (DEPOIS DE TODOS OS HOOKS)
+    // ============================================================
     if (authLoading) {
-        return (
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                minHeight: '100vh',
-                fontSize: '18px',
-                color: '#888'
-            }}>
-                Carregando...
-            </div>
-        );
+        return <div style={{ textAlign: 'center', padding: '40px' }}>Carregando...</div>;
     }
 
     if (!isAuthenticated) {
         return null;
     }
 
-    // ============================================================
-    //  PAGINAÇÃO
-    // ============================================================
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10);
-    const [totalPages, setTotalPages] = useState(1);
-
-    // Filtros
-    const [filters, setFilters] = useState({
-        search: '',
-        category: '',
-        status: ''
-    });
-
-    // ============================================================
-    //  DASHBOARD - ESTADOS
-    // ============================================================
-    const [period, setPeriod] = useState('today');
-    const [salesData, setSalesData] = useState([]);
-    const [statusData, setStatusData] = useState([]);
-    const [topProducts, setTopProducts] = useState([]);
-    const [lastUpdate, setLastUpdate] = useState('');
-    const [dashboardLoading, setDashboardLoading] = useState(false);
-
-    // ============================================================
-    //  MODAL DE ACOMPANHAMENTO - ESTADOS
-    // ============================================================
-    const [trackingModalOpen, setTrackingModalOpen] = useState(false);
-    const [trackingOrderId, setTrackingOrderId] = useState(null);
-    const [trackingToken, setTrackingToken] = useState(null);
+    if (loading) return <div className="loader">Carregando...</div>;
+    if (!tenant) return <div>Tenant não encontrado</div>;
 
     // ============================================================
     //  CARREGAR DADOS
@@ -203,7 +181,7 @@ const AdminLayout = () => {
     }, [tenant]);
 
     // ============================================================
-    //  WEBSOCKET - NOTIFICAÇÕES EM TEMPO REAL
+    //  WEBSOCKET
     // ============================================================
     useEffect(() => {
         if (!tenant) {
@@ -236,30 +214,21 @@ const AdminLayout = () => {
                 setSocketStatus('erro');
             });
 
-            // ============================================================
-            //  NOVO PEDIDO - NOTIFICAÇÃO
-            // ============================================================
             socketInstance.on('new-order-notification', (data) => {
                 console.log('🔔🔔🔔 NOVO PEDIDO RECEBIDO!', data);
-                
                 playNewOrderSound();
                 showToast(
                     `🆕 NOVO PEDIDO #${data.order.orderNumber} - ${data.order.customer_name}`,
                     'success'
                 );
-                
                 setUnreadOrders(prev => prev + 1);
                 loadData();
                 loadDashboardData(period);
-                
                 if (activeTab === 'orders') {
                     loadData();
                 }
             });
 
-            // ============================================================
-            //  ATUALIZAÇÃO DE STATUS - NOTIFICAÇÃO
-            // ============================================================
             socketInstance.on('order-updated', (data) => {
                 console.log('📦 Pedido atualizado:', data);
                 if (data.action === 'status_change') {
@@ -284,7 +253,6 @@ const AdminLayout = () => {
         };
     }, [tenant]);
 
-    // Resetar contador quando visualizar pedidos
     useEffect(() => {
         if (activeTab === 'orders') {
             setUnreadOrders(0);
@@ -292,7 +260,7 @@ const AdminLayout = () => {
     }, [activeTab]);
 
     // ============================================================
-    //  DASHBOARD - CARREGAR DADOS
+    //  DASHBOARD
     // ============================================================
     const loadDashboardData = useCallback(async (selectedPeriod) => {
         if (!tenant) return;
@@ -316,16 +284,12 @@ const AdminLayout = () => {
         }
     }, [tenant, showToast]);
 
-    // Carregar dados do dashboard quando a aba for ativada ou período mudar
     useEffect(() => {
         if (activeTab === 'dashboard' && tenant) {
             loadDashboardData(period);
         }
     }, [activeTab, tenant, period, loadDashboardData]);
 
-    // ============================================================
-    //  DASHBOARD - HANDLERS
-    // ============================================================
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
     };
@@ -336,9 +300,6 @@ const AdminLayout = () => {
         showToast('📊 Dashboard atualizado!', 'success');
     };
 
-    // ============================================================
-    //  ABRIR MODAL DE ACOMPANHAMENTO
-    // ============================================================
     const openTrackingModal = (orderId, token) => {
         setTrackingOrderId(orderId);
         setTrackingToken(token);
@@ -429,24 +390,18 @@ const AdminLayout = () => {
         if (!confirm('Tem certeza que deseja remover este produto?')) return;
         try {
             const product = products.find(p => p.id === id);
-            
             if (product?.image_url) {
                 try {
                     const urlParts = product.image_url.split('/');
                     const filename = urlParts[urlParts.length - 1].split('.')[0];
                     const folder = urlParts[urlParts.length - 2];
                     const publicId = `${folder}/${filename}`;
-                    
-                    await api.post('/upload/delete', { 
-                        public_id: publicId,
-                        config_key: null
-                    });
+                    await api.post('/upload/delete', { public_id: publicId, config_key: null });
                     console.log('🗑️ Imagem deletada do Cloudinary');
                 } catch (imgError) {
                     console.warn('⚠️ Erro ao deletar imagem do Cloudinary:', imgError);
                 }
             }
-            
             await api.delete(`/products/${id}`);
             showToast('Produto removido com sucesso!', 'success');
             await loadData();
@@ -512,14 +467,8 @@ const AdminLayout = () => {
         { id: 'config', label: 'Configurações', icon: '⚙️' }
     ];
 
-    if (loading) return <div className="loader">Carregando...</div>;
-    if (!tenant) return <div>Tenant não encontrado</div>;
-
     const currentItems = getCurrentItems();
 
-    // ============================================================
-    //  RENDERIZAR CONTEÚDO DA ABA ATIVA COM LAZY LOADING
-    // ============================================================
     const renderTabContent = () => {
         switch (activeTab) {
             case 'dashboard':
@@ -612,7 +561,6 @@ const AdminLayout = () => {
     return (
         <AdminContainer>
             <Overlay $open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
-            
             <Sidebar $open={sidebarOpen}>
                 <SidebarBrand>
                     <h1>⚙️ <span>Smart</span>Delivery</h1>
@@ -628,7 +576,6 @@ const AdminLayout = () => {
                         {socketStatus === 'conectado' ? '🟢 Online' : '🔴 Offline'}
                     </p>
                 </SidebarBrand>
-
                 {navItems.map(item => (
                     <NavItem
                         key={item.id}
@@ -655,7 +602,6 @@ const AdminLayout = () => {
                     </NavItem>
                 ))}
             </Sidebar>
-
             <MainContent>
                 <PageHeader>
                     <h2>
@@ -683,10 +629,8 @@ const AdminLayout = () => {
                         </MobileToggle>
                     </div>
                 </PageHeader>
-
                 {renderTabContent()}
             </MainContent>
-
             <Suspense fallback={null}>
                 {isProductModalOpen && (
                     <ProductModal
@@ -701,7 +645,6 @@ const AdminLayout = () => {
                     />
                 )}
             </Suspense>
-
             <Suspense fallback={null}>
                 {isCategoryModalOpen && (
                     <CategoryModal
@@ -715,7 +658,6 @@ const AdminLayout = () => {
                     />
                 )}
             </Suspense>
-
             <Suspense fallback={null}>
                 {trackingModalOpen && (
                     <OrderTrackingModal
