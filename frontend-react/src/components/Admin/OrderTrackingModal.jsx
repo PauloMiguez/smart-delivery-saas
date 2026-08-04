@@ -158,18 +158,24 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - SUBTRAIR 3 HORAS DO UTC
+//  ✅ FUNÇÃO CORRIGIDA - TRATAR created_at E scheduled_time
 // ============================================================
-const formatLocalDate = (dateString) => {
+const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // 🔧 CORREÇÃO: Data vem em UTC, subtrair 3 horas (UTC-3)
-        // Brasil (America/Sao_Paulo) está em UTC-3
-        const offsetHours = 3;
-        const localTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
+        let localTime;
+        if (isScheduled) {
+            // scheduled_time: já está no fuso correto (UTC-3)
+            // Só formatar sem ajustes
+            localTime = date;
+        } else {
+            // created_at: está em UTC, subtrair 3 horas (UTC-3)
+            const offsetHours = 3;
+            localTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
+        }
         
         return localTime.toLocaleString('pt-BR', {
             day: '2-digit',
@@ -313,13 +319,13 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: DATA DO PEDIDO COM OFFSET -3H */}
+                            {/* ✅ CORREÇÃO: created_at com offset -3h */}
                             <DetailRow>
                                 <DetailLabel>Data do Pedido</DetailLabel>
-                                <span>{formatLocalDate(order.created_at)}</span>
+                                <span>{formatLocalDate(order.created_at, false)}</span>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: DATA AGENDADA COM OFFSET -3H */}
+                            {/* ✅ CORREÇÃO: scheduled_time sem offset */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <DetailRow style={{ 
                                     backgroundColor: '#fef9e7', 
@@ -332,7 +338,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                         📅 Agendado para
                                     </DetailLabel>
                                     <span style={{ color: '#e67e22', fontWeight: '700' }}>
-                                        {formatLocalDate(order.scheduled_time)}
+                                        {formatLocalDate(order.scheduled_time, true)}
                                     </span>
                                 </DetailRow>
                             )}
