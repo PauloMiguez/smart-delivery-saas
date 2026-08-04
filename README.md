@@ -305,8 +305,6 @@ Este projeto está sob a licença MIT.
 
 ---
 
-**Desenvolvido com ❤️ para o ecossistema de delivery SaaS**
-
 🔗 **Demo:** https://smart-delivery-saas.onrender.com/?tenant=fireburger
 📧 **Contato:** seu-email@dominio.com
 ```
@@ -333,6 +331,3 @@ git commit -m "docs: atualiza README com todas as funcionalidades do sistema
 git push origin main
 ```
 
----
-
-**O README.md está atualizado e completo!** 📚🚀
