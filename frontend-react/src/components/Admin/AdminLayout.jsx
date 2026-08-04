@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
@@ -45,9 +46,6 @@ const ProductModal = lazy(() => import('./ProductModal'));
 const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
 
-// DASHBOARD SUB-COMPONENTES - Carregados com o Dashboard
-// (já estão sendo importados dentro do Dashboard, então não precisa aqui)
-
 // ============================================================
 //  FALLBACK PARA CARREGAMENTO DE COMPONENTES
 // ============================================================
@@ -82,6 +80,7 @@ const ComponentLoader = () => (
 // ============================================================
 
 const AdminLayout = () => {
+    const navigate = useNavigate();
     const { tenant, loading } = useTenant();
     const { showToast } = useToast();
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -99,7 +98,52 @@ const AdminLayout = () => {
     const [socket, setSocket] = useState(null);
     const [socketStatus, setSocketStatus] = useState('desconectado');
     
-    // Paginação
+    // ============================================================
+    //  ✅ AUTENTICAÇÃO - VERIFICAR SE O USUÁRIO ESTÁ LOGADO
+    // ============================================================
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const tenantId = localStorage.getItem('tenant') || tenant;
+        
+        console.log('🔐 Verificando autenticação no Admin...');
+        console.log('🔑 Token:', token ? 'presente' : 'ausente');
+        console.log('🏷️ Tenant:', tenantId);
+        
+        if (!token || !tenantId) {
+            console.log('❌ Não autenticado - Redirecionando para login');
+            navigate(`/login?tenant=${tenantId || ''}`);
+            return;
+        }
+        
+        setIsAuthenticated(true);
+        setAuthLoading(false);
+    }, [navigate, tenant]);
+
+    if (authLoading) {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                minHeight: '100vh',
+                fontSize: '18px',
+                color: '#888'
+            }}>
+                Carregando...
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    // ============================================================
+    //  PAGINAÇÃO
+    // ============================================================
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
@@ -640,13 +684,9 @@ const AdminLayout = () => {
                     </div>
                 </PageHeader>
 
-                {/* CONTEÚDO DA ABA ATIVA COM LAZY LOADING */}
                 {renderTabContent()}
             </MainContent>
 
-            {/* ============================================================
-                MODAIS - CARREGADOS SOB DEMANDA COM LAZY
-                ============================================================ */}
             <Suspense fallback={null}>
                 {isProductModalOpen && (
                     <ProductModal
