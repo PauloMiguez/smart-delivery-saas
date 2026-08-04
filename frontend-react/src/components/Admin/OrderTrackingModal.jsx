@@ -158,7 +158,7 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - FORMATAR DATA COM TIMEZONE BRASIL
+//  ✅ FUNÇÃO CORRIGIDA - SUBTRAIR 3 HORAS DO UTC
 // ============================================================
 const formatLocalDate = (dateString) => {
     if (!dateString) return '-';
@@ -166,14 +166,17 @@ const formatLocalDate = (dateString) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // ✅ USAR toLocaleString com timezone Brasil
-        return date.toLocaleString('pt-BR', {
+        // 🔧 CORREÇÃO: Data vem em UTC, subtrair 3 horas (UTC-3)
+        // Brasil (America/Sao_Paulo) está em UTC-3
+        const offsetHours = 3;
+        const localTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
+        
+        return localTime.toLocaleString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'America/Sao_Paulo'
+            minute: '2-digit'
         });
     } catch (error) {
         console.error('Erro ao formatar data:', error);
@@ -233,7 +236,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
         if (socketInstance) {
             socketInstance.on('order-updated', (data) => {
                 if (data.order && data.order.id === parseInt(orderId)) {
-                    console.log('��� Status atualizado no modal:', data.order.status);
+                    console.log('📦 Status atualizado no modal:', data.order.status);
                     setOrder(prev => ({
                         ...prev,
                         status: data.order.status,
@@ -310,13 +313,13 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: DATA DO PEDIDO COM TIMEZONE BRASIL */}
+                            {/* ✅ CORREÇÃO: DATA DO PEDIDO COM OFFSET -3H */}
                             <DetailRow>
                                 <DetailLabel>Data do Pedido</DetailLabel>
                                 <span>{formatLocalDate(order.created_at)}</span>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: DATA AGENDADA COM TIMEZONE BRASIL */}
+                            {/* ✅ CORREÇÃO: DATA AGENDADA COM OFFSET -3H */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <DetailRow style={{ 
                                     backgroundColor: '#fef9e7', 
