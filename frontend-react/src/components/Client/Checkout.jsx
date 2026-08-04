@@ -291,16 +291,16 @@ const validateAddress = (address) => {
 const openWhatsApp = (phoneNumber, message) => {
     const formattedPhone = phoneNumber.replace(/\D/g, '');
     const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
-    
+
     console.log('📱 Abrindo WhatsApp:', url);
-    
+
     const newWindow = window.open(url, '_blank');
-    
+
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
         console.log('📱 Fallback: usando location.href para iOS');
         window.location.href = url;
     }
-    
+
     setTimeout(() => {
         if (newWindow && !newWindow.closed) return;
         console.log('📱 Segundo fallback: forçando location.href');
@@ -337,13 +337,13 @@ const Checkout = () => {
 
     useEffect(() => {
         if (!tenant) return;
-        
+
         const loadData = async () => {
             try {
                 // Carregar config
                 const res = await api.get('/config');
                 setConfig(res.data.data);
-                
+
                 // Carregar status da loja
                 const statusRes = await api.get('/store/status');
                 if (statusRes.data.success) {
@@ -358,7 +358,7 @@ const Checkout = () => {
         const savedName = localStorage.getItem('user_name');
         const savedPhone = localStorage.getItem('user_phone');
         const savedAddress = localStorage.getItem('user_address');
-        
+
         if (savedName) setFormData(prev => ({ ...prev, name: savedName }));
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
@@ -386,7 +386,7 @@ const Checkout = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         localStorage.setItem(`user_${name}`, value);
-        
+
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }));
         }
@@ -401,20 +401,55 @@ const Checkout = () => {
     };
 
     // ============================================================
+    //  FUNÇÃO PARA FORMATAR DATA PARA UTC - CORRIGIDA
+    // ============================================================
+    const formatScheduledTime = (datetime) => {
+        if (!datetime) return null;
+
+        try {
+            // Criar data a partir do datetime recebido (formato local)
+            const date = new Date(datetime);
+
+            // Verificar se a data é válida
+            if (isNaN(date.getTime())) {
+                console.error('Data inválida:', datetime);
+                return null;
+            }
+
+            // Formatar no padrão ISO mantendo o horário local
+            // O backend espera o formato: YYYY-MM-DDTHH:MM:SS
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            const formatted = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+            console.log(`📅 Data formatada: ${datetime} -> ${formatted}`);
+
+            return formatted;
+        } catch (error) {
+            console.error('Erro ao formatar data:', error);
+            return null;
+        }
+    };
+
+    // ============================================================
     //  ✅ CORREÇÃO: VALIDAÇÃO COM LÓGICA DE LOJA FECHADA
     // ============================================================
     const validateForm = () => {
         const newErrors = {};
-        
+
         const nameError = validateName(formData.name);
         if (nameError) newErrors.name = nameError;
-        
+
         const phoneError = validatePhone(formData.phone);
         if (phoneError) newErrors.phone = phoneError;
-        
+
         const addressError = validateAddress(formData.address);
         if (addressError) newErrors.address = addressError;
-        
+
         // ============================================================
         //  ✅ CORREÇÃO: Agendamento é OBRIGATÓRIO quando loja fechada
         // ============================================================
@@ -422,25 +457,25 @@ const Checkout = () => {
             showToast('🔴 Loja fechada. Selecione um horário de agendamento para continuar.', 'warning');
             return false;
         }
-        
+
         // Se o agendamento está ativo mas não selecionou horário
         if (isScheduled && !selectedSchedule) {
             showToast('Selecione uma data e horário para o agendamento.', 'warning');
             return false;
         }
-        
+
         if (cart.length === 0) {
             showToast('Adicione itens ao carrinho antes de finalizar.', 'warning');
             return false;
         }
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!validateForm()) {
             const firstError = Object.values(errors)[0];
             if (firstError) {
@@ -511,7 +546,7 @@ const Checkout = () => {
             // ============================================================
             const phone = config?.store_phone || '5511999999999';
             const cleanPhone = phone.replace(/\D/g, '');
-            
+
             let formattedPhone = cleanPhone;
             if (!formattedPhone.startsWith('55')) {
                 formattedPhone = '55' + formattedPhone;
@@ -527,7 +562,7 @@ const Checkout = () => {
                 })}`
                 : '';
 
-            const message = 
+            const message =
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `👤 *Cliente:* ${formData.name}\n` +
@@ -550,12 +585,12 @@ const Checkout = () => {
             clearCart();
             navigate('/');
             showToast(`Pedido #${orderNumber} enviado com sucesso!`, 'success');
-            
+
         } catch (error) {
             console.error('❌ Erro ao criar pedido:', error);
-            
+
             let errorMessage = 'Erro ao criar pedido. Tente novamente.';
-            
+
             if (error.response) {
                 const serverError = error.response.data?.error;
                 if (serverError) {
@@ -570,7 +605,7 @@ const Checkout = () => {
             } else if (error.request) {
                 errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
             }
-            
+
             showToast(errorMessage, 'error');
         } finally {
             setLoading(false);
@@ -669,8 +704,8 @@ const Checkout = () => {
                             required
                             style={{ flex: 1, borderColor: errors.address ? '#e74c3c' : undefined }}
                         />
-                        <Button 
-                            secondary 
+                        <Button
+                            secondary
                             type="button"
                             onClick={() => setIsAddressModalOpen(true)}
                             style={{ whiteSpace: 'nowrap' }}
@@ -713,7 +748,7 @@ const Checkout = () => {
                             {!isStoreOpen ? '📅 Agendar entrega (obrigatório)' : '📅 Agendar entrega para outro dia/horário'}
                         </span>
                     </ScheduleToggle>
-                    
+
                     {/* ============================================================
                         SELEÇÃO DE DATA/HORÁRIO
                         ============================================================ */}
@@ -727,7 +762,7 @@ const Checkout = () => {
                                     Selecionar data e horário
                                 </SelectScheduleButton>
                             )}
-                            
+
                             {showSchedulePicker && (
                                 <DateTimePicker
                                     isOpen={true}
@@ -735,7 +770,7 @@ const Checkout = () => {
                                     selectedDateTime={selectedSchedule}
                                 />
                             )}
-                            
+
                             {selectedSchedule && !showSchedulePicker && (
                                 <ScheduleInfo>
                                     <span>
@@ -759,28 +794,28 @@ const Checkout = () => {
                 <PaymentSection>
                     <PaymentTitle>💳 Pagamento na entrega</PaymentTitle>
                     <ChipGroup>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Dinheiro'}
                             onClick={() => setPaymentMethod('Dinheiro')}
                             type="button"
                         >
                             <span className="chip-icon">💰</span> Dinheiro
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Pix'}
                             onClick={() => setPaymentMethod('Pix')}
                             type="button"
                         >
                             <span className="chip-icon">📲</span> Pix
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Crédito'}
                             onClick={() => setPaymentMethod('Crédito')}
                             type="button"
                         >
                             <span className="chip-icon">💳</span> Crédito
                         </Chip>
-                        <Chip 
+                        <Chip
                             selected={paymentMethod === 'Débito'}
                             onClick={() => setPaymentMethod('Débito')}
                             type="button"
@@ -790,20 +825,20 @@ const Checkout = () => {
                     </ChipGroup>
                 </PaymentSection>
 
-                <SubmitButton 
-                    primary 
+                <SubmitButton
+                    primary
                     disabled={loading || (!isStoreOpen && !selectedSchedule)}
                 >
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
                 </SubmitButton>
-                
+
                 {/* ============================================================
                     MENSAGEM QUANDO BOTÃO DESABILITADO
                     ============================================================ */}
                 {!isStoreOpen && !selectedSchedule && !loading && (
-                    <div style={{ 
-                        textAlign: 'center', 
-                        fontSize: '13px', 
+                    <div style={{
+                        textAlign: 'center',
+                        fontSize: '13px',
                         color: '#e74c3c',
                         marginTop: '-8px'
                     }}>
