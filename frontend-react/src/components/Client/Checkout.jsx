@@ -286,7 +286,7 @@ const validateAddress = (address) => {
 };
 
 // ============================================================
-//  FUNÇÃO PARA ABRIR WHATSAPP
+//  FUNÇÃO PARA ABRIR WHATSAPP - CORRIGIDA (COMPATÍVEL)
 // ============================================================
 const openWhatsApp = (phoneNumber, message) => {
     const formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -294,18 +294,24 @@ const openWhatsApp = (phoneNumber, message) => {
 
     console.log('📱 Abrindo WhatsApp:', url);
 
-    const newWindow = window.open(url, '_blank');
-
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        console.log('📱 Fallback: usando location.href para iOS');
-        window.location.href = url;
+    // Detectar se é dispositivo móvel
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        // ✅ Mobile: Usar window.open (abre no app ou navegador)
+        const newWindow = window.open(url, '_blank');
+        
+        // ✅ Fallback para iOS (se o window.open não funcionar)
+        if (isIOS && (!newWindow || newWindow.closed)) {
+            // iOS às vezes bloqueia popups, usar location.href como fallback
+            window.location.href = url;
+        }
+        // Para Android, window.open geralmente funciona
+    } else {
+        // ✅ Desktop: Abrir em nova aba (WhatsApp Web)
+        window.open(url, '_blank');
     }
-
-    setTimeout(() => {
-        if (newWindow && !newWindow.closed) return;
-        console.log('📱 Segundo fallback: forçando location.href');
-        window.location.href = url;
-    }, 500);
 };
 
 // ============================================================
