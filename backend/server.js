@@ -826,7 +826,7 @@ app.get('/api/orders/available-slots', async (req, res) => {
             if (minutes >= 24 * 60) {
                 adjustedMinutes = minutes - 24 * 60;
             }
-            
+
             const hours = Math.floor(adjustedMinutes / 60);
             const mins = adjustedMinutes % 60;
             const displayTime = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
@@ -1044,37 +1044,34 @@ app.post('/api/orders', async (req, res) => {
         let finalScheduledStatus = 'pending';
 
         if (is_scheduled && scheduled_time) {
+            // ✅ A data já vem no formato local (YYYY-MM-DDTHH:MM:SS)
+            // Não fazer nenhuma conversão, apenas validar
             const scheduledDate = new Date(scheduled_time);
 
             if (isNaN(scheduledDate.getTime())) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Data/hora inválida. Use o formato YYYY-MM-DD HH:MM:SS'
+                    error: 'Data/hora inválida'
                 });
             }
 
+            // ✅ Validar se está dentro do limite de 2 dias
             const now = new Date();
             const maxDate = new Date();
             maxDate.setDate(maxDate.getDate() + 2);
 
-            const today = getTodayLocal();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
             const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
 
-            if (scheduledDay < today) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'A data do agendamento deve ser hoje ou no futuro'
-                });
-            }
-
-            if (scheduledDay > maxDay) {
+            if (scheduledDay < today || scheduledDay > maxDay) {
                 return res.status(400).json({
                     success: false,
                     error: 'O agendamento só pode ser feito para hoje, amanhã ou depois de amanhã'
                 });
             }
 
+            // ✅ Verificar disponibilidade do horário
             const isAvailable = await checkSlotAvailability(tenantId, scheduled_time);
             if (!isAvailable) {
                 return res.status(400).json({
@@ -1083,9 +1080,12 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
+            // ✅ Salvar a data como recebida (sem conversão)
             finalScheduledTime = scheduled_time;
             finalStatus = 'scheduled';
             finalScheduledStatus = 'pending';
+
+            console.log(`📅 Agendamento salvo: ${finalScheduledTime}`);
         }
 
         const [lastOrder] = await pool.query(
@@ -1575,7 +1575,7 @@ app.get('/api/operating-hours', async (req, res) => {
     try {
         const tenantId = req.tenantId;
         console.log('🔍 Buscando horários para tenant:', tenantId);
-        
+
         if (!tenantId) {
             return res.status(404).json({
                 success: false,
@@ -1634,9 +1634,9 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
         console.log('📝 Atualizando horários para tenant:', tenantId);
 
         if (!Array.isArray(hours) || hours.length !== 7) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'É necessário enviar os 7 dias da semana' 
+            return res.status(400).json({
+                success: false,
+                error: 'É necessário enviar os 7 dias da semana'
             });
         }
 
@@ -1646,15 +1646,15 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
         try {
             for (let i = 0; i < hours.length; i++) {
                 const h = hours[i];
-                
+
                 const isOpen = h.is_open ? 1 : 0;
                 const openTime = h.open_time || '09:00:00';
                 const closeTime = h.close_time || '22:00:00';
                 const breakStart = h.break_start || null;
                 const breakEnd = h.break_end || null;
-                
+
                 console.log(`📝 Salvando dia ${h.day_of_week}: aberto=${isOpen}, ${openTime} - ${closeTime}`);
-                
+
                 const query = `
                     INSERT INTO operating_hours 
                     (tenant_id, day_of_week, is_open, open_time, close_time, break_start, break_end)
@@ -1666,14 +1666,14 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
                     break_start = VALUES(break_start),
                     break_end = VALUES(break_end)
                 `;
-                
+
                 await connection.query(query, [
-                    tenantId, 
-                    h.day_of_week, 
-                    isOpen, 
-                    openTime, 
-                    closeTime, 
-                    breakStart, 
+                    tenantId,
+                    h.day_of_week,
+                    isOpen,
+                    openTime,
+                    closeTime,
+                    breakStart,
                     breakEnd
                 ]);
             }
@@ -1698,9 +1698,9 @@ app.put('/api/operating-hours', verifyToken, async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Erro ao atualizar horários:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao atualizar horários: ' + error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao atualizar horários: ' + error.message
         });
     }
 });
