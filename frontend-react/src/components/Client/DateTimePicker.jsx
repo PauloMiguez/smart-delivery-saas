@@ -67,59 +67,6 @@ const DayDate = styled.div`
     color: #888;
 `;
 
-const SlotsContainer = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-`;
-
-const SlotButton = styled.button`
-    padding: 8px 16px;
-    border: 2px solid ${props => {
-        if (props.selected) return '#e67e22';
-        if (props.available) return '#2ecc71';
-        return '#e0e0e0';
-    }};
-    border-radius: 8px;
-    background: ${props => {
-        if (props.selected) return '#fdf0e6';
-        if (props.available) return '#f0faf4';
-        return '#f5f5f5';
-    }};
-    color: ${props => {
-        if (props.selected) return '#e67e22';
-        if (props.available) return '#2d3436';
-        return '#aaa';
-    }};
-    cursor: ${props => props.available ? 'pointer' : 'not-allowed'};
-    font-size: 14px;
-    transition: all 0.2s;
-    opacity: ${props => props.available ? 1 : 0.5};
-
-    &:hover {
-        border-color: ${props => props.available ? '#e67e22' : '#e0e0e0'};
-        transform: ${props => props.available ? 'scale(1.02)' : 'none'};
-    }
-
-    &:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-`;
-
-const SlotInfo = styled.div`
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: 12px;
-    padding: 8px 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #888;
-`;
-
 const LoadingContainer = styled.div`
     text-align: center;
     padding: 20px;
@@ -133,6 +80,71 @@ const ErrorMessage = styled.div`
     background: #fde8e8;
     border-radius: 8px;
     margin-top: 8px;
+`;
+
+const SelectWrapper = styled.div`
+    position: relative;
+    width: 100%;
+    margin-top: 8px;
+`;
+
+const StyledSelect = styled.select`
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: 2px solid ${props => props.hasValue ? '#e67e22' : '#e0e0e0'};
+    border-radius: 8px;
+    background-color: #fff;
+    color: #2d3436;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: all 0.2s;
+    
+    &:focus {
+        border-color: #e67e22;
+        box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+    }
+    
+    &:hover {
+        border-color: #e67e22;
+    }
+
+    option {
+        padding: 8px;
+        font-size: 14px;
+    }
+`;
+
+const SelectArrow = styled.div`
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #888;
+    font-size: 18px;
+`;
+
+const SelectedInfo = styled.div`
+    margin-top: 12px;
+    padding: 12px;
+    background: #f0faf4;
+    border-radius: 8px;
+    border: 2px solid #2ecc71;
+    display: ${props => props.visible ? 'flex' : 'none'};
+    align-items: center;
+    gap: 8px;
+    color: #27ae60;
+    font-size: 14px;
+`;
+
+const InfoText = styled.div`
+    margin-top: 12px;
+    font-size: 13px;
+    color: #888;
+    text-align: center;
 `;
 
 const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
@@ -194,9 +206,6 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
         }
     }, [selectedDay, tenant]);
 
-    // ============================================================
-    //  FETCH SLOTS CORRIGIDO - GARANTE TENANT
-    // ============================================================
     const fetchSlots = async (date) => {
         try {
             setLoading(true);
@@ -207,7 +216,6 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
             console.log('📤 Buscando slots para:', date);
             console.log('🔑 Tenant do contexto:', tenant);
             
-            // ✅ GARANTIR QUE O TENANT ESTÁ SENDO PASSADO
             const tenantId = tenant || sessionStorage.getItem('tenant') || localStorage.getItem('tenant');
             console.log('🔑 Tenant final:', tenantId);
             
@@ -286,6 +294,8 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
 
     if (!isOpen) return null;
 
+    const availableSlots = slots.filter(s => s.available);
+
     return (
         <Container>
             <Title>📅 Agendar Entrega</Title>
@@ -320,25 +330,38 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                     <div style={{ fontSize: '14px', color: '#888', marginBottom: '8px' }}>
                         Horários disponíveis para {selectedDay?.display}:
                     </div>
-                    <SlotsContainer>
-                        {slots.map((slot) => (
-                            <SlotButton
-                                key={slot.time}
-                                selected={selectedSlot?.time === slot.time}
-                                available={slot.available}
-                                onClick={() => handleSlotSelect(slot)}
-                                disabled={!slot.available}
-                            >
-                                {slot.time}
-                                {!slot.available && ' 🔴'}
-                            </SlotButton>
-                        ))}
-                    </SlotsContainer>
-                    <SlotInfo>
-                        <span>
-                            {slots.filter(s => s.available).length} horários disponíveis
-                        </span>
-                    </SlotInfo>
+                    
+                    {/* ✅ SELECT EM VEZ DE BOTÕES */}
+                    <SelectWrapper>
+                        <StyledSelect
+                            hasValue={!!selectedSlot}
+                            value={selectedSlot?.time || ''}
+                            onChange={(e) => {
+                                const selectedTime = e.target.value;
+                                if (selectedTime) {
+                                    const slot = slots.find(s => s.time === selectedTime);
+                                    if (slot && slot.available) {
+                                        handleSlotSelect(slot);
+                                    }
+                                } else {
+                                    setSelectedSlot(null);
+                                    if (onSelect) onSelect(null);
+                                }
+                            }}
+                        >
+                            <option value="">Selecione um horário</option>
+                            {availableSlots.map((slot) => (
+                                <option key={slot.time} value={slot.time}>
+                                    {slot.time}
+                                </option>
+                            ))}
+                        </StyledSelect>
+                        <SelectArrow>▼</SelectArrow>
+                    </SelectWrapper>
+
+                    <InfoText>
+                        {availableSlots.length} horário{availableSlots.length > 1 ? 's' : ''} disponível{availableSlots.length > 1 ? 'is' : ''}
+                    </InfoText>
                 </>
             )}
 
@@ -348,20 +371,12 @@ const DateTimePicker = ({ onSelect, selectedDateTime, isOpen }) => {
                 </div>
             )}
 
-            {selectedSlot && (
-                <div style={{ 
-                    marginTop: '12px', 
-                    padding: '12px', 
-                    background: '#f0faf4', 
-                    borderRadius: '8px',
-                    border: '2px solid #2ecc71'
-                }}>
-                    <strong style={{ color: '#27ae60' }}>✅ Horário selecionado:</strong>
-                    <span style={{ marginLeft: '8px' }}>
-                        {selectedDay?.display} às {selectedSlot.time}
-                    </span>
-                </div>
-            )}
+            <SelectedInfo visible={!!selectedSlot}>
+                <span>✅</span>
+                <span>
+                    <strong>Horário selecionado:</strong> {selectedDay?.display} às {selectedSlot?.time}
+                </span>
+            </SelectedInfo>
         </Container>
     );
 };
