@@ -158,17 +158,14 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - EXIBE scheduled_time COMO STRING PURA
+//  FUNÇÃO CORRIGIDA - created_at em UTC, scheduled_time em string
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
         if (isScheduled) {
-            // ✅ scheduled_time: é uma string pura no formato YYYY-MM-DDTHH:MM:SS
-            // NÃO usar new Date() - extrair manualmente!
-            console.log('📅 scheduled_time original:', dateString);
-            
-            // Remover espaços e garantir formato T
+            // ✅ scheduled_time: string pura YYYY-MM-DDTHH:MM:SS
+            // Extrair manualmente sem conversão
             const clean = dateString.replace(' ', 'T');
             const parts = clean.split('T');
             if (parts.length !== 2) return dateString;
@@ -176,7 +173,6 @@ const formatLocalDate = (dateString, isScheduled = false) => {
             const datePart = parts[0];
             const timePart = parts[1];
             
-            // Separar data
             const dateComponents = datePart.split('-');
             if (dateComponents.length !== 3) return dateString;
             
@@ -184,30 +180,29 @@ const formatLocalDate = (dateString, isScheduled = false) => {
             const month = dateComponents[1];
             const day = dateComponents[2];
             
-            // Separar hora
             const timeComponents = timePart.split(':');
             if (timeComponents.length < 2) return dateString;
             
             const hours = timeComponents[0];
             const minutes = timeComponents[1];
             
-            const result = `${day}/${month}/${year}, ${hours}:${minutes}`;
-            console.log('📅 scheduled_time formatado:', result);
-            return result;
+            return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
-            // ✅ created_at: está em UTC, converter para local
+            // ✅ created_at: está em UTC (salvo com -3h)
+            // Converter para local subtraindo 3 horas
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-            const result = date.toLocaleString('pt-BR', {
+            
+            // Subtrair 3 horas (UTC-3)
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            
+            return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                timeZone: 'America/Sao_Paulo'
+                minute: '2-digit'
             });
-            console.log('📅 created_at formatado:', result);
-            return result;
         }
     } catch (error) {
         console.error('❌ Erro ao formatar data:', error);
