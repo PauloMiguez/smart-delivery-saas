@@ -401,41 +401,6 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  FUNÇÃO PARA FORMATAR DATA PARA UTC - CORRIGIDA
-    // ============================================================
-    const formatScheduledTime = (datetime) => {
-        if (!datetime) return null;
-
-        try {
-            // Criar data a partir do datetime recebido (formato local)
-            const date = new Date(datetime);
-
-            // Verificar se a data é válida
-            if (isNaN(date.getTime())) {
-                console.error('Data inválida:', datetime);
-                return null;
-            }
-
-            // Formatar no padrão ISO mantendo o horário local
-            // O backend espera o formato: YYYY-MM-DDTHH:MM:SS
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-
-            const formatted = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-            console.log(`📅 Data formatada: ${datetime} -> ${formatted}`);
-
-            return formatted;
-        } catch (error) {
-            console.error('Erro ao formatar data:', error);
-            return null;
-        }
-    };
-
-    // ============================================================
     //  ✅ CORREÇÃO: VALIDAÇÃO COM LÓGICA DE LOJA FECHADA
     // ============================================================
     const validateForm = () => {
@@ -497,6 +462,11 @@ const Checkout = () => {
                 return;
             }
 
+            // ============================================================
+            //  ✅ CORREÇÃO: scheduled_time já está no formato local correto
+            //  O DateTimePicker retorna no formato YYYY-MM-DDTHH:MM:SS
+            //  Não fazer nenhuma conversão!
+            // ============================================================
             const orderData = {
                 customer_name: formData.name.trim(),
                 customer_phone: formData.phone.trim(),
@@ -512,11 +482,8 @@ const Checkout = () => {
                 total: total,
                 payment_method: paymentMethod,
                 delivery_type: 'delivery',
-                // ============================================================
-                //  CAMPOS DE AGENDAMENTO
-                // ============================================================
                 is_scheduled: isScheduled || !isStoreOpen ? true : false,
-                scheduled_time: selectedSchedule ? selectedSchedule.datetime : null
+                scheduled_time: selectedSchedule ? selectedSchedule.datetime : null  // ✅ JÁ ESTÁ NO FORMATO CORRETO
             };
 
             // Se a loja está fechada, força o agendamento
@@ -527,6 +494,7 @@ const Checkout = () => {
             }
 
             console.log('📦 Enviando pedido:', orderData);
+            console.log('📅 Data agendada (enviada):', orderData.scheduled_time);
 
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
