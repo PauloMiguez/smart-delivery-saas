@@ -163,6 +163,32 @@ const statusEmojis = {
 
 const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
 
+// ============================================================
+//  ✅ CORREÇÃO: FUNÇÃO PARA FORMATAR DATA LOCAL (UTC-3)
+// ============================================================
+const formatLocalDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        
+        // Ajustar para o fuso horário local (UTC-3)
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60000));
+        
+        return localDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return '-';
+    }
+};
+
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
@@ -432,10 +458,22 @@ const TrackOrder = () => {
                         </div>
                     </div>
 
+                    {/* ✅ CORREÇÃO: DATA DO PEDIDO */}
                     <DetailRow>
                         <DetailLabel>Data do pedido</DetailLabel>
-                        <span>{new Date(order.created_at).toLocaleString('pt-BR')}</span>
+                        <span>{formatLocalDate(order.created_at)}</span>
                     </DetailRow>
+                    
+                    {/* ✅ CORREÇÃO: DATA AGENDADA (SE HOUVER) */}
+                    {order.is_scheduled && order.scheduled_time && (
+                        <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
+                            <DetailLabel>📅 Agendado para</DetailLabel>
+                            <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                {formatLocalDate(order.scheduled_time)}
+                            </span>
+                        </DetailRow>
+                    )}
+                    
                     <DetailRow>
                         <DetailLabel>Pagamento</DetailLabel>
                         <span>{order.payment_method}</span>
