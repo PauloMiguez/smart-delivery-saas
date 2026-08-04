@@ -1043,26 +1043,58 @@ app.post('/api/orders', async (req, res) => {
         let finalStatus = 'pending';
         let finalScheduledStatus = 'pending';
 
+        // ============================================================
+        //  VALIDAÇÃO DO AGENDAMENTO - CORRIGIDO (SEM CRIAR DATE)
+        // ============================================================
         if (is_scheduled && scheduled_time) {
-            // ✅ A data já vem no formato local (YYYY-MM-DDTHH:MM:SS)
-            // Não fazer nenhuma conversão, apenas validar
-            const scheduledDate = new Date(scheduled_time);
+            // ✅ Verificar se é uma string válida
+            if (typeof scheduled_time !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Data/hora inválida. Use o formato YYYY-MM-DDTHH:MM:SS'
+                });
+            }
 
-            if (isNaN(scheduledDate.getTime())) {
+            // ✅ Validar formato YYYY-MM-DDTHH:MM:SS
+            const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+            if (!dateRegex.test(scheduled_time)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Formato de data/hora inválido. Use YYYY-MM-DDTHH:MM:SS'
+                });
+            }
+
+            // ✅ Extrair componentes da string manualmente (sem criar Date)
+            const parts = scheduled_time.split('T');
+            const dateParts = parts[0].split('-').map(Number);
+            const timeParts = parts[1].split(':').map(Number);
+
+            const year = dateParts[0];
+            const month = dateParts[1];
+            const day = dateParts[2];
+            const hour = timeParts[0];
+            const minute = timeParts[1];
+
+            console.log('📅 Agendamento recebido:', scheduled_time);
+            console.log('📅 Components:', { year, month, day, hour, minute });
+
+            // ✅ Validar data manualmente
+            if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
                 return res.status(400).json({
                     success: false,
                     error: 'Data/hora inválida'
                 });
             }
 
-            // ✅ Validar se está dentro do limite de 2 dias
+            // ✅ Validar limite de 2 dias (usando a data atual em UTC)
             const now = new Date();
-            const maxDate = new Date();
-            maxDate.setDate(maxDate.getDate() + 2);
-
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const maxDay = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-            const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+            const maxDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+            const scheduledDay = new Date(year, month - 1, day);
+
+            console.log('📅 Hoje:', today);
+            console.log('📅 Máximo:', maxDay);
+            console.log('📅 Agendado dia:', scheduledDay);
 
             if (scheduledDay < today || scheduledDay > maxDay) {
                 return res.status(400).json({
@@ -1080,12 +1112,12 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Salvar a data como recebida (sem conversão)
+            // ✅ SALVAR EXATAMENTE COMO RECEBIDO (sem conversão)
             finalScheduledTime = scheduled_time;
             finalStatus = 'scheduled';
             finalScheduledStatus = 'pending';
 
-            console.log(`📅 Agendamento salvo: ${finalScheduledTime}`);
+            console.log(`📅 Agendamento salvo (string original): ${finalScheduledTime}`);
         }
 
         const [lastOrder] = await pool.query(
