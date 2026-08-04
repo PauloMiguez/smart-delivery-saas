@@ -164,14 +164,13 @@ const statusEmojis = {
 const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - EXIBE scheduled_time COMO STRING PURA
+//  FUNÇÃO CORRIGIDA - created_at subtrai 3 horas
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
         if (isScheduled) {
-            // ✅ scheduled_time: é uma string pura no formato YYYY-MM-DDTHH:MM:SS
-            // NÃO usar new Date() - extrair manualmente!
+            // scheduled_time: string pura, extrair manualmente
             const clean = dateString.replace(' ', 'T');
             const parts = clean.split('T');
             if (parts.length !== 2) return dateString;
@@ -194,16 +193,18 @@ const formatLocalDate = (dateString, isScheduled = false) => {
             
             return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
-            // ✅ created_at: está em UTC, converter para local
+            // created_at: está em UTC, subtrair 3 horas
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-            return date.toLocaleString('pt-BR', {
+            
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            
+            return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                timeZone: 'America/Sao_Paulo'
+                minute: '2-digit'
             });
         }
     } catch (error) {
