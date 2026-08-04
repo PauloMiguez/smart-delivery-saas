@@ -29,9 +29,6 @@ import {
     MobileActions
 } from './AdminLayout.styled';
 
-// ============================================================
-//  IMPORTS LAZY
-// ============================================================
 const Dashboard = lazy(() => import('./Dashboard'));
 const Products = lazy(() => import('./Products'));
 const Categories = lazy(() => import('./Categories'));
@@ -42,9 +39,6 @@ const ProductModal = lazy(() => import('./ProductModal'));
 const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
 
-// ============================================================
-//  FALLBACK
-// ============================================================
 const ComponentLoader = () => (
     <div style={{
         display: 'flex',
@@ -70,16 +64,13 @@ const ComponentLoader = () => (
     </div>
 );
 
-// ============================================================
-//  ADMIN LAYOUT
-// ============================================================
 const AdminLayout = () => {
     const navigate = useNavigate();
     const { tenant, loading: tenantLoading } = useTenant();
     const { showToast } = useToast();
     
     // ============================================================
-    //  TODOS OS HOOKS PRIMEIRO
+    //  TODOS OS HOOKS PRIMEIRO (NUNCA CHAMAR HOOKS DEPOIS DE CONDICIONAIS)
     // ============================================================
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
@@ -98,11 +89,7 @@ const AdminLayout = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
-    const [filters, setFilters] = useState({
-        search: '',
-        category: '',
-        status: ''
-    });
+    const [filters, setFilters] = useState({ search: '', category: '', status: '' });
     const [period, setPeriod] = useState('today');
     const [salesData, setSalesData] = useState([]);
     const [statusData, setStatusData] = useState([]);
@@ -116,8 +103,10 @@ const AdminLayout = () => {
     const [authChecked, setAuthChecked] = useState(false);
 
     // ============================================================
-    //  VERIFICAÇÃO DE AUTENTICAÇÃO
+    //  HOOKS DE EFEITO (TAMBÉM DEVEM VIR ANTES DE CONDICIONAIS)
     // ============================================================
+    
+    // 1. Verificação de autenticação
     useEffect(() => {
         const token = localStorage.getItem('token');
         const tenantId = localStorage.getItem('tenant') || tenant;
@@ -137,37 +126,9 @@ const AdminLayout = () => {
         setAuthChecked(true);
     }, [navigate, tenant]);
 
-    // ============================================================
-    //  CARREGAR DADOS (só executa se autenticado)
-    // ============================================================
-    useEffect(() => {
-        if (!authChecked || !isAuthenticated || !tenant) return;
-        loadData();
-    }, [authChecked, isAuthenticated, tenant]);
-
-    // ============================================================
-    //  CONDICIONAIS (DEPOIS DE TODOS OS HOOKS)
-    // ============================================================
-    if (!authChecked) {
-        return <div style={{ textAlign: 'center', padding: '40px' }}>Verificando autenticação...</div>;
-    }
-
-    if (!isAuthenticated) {
-        return null;
-    }
-
-    if (tenantLoading) {
-        return <div className="loader">Carregando tenant...</div>;
-    }
-
-    if (!tenant) {
-        return <div>Tenant não encontrado</div>;
-    }
-
-    // ============================================================
-    //  FUNÇÕES
-    // ============================================================
-    const loadData = async () => {
+    // 2. Carregar dados (só executa se autenticado)
+    const loadData = useCallback(async () => {
+        if (!isAuthenticated || !tenant) return;
         try {
             console.log('📊 Carregando dados do admin...');
             const [statsRes, productsRes, categoriesRes, ordersRes] = await Promise.all([
@@ -187,14 +148,47 @@ const AdminLayout = () => {
             console.error('❌ Erro ao carregar dados do admin:', error);
             showToast('Erro ao carregar dados.', 'error');
         }
-    };
+    }, [isAuthenticated, tenant, showToast]);
 
-    // ============================================================
-    //  WEBSOCKET
-    // ============================================================
     useEffect(() => {
-        if (!tenant || !isAuthenticated) {
-            console.log('⏳ Aguardando tenant para conectar socket...');
+        if (authChecked && isAuthenticated && tenant) {
+            loadData();
+        }
+    }, [authChecked, isAuthenticated, tenant, loadData]);
+
+    // 3. Dashboard data
+    const loadDashboardData = useCallback(async (selectedPeriod) => {
+        if (!isAuthenticated || !tenant) return;
+        setDashboardLoading(true);
+        try {
+            console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
+            const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
+            if (response.data.success) {
+                const data = response.data.data;
+                setSalesData(data.salesData || []);
+                setStatusData(data.statusData || []);
+                setTopProducts(data.topProducts || []);
+                setLastUpdate(new Date().toLocaleString('pt-BR'));
+                console.log('✅ Dados do dashboard carregados!');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados do dashboard:', error);
+            showToast('Erro ao carregar dados do dashboard', 'error');
+        } finally {
+            setDashboardLoading(false);
+        }
+    }, [isAuthenticated, tenant, showToast]);
+
+    useEffect(() => {
+        if (activeTab === 'dashboard' && authChecked && isAuthenticated && tenant) {
+            loadDashboardData(period);
+        }
+    }, [activeTab, tenant, period, loadDashboardData, authChecked, isAuthenticated]);
+
+    // 4. WebSocket
+    useEffect(() => {
+        if (!isAuthenticated || !tenant) {
+            console.log('⏳ Aguardando autenticação para conectar socket...');
             return;
         }
         
@@ -203,7 +197,6 @@ const AdminLayout = () => {
         console.log('🔑 Token presente:', !!token);
         
         const socketInstance = connectSocket(token);
-        console.log('📡 Socket instance:', socketInstance ? 'criada' : 'falhou');
         setSocket(socketInstance);
 
         if (socketInstance) {
@@ -232,7 +225,6 @@ const AdminLayout = () => {
                 );
                 setUnreadOrders(prev => prev + 1);
                 loadData();
-                loadDashboardData(period);
                 if (activeTab === 'orders') {
                     loadData();
                 }
@@ -247,7 +239,6 @@ const AdminLayout = () => {
                         'info'
                     );
                     loadData();
-                    loadDashboardData(period);
                     if (activeTab === 'orders') loadData();
                 }
             });
@@ -260,64 +251,16 @@ const AdminLayout = () => {
             disconnectSocket();
             setSocketStatus('desconectado');
         };
-    }, [tenant, isAuthenticated]);
+    }, [isAuthenticated, tenant, showToast, loadData, activeTab]);
 
+    // 5. Reset unread orders
     useEffect(() => {
         if (activeTab === 'orders') {
             setUnreadOrders(0);
         }
     }, [activeTab]);
 
-    // ============================================================
-    //  DASHBOARD
-    // ============================================================
-    const loadDashboardData = useCallback(async (selectedPeriod) => {
-        if (!tenant) return;
-        setDashboardLoading(true);
-        try {
-            console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
-            const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
-            if (response.data.success) {
-                const data = response.data.data;
-                setSalesData(data.salesData || []);
-                setStatusData(data.statusData || []);
-                setTopProducts(data.topProducts || []);
-                setLastUpdate(new Date().toLocaleString('pt-BR'));
-                console.log('✅ Dados do dashboard carregados!');
-            }
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados do dashboard:', error);
-            showToast('Erro ao carregar dados do dashboard', 'error');
-        } finally {
-            setDashboardLoading(false);
-        }
-    }, [tenant, showToast]);
-
-    useEffect(() => {
-        if (activeTab === 'dashboard' && tenant && isAuthenticated) {
-            loadDashboardData(period);
-        }
-    }, [activeTab, tenant, period, loadDashboardData, isAuthenticated]);
-
-    const handlePeriodChange = (newPeriod) => {
-        setPeriod(newPeriod);
-    };
-
-    const handleRefresh = () => {
-        loadDashboardData(period);
-        loadData();
-        showToast('📊 Dashboard atualizado!', 'success');
-    };
-
-    const openTrackingModal = (orderId, token) => {
-        setTrackingOrderId(orderId);
-        setTrackingToken(token);
-        setTrackingModalOpen(true);
-    };
-
-    // ============================================================
-    //  FILTROS E PAGINAÇÃO
-    // ============================================================
+    // 6. Filtros
     useEffect(() => {
         applyFilters();
     }, [products, filters]);
@@ -329,6 +272,9 @@ const AdminLayout = () => {
         }
     }, [filteredProducts, itemsPerPage]);
 
+    // ============================================================
+    //  FUNÇÃO applyFilters (precisa estar definida antes do useEffect acima)
+    // ============================================================
     const applyFilters = () => {
         let filtered = [...products];
         
@@ -356,8 +302,46 @@ const AdminLayout = () => {
         setCurrentPage(1);
     };
 
+    // ============================================================
+    //  CONDICIONAIS (SOMENTE DEPOIS DE TODOS OS HOOKS E USEFFECTS)
+    // ============================================================
+    if (!authChecked) {
+        return <div style={{ textAlign: 'center', padding: '40px' }}>Verificando autenticação...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    if (tenantLoading) {
+        return <div className="loader">Carregando tenant...</div>;
+    }
+
+    if (!tenant) {
+        return <div>Tenant não encontrado</div>;
+    }
+
+    // ============================================================
+    //  HANDLERS
+    // ============================================================
     const handleFilter = (newFilters) => {
         setFilters(newFilters);
+    };
+
+    const handlePeriodChange = (newPeriod) => {
+        setPeriod(newPeriod);
+    };
+
+    const handleRefresh = () => {
+        loadDashboardData(period);
+        loadData();
+        showToast('📊 Dashboard atualizado!', 'success');
+    };
+
+    const openTrackingModal = (orderId, token) => {
+        setTrackingOrderId(orderId);
+        setTrackingToken(token);
+        setTrackingModalOpen(true);
     };
 
     const getCurrentItems = () => {
@@ -457,7 +441,6 @@ const AdminLayout = () => {
         try {
             await api.put(`/orders/${orderId}/status`, { status });
             await loadData();
-            loadDashboardData(period);
         } catch (error) {
             console.error('Erro ao atualizar status:', error);
             showToast('Erro ao atualizar status do pedido.', 'error');
