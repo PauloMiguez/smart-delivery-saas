@@ -15,6 +15,13 @@ const http = require('http');
 const socketIo = require('socket.io');
 
 // ============================================================
+//  CONFIGURAR FUSO HORÁRIO PARA BRASIL (UTC-3)
+// ============================================================
+process.env.TZ = 'America/Sao_Paulo';
+console.log(`🕐 Fuso horário configurado: ${process.env.TZ}`);
+console.log(`🕐 Hora atual: ${new Date().toLocaleString('pt-BR')}`);
+
+// ============================================================
 //  IMPORTS CLOUDINARY
 // ============================================================
 const { uploadBanner, uploadLogo, uploadProduct, deleteImage } = require('./upload');
