@@ -158,25 +158,34 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - scheduled_time NÃO CONVERTE
+//  ✅ FUNÇÃO CORRIGIDA - EXIBE scheduled_time SEM CONVERSÃO
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '-';
-        
         if (isScheduled) {
-            // ✅ scheduled_time: já está no formato local (UTC-3)
-            // Extrair componentes manualmente para evitar conversão
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
+            // ✅ scheduled_time: é uma string no formato YYYY-MM-DDTHH:MM:SS
+            // Extrair componentes manualmente para exibir sem conversão
+            const parts = dateString.split('T');
+            if (parts.length !== 2) return dateString;
+            
+            const datePart = parts[0];
+            const timePart = parts[1];
+            const timeParts = timePart.split(':');
+            
+            // Formatar como DD/MM/YYYY, HH:MM
+            const dateObj = new Date(datePart + 'T00:00:00');
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const hours = timeParts[0] || '00';
+            const minutes = timeParts[1] || '00';
+            
             return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
             // ✅ created_at: está em UTC, converter para local
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '-';
             return date.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -321,13 +330,11 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                             </DetailRow>
                             
-                            {/* ✅ created_at: converte para local */}
                             <DetailRow>
                                 <DetailLabel>Data do Pedido</DetailLabel>
                                 <span>{formatLocalDate(order.created_at, false)}</span>
                             </DetailRow>
                             
-                            {/* ✅ scheduled_time: NÃO converte, exibe como está */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <DetailRow style={{ 
                                     backgroundColor: '#fef9e7', 
