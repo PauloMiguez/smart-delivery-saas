@@ -158,7 +158,7 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  ✅ FUNÇÃO CORRIGIDA - TRATAR created_at E scheduled_time
+//  FUNÇÃO CORRIGIDA PARA EXIBIR DATAS
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
@@ -166,15 +166,21 @@ const formatLocalDate = (dateString, isScheduled = false) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
+        // ✅ scheduled_time: já está no horário correto (UTC-3)
+        // ✅ created_at: está em UTC, precisa de ajuste
         let localTime;
         if (isScheduled) {
-            // scheduled_time: já está no fuso correto (UTC-3)
+            // scheduled_time já está no formato correto (UTC-3)
             // Só formatar sem ajustes
             localTime = date;
+            console.log('📅 scheduled_time (original):', dateString);
+            console.log('📅 scheduled_time (exibido):', localTime.toLocaleString('pt-BR'));
         } else {
-            // created_at: está em UTC, subtrair 3 horas (UTC-3)
+            // created_at está em UTC, subtrair 3 horas (UTC-3)
             const offsetHours = 3;
             localTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
+            console.log('📅 created_at (original):', dateString);
+            console.log('📅 created_at (ajustado):', localTime.toLocaleString('pt-BR'));
         }
         
         return localTime.toLocaleString('pt-BR', {
