@@ -157,6 +157,34 @@ const statusEmojis = {
     'cancelado': '❌'
 };
 
+// ============================================================
+//  ✅ CORREÇÃO: FUNÇÃO PARA FORMATAR DATA LOCAL (UTC-3)
+// ============================================================
+const formatLocalDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        
+        // 🔧 CORREÇÃO: Ajustar para o fuso horário local (UTC-3)
+        // O banco salva em UTC, precisamos subtrair o offset
+        // para mostrar o horário correto no Brasil
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60000));
+        
+        return localDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return '-';
+    }
+};
+
 const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -285,10 +313,22 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <DetailLabel>Total</DetailLabel>
                                 <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                             </DetailRow>
+                            
+                            {/* ✅ CORREÇÃO: DATA DO PEDIDO */}
                             <DetailRow>
-                                <DetailLabel>Data</DetailLabel>
-                                <span>{new Date(order.created_at).toLocaleString('pt-BR')}</span>
+                                <DetailLabel>Data do Pedido</DetailLabel>
+                                <span>{formatLocalDate(order.created_at)}</span>
                             </DetailRow>
+                            
+                            {/* ✅ CORREÇÃO: DATA AGENDADA (SE HOUVER) */}
+                            {order.is_scheduled && order.scheduled_time && (
+                                <DetailRow style={{ backgroundColor: '#fef9e7', borderLeft: '3px solid #f39c12' }}>
+                                    <DetailLabel>📅 Agendado para</DetailLabel>
+                                    <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                        {formatLocalDate(order.scheduled_time)}
+                                    </span>
+                                </DetailRow>
+                            )}
                         </div>
 
                         <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
