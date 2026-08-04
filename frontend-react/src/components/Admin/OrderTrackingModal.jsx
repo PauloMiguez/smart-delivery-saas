@@ -158,7 +158,7 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  FUNÇÃO CORRIGIDA PARA EXIBIR DATAS
+//  ✅ FUNÇÃO CORRIGIDA - scheduled_time NÃO CONVERTE
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
@@ -166,30 +166,26 @@ const formatLocalDate = (dateString, isScheduled = false) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // ✅ scheduled_time: já está no horário correto (UTC-3)
-        // ✅ created_at: está em UTC, precisa de ajuste
-        let localTime;
         if (isScheduled) {
-            // scheduled_time já está no formato correto (UTC-3)
-            // Só formatar sem ajustes
-            localTime = date;
-            console.log('📅 scheduled_time (original):', dateString);
-            console.log('📅 scheduled_time (exibido):', localTime.toLocaleString('pt-BR'));
+            // ✅ scheduled_time: já está no formato local (UTC-3)
+            // Extrair componentes manualmente para evitar conversão
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
-            // created_at está em UTC, subtrair 3 horas (UTC-3)
-            const offsetHours = 3;
-            localTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
-            console.log('📅 created_at (original):', dateString);
-            console.log('📅 created_at (ajustado):', localTime.toLocaleString('pt-BR'));
+            // ✅ created_at: está em UTC, converter para local
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/Sao_Paulo'
+            });
         }
-        
-        return localTime.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
     } catch (error) {
         console.error('Erro ao formatar data:', error);
         return '-';
@@ -325,13 +321,13 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: created_at com offset -3h */}
+                            {/* ✅ created_at: converte para local */}
                             <DetailRow>
                                 <DetailLabel>Data do Pedido</DetailLabel>
                                 <span>{formatLocalDate(order.created_at, false)}</span>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: scheduled_time sem offset */}
+                            {/* ✅ scheduled_time: NÃO converte, exibe como está */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <DetailRow style={{ 
                                     backgroundColor: '#fef9e7', 
