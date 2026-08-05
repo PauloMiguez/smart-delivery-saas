@@ -203,7 +203,6 @@ const AdminLayout = () => {
             socketInstance.on('connect', () => {
                 console.log('✅ Socket conectado ao servidor!');
                 setSocketStatus('conectado');
-                showToast('🔌 Conectado ao servidor de notificações', 'success');
             });
 
             socketInstance.on('disconnect', () => {
