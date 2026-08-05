@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+// ✅ Criar o contexto
 const TenantContext = createContext();
 
 export const useTenant = () => {
@@ -11,6 +12,9 @@ export const useTenant = () => {
     return context;
 };
 
+// ✅ Exportar o contexto para uso no App.jsx
+export { TenantContext };
+
 // ============================================================
 //  FUNÇÃO PARA OBTER TENANT
 // ============================================================
@@ -19,7 +23,6 @@ export const getTenantId = () => {
     const params = new URLSearchParams(window.location.search);
     const tenant = params.get('tenant');
     if (tenant) {
-        // ✅ Persistir no localStorage e sessionStorage
         localStorage.setItem('tenant', tenant);
         sessionStorage.setItem('tenant', tenant);
         return tenant;
@@ -46,32 +49,25 @@ export const TenantProvider = ({ children }) => {
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // ============================================================
-    //  ATUALIZAR TENANT QUANDO A URL MUDAR
-    // ============================================================
     useEffect(() => {
         const tenantId = getTenantId();
         console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
         
         if (tenantId) {
             setTenant(tenantId);
-            // ✅ Garantir que o tenant está em ambos os storages
             localStorage.setItem('tenant', tenantId);
             sessionStorage.setItem('tenant', tenantId);
         } else {
-            // Se não tem tenant na URL, tentar recuperar do localStorage
             const savedTenant = localStorage.getItem('tenant');
             if (savedTenant) {
                 console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
                 setTenant(savedTenant);
-                // Adicionar tenant na URL se não tiver
                 const url = new URL(window.location);
                 if (!url.searchParams.has('tenant')) {
                     url.searchParams.set('tenant', savedTenant);
                     window.history.replaceState({}, '', url);
                 }
             } else {
-                // Limpar se não tiver tenant
                 localStorage.removeItem('tenant');
                 sessionStorage.removeItem('tenant');
                 console.log('🧹 [TenantContext] Limpando storage - sem tenant');
@@ -80,24 +76,18 @@ export const TenantProvider = ({ children }) => {
         setLoading(false);
     }, [location]);
 
-    // ============================================================
-    //  RECUPERAR TENANT QUANDO A ABA FOR REATIVADA
-    // ============================================================
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                // Aba foi reativada, verificar se ainda tem tenant
                 const currentTenant = getTenantId();
                 if (currentTenant && !tenant) {
                     console.log('🔄 [TenantContext] Recuperando tenant após reativação:', currentTenant);
                     setTenant(currentTenant);
                 }
                 
-                // Verificar se o tenant ainda está na URL
                 const params = new URLSearchParams(window.location.search);
                 const urlTenant = params.get('tenant');
                 if (!urlTenant && tenant) {
-                    // Adicionar tenant na URL se não tiver
                     const url = new URL(window.location);
                     url.searchParams.set('tenant', tenant);
                     window.history.replaceState({}, '', url);
@@ -109,16 +99,12 @@ export const TenantProvider = ({ children }) => {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [tenant]);
 
-    // ============================================================
-    //  RECUPERAR TENANT QUANDO A PÁGINA FOR CARREGADA
-    // ============================================================
     useEffect(() => {
         const handleLoad = () => {
             const params = new URLSearchParams(window.location.search);
             const urlTenant = params.get('tenant');
             
             if (!urlTenant && tenant) {
-                // Adicionar tenant na URL se não tiver
                 const url = new URL(window.location);
                 url.searchParams.set('tenant', tenant);
                 window.history.replaceState({}, '', url);
