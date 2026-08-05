@@ -58,7 +58,7 @@ const StatusBadge = styled.div`
     font-weight: 600;
     font-size: 14px;
     background: ${props => {
-        switch(props.status) {
+        switch (props.status) {
             case 'pending': return '#fef9e7';
             case 'confirmado': return '#d5f5e3';
             case 'preparando': return '#fdebd0';
@@ -68,7 +68,7 @@ const StatusBadge = styled.div`
         }
     }};
     color: ${props => {
-        switch(props.status) {
+        switch (props.status) {
             case 'pending': return '#f39c12';
             case 'confirmado': return '#27ae60';
             case 'preparando': return '#e67e22';
@@ -185,31 +185,31 @@ const formatLocalDate = (dateString, isScheduled = false) => {
             const clean = dateString.replace(' ', 'T');
             const parts = clean.split('T');
             if (parts.length !== 2) return dateString;
-            
+
             const datePart = parts[0];
             const timePart = parts[1];
-            
+
             const dateComponents = datePart.split('-');
             if (dateComponents.length !== 3) return dateString;
-            
+
             const year = dateComponents[0];
             const month = dateComponents[1];
             const day = dateComponents[2];
-            
+
             const timeComponents = timePart.split(':');
             if (timeComponents.length < 2) return dateString;
-            
+
             const hours = timeComponents[0];
             const minutes = timeComponents[1];
-            
+
             return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
             // created_at: está em UTC, subtrair 3 horas
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-            
+
             const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-            
+
             return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -257,11 +257,11 @@ const TrackOrder = () => {
     const loadOrder = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             console.log('📦 Buscando pedido:', orderId);
             console.log('🔑 Token presente:', !!token);
-            
+
             if (!token) {
                 setError('Link inválido. Token de acesso não encontrado.');
                 showToast('Link inválido. Token de acesso não encontrado.', 'error');
@@ -277,10 +277,10 @@ const TrackOrder = () => {
             }
 
             const response = await api.get(`/orders/${orderId}?token=${token}`);
-            
+
             if (response.data.success) {
                 setOrder(response.data.data);
-                
+
                 let tenantFromOrder = null;
                 if (response.data.tenant) {
                     tenantFromOrder = response.data.tenant;
@@ -289,12 +289,12 @@ const TrackOrder = () => {
                 } else if (response.data.data && response.data.data.tenantId) {
                     tenantFromOrder = response.data.data.tenantId;
                 }
-                
+
                 if (tenantFromOrder) {
                     setOrderTenant(tenantFromOrder);
                     console.log('🏷️ Tenant do pedido:', tenantFromOrder);
                 }
-                
+
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
             } else {
                 setError('Pedido não encontrado');
@@ -302,9 +302,9 @@ const TrackOrder = () => {
             }
         } catch (error) {
             console.error('❌ Erro ao carregar pedido:', error);
-            
+
             let errorMessage = 'Erro ao carregar pedido. Verifique o link.';
-            
+
             if (error.response) {
                 if (error.response.status === 401) {
                     errorMessage = 'Token inválido ou expirado.';
@@ -316,7 +316,7 @@ const TrackOrder = () => {
             } else if (error.request) {
                 errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
             }
-            
+
             setError(errorMessage);
             showToast(errorMessage, 'error');
         } finally {
@@ -436,13 +436,13 @@ const TrackOrder = () => {
 
     const isCancelled = order.status === 'cancelado';
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-    
+
     // ✅ Calcular subtotal (soma dos itens)
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    
+
     // ✅ Taxa de entrega (vem do pedido)
     const deliveryFee = parseFloat(order.delivery_fee) || 0;
-    
+
     // ✅ Total (já vem do pedido)
     const total = parseFloat(order.total) || 0;
 
@@ -458,7 +458,7 @@ const TrackOrder = () => {
 
             <OrderCard>
                 <OrderNumber>#{order.order_number}</OrderNumber>
-                
+
                 <StatusBadge status={order.status}>
                     {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                 </StatusBadge>
@@ -467,10 +467,10 @@ const TrackOrder = () => {
                     {statusOrder.map((status) => {
                         const active = !isCancelled && isStatusActive(status);
                         const completed = !isCancelled && isStatusCompleted(status);
-                        const icon = isCancelled ? '❌' : 
-                                   completed ? '✅' : 
-                                   active ? statusEmojis[status] : '⏳';
-                        
+                        const icon = isCancelled ? '❌' :
+                            completed ? '✅' :
+                                active ? statusEmojis[status] : '⏳';
+
                         return (
                             <StatusStep key={status} active={active}>
                                 <StepIcon>{icon}</StepIcon>
@@ -482,7 +482,7 @@ const TrackOrder = () => {
                             </StatusStep>
                         );
                     })}
-                    
+
                     {isCancelled && (
                         <StatusStep active={true}>
                             <StepIcon>❌</StepIcon>
@@ -499,22 +499,22 @@ const TrackOrder = () => {
                     <div style={{ marginBottom: 12 }}>
                         <strong style={{ color: '#555' }}>🛒 Itens:</strong>
                         {items.map((item, index) => (
-                            <div key={index} style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                padding: '4px 0', 
-                                fontSize: '14px', 
-                                borderBottom: '1px solid #f5f5f5' 
+                            <div key={index} style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                padding: '4px 0',
+                                fontSize: '14px',
+                                borderBottom: '1px solid #f5f5f5'
                             }}>
                                 <span>{item.qty}x {item.name}</span>
                                 <span>{formatMoney(item.price * item.qty)}</span>
                             </div>
                         ))}
-                        
+
                         {/* ✅ SUBTOTAL */}
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             padding: '8px 0 4px 0',
                             fontSize: '14px',
                             color: '#555',
@@ -523,11 +523,11 @@ const TrackOrder = () => {
                             <span>Subtotal</span>
                             <span>{formatMoney(subtotal)}</span>
                         </div>
-                        
+
                         {/* ✅ TAXA DE ENTREGA */}
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             padding: '4px 0 8px 0',
                             fontSize: '14px',
                             color: '#555',
@@ -538,7 +538,7 @@ const TrackOrder = () => {
                                 {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
                             </span>
                         </div>
-                        
+
                         {/* ✅ TOTAL */}
                         <DetailTotal>
                             <span>Total</span>
@@ -550,7 +550,7 @@ const TrackOrder = () => {
                         <DetailLabel>Data do pedido</DetailLabel>
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
-                    
+
                     {order.is_scheduled && order.scheduled_time && (
                         <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
                             <DetailLabel>📅 Agendado para</DetailLabel>
@@ -559,7 +559,7 @@ const TrackOrder = () => {
                             </span>
                         </DetailRow>
                     )}
-                    
+
                     <DetailRow>
                         <DetailLabel>Pagamento</DetailLabel>
                         <span>{order.payment_method}</span>
