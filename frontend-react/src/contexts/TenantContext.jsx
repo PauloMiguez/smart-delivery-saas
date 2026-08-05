@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 
 // ✅ Criar o contexto
 const TenantContext = createContext();
@@ -16,7 +15,7 @@ export const useTenant = () => {
 export { TenantContext };
 
 // ============================================================
-//  FUNÇÃO PARA OBTER TENANT
+//  FUNÇÃO PARA OBTER TENANT (SEM useLocation)
 // ============================================================
 export const getTenantId = () => {
     // 1. Tenta da URL
@@ -45,10 +44,12 @@ export const getTenantId = () => {
 };
 
 export const TenantProvider = ({ children }) => {
-    const location = useLocation();
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // ============================================================
+    //  CARREGAR TENANT INICIAL
+    // ============================================================
     useEffect(() => {
         const tenantId = getTenantId();
         console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
@@ -62,6 +63,7 @@ export const TenantProvider = ({ children }) => {
             if (savedTenant) {
                 console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
                 setTenant(savedTenant);
+                // Adicionar tenant na URL
                 const url = new URL(window.location);
                 if (!url.searchParams.has('tenant')) {
                     url.searchParams.set('tenant', savedTenant);
@@ -74,8 +76,11 @@ export const TenantProvider = ({ children }) => {
             }
         }
         setLoading(false);
-    }, [location]);
+    }, []);
 
+    // ============================================================
+    //  RECUPERAR TENANT QUANDO A ABA FOR REATIVADA
+    // ============================================================
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden) {
@@ -99,6 +104,9 @@ export const TenantProvider = ({ children }) => {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [tenant]);
 
+    // ============================================================
+    //  RECUPERAR TENANT QUANDO A PÁGINA FOR CARREGADA
+    // ============================================================
     useEffect(() => {
         const handleLoad = () => {
             const params = new URLSearchParams(window.location.search);
@@ -113,6 +121,25 @@ export const TenantProvider = ({ children }) => {
 
         window.addEventListener('load', handleLoad);
         return () => window.removeEventListener('load', handleLoad);
+    }, [tenant]);
+
+    // ============================================================
+    //  OUVIR MUDANÇAS NA URL (popstate)
+    // ============================================================
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlTenant = params.get('tenant');
+            if (urlTenant && urlTenant !== tenant) {
+                console.log('🔄 [TenantContext] Tenant mudou na URL:', urlTenant);
+                setTenant(urlTenant);
+                localStorage.setItem('tenant', urlTenant);
+                sessionStorage.setItem('tenant', urlTenant);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
     }, [tenant]);
 
     const value = {
