@@ -296,6 +296,8 @@ const TrackOrder = () => {
                 }
 
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
+                console.log('📊 is_scheduled:', response.data.data.is_scheduled);
+                console.log('📊 scheduled_time:', response.data.data.scheduled_time);
             } else {
                 setError('Pedido não encontrado');
                 showToast('Pedido não encontrado', 'error');
@@ -446,6 +448,21 @@ const TrackOrder = () => {
     // ✅ Total (já vem do pedido)
     const total = parseFloat(order.total) || 0;
 
+    // ✅ Verificar se é agendado (de forma robusta)
+    const isScheduled = Number(order.is_scheduled) === 1;
+    const hasScheduledTime = order.scheduled_time && 
+                             order.scheduled_time !== '0' && 
+                             order.scheduled_time !== 'null' &&
+                             order.scheduled_time !== '' &&
+                             order.scheduled_time !== 0;
+
+    console.log('🔍 Debug agendamento:', {
+        isScheduled,
+        hasScheduledTime,
+        scheduled_time: order.scheduled_time,
+        is_scheduled_raw: order.is_scheduled
+    });
+
     return (
         <TrackContainer>
             {isFromOrders && (
@@ -511,6 +528,7 @@ const TrackOrder = () => {
                             </div>
                         ))}
 
+                        {/* ✅ SUBTOTAL */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -523,6 +541,7 @@ const TrackOrder = () => {
                             <span>{formatMoney(subtotal)}</span>
                         </div>
 
+                        {/* ✅ TAXA DE ENTREGA */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -537,6 +556,7 @@ const TrackOrder = () => {
                             </span>
                         </div>
 
+                        {/* ✅ TOTAL */}
                         <DetailTotal>
                             <span>Total</span>
                             <span>{formatMoney(total)}</span>
@@ -548,20 +568,15 @@ const TrackOrder = () => {
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
 
-                    {/* ✅ CORREÇÃO: Verificação robusta para agendamento */}
-                    {order.is_scheduled &&
-                        order.is_scheduled !== 0 &&
-                        order.is_scheduled !== '0' &&
-                        order.scheduled_time &&
-                        order.scheduled_time !== '0' &&
-                        order.scheduled_time !== 'null' && (
-                            <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
-                                <DetailLabel>📅 Agendado para</DetailLabel>
-                                <span style={{ color: '#e67e22', fontWeight: '600' }}>
-                                    {formatLocalDate(order.scheduled_time, true)}
-                                </span>
-                            </DetailRow>
-                        )}
+                    {/* ✅ CORREÇÃO: Só exibir se for realmente agendado */}
+                    {isScheduled && hasScheduledTime && (
+                        <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
+                            <DetailLabel>📅 Agendado para</DetailLabel>
+                            <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                {formatLocalDate(order.scheduled_time, true)}
+                            </span>
+                        </DetailRow>
+                    )}
 
                     <DetailRow>
                         <DetailLabel>Pagamento</DetailLabel>
@@ -574,12 +589,13 @@ const TrackOrder = () => {
                         </span>
                     </DetailRow>
                 </OrderDetails>
+            </OrderCard>
 
-                {isFromOrders && (
-                    <Button primary onClick={goToMenu} style={{ width: '100%' }}>
-                        Voltar ao cardápio
-                    </Button>
-                )}
+            {isFromOrders && (
+                <Button primary onClick={goToMenu} style={{ width: '100%' }}>
+                    Voltar ao cardápio
+                </Button>
+            )}
         </TrackContainer>
     );
 };
