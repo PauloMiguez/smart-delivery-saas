@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     OrdersContainer,
     TableWrapper,
@@ -12,13 +12,106 @@ import {
     MobileActions
 } from './AdminLayout.styled';
 
+// ============================================================
+//  FILTRO DE STATUS
+// ============================================================
+const StatusFilter = styled.select`
+    padding: 8px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: #2d3436;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 160px;
+
+    &:focus {
+        border-color: #e67e22;
+    }
+
+    @media (max-width: 768px) {
+        width: 100%;
+        min-width: unset;
+    }
+`;
+
+// ============================================================
+//  HEADER COM FILTRO
+// ============================================================
+const OrdersHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: stretch;
+    }
+`;
+
+const HeaderTitle = styled.h3`
+    margin: 0;
+    font-size: 18px;
+    color: #2d3436;
+
+    @media (max-width: 768px) {
+        font-size: 16px;
+    }
+`;
+
+const FilterGroup = styled.div`
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+
+    @media (max-width: 768px) {
+        width: 100%;
+        flex-direction: column;
+    }
+`;
+
 const Orders = ({
-    orders,
+    orders: allOrders,
     unreadOrders,
     onUpdateStatus,
     onOpenTracking,
     onRefresh
 }) => {
+    // ============================================================
+    //  ESTADO DO FILTRO
+    // ============================================================
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    // ============================================================
+    //  FILTRAR PEDIDOS POR STATUS
+    // ============================================================
+    const filteredOrders = statusFilter === 'all'
+        ? allOrders
+        : allOrders.filter(o => {
+            const status = o.status || 'pending';
+            return status === statusFilter;
+        });
+
+    // ============================================================
+    //  FUNÇÃO PARA PARSE DOS ITENS
+    // ============================================================
+    const parseItems = (items) => {
+        if (typeof items === 'string') {
+            try { return JSON.parse(items); } catch (e) { return []; }
+        }
+        if (!Array.isArray(items)) return [];
+        return items;
+    };
+
+    // ============================================================
+    //  MAPEAMENTO DE STATUS
+    // ============================================================
     const statusMap = {
         'pending': 'pending',
         'confirmado': 'confirmed',
@@ -37,27 +130,29 @@ const Orders = ({
         'scheduled': '📅 Agendado'
     };
 
-    // Função para parse dos itens
-    const parseItems = (items) => {
-        if (typeof items === 'string') {
-            try { return JSON.parse(items); } catch (e) { return []; }
-        }
-        if (!Array.isArray(items)) return [];
-        return items;
+    const statusOptions = [
+        { value: 'all', label: '📋 Todos os pedidos' },
+        { value: 'scheduled', label: '📅 Agendados' },
+        { value: 'pending', label: '🟡 Pendentes' },
+        { value: 'confirmado', label: '🟢 Confirmados' },
+        { value: 'preparando', label: '🟠 Em preparo' },
+        { value: 'entregue', label: '✅ Entregues' },
+        { value: 'cancelado', label: '❌ Cancelados' }
+    ];
+
+    const getStatusForBadge = (status) => {
+        return statusMap[status] || 'pending';
+    };
+
+    const getStatusLabel = (status) => {
+        return statusLabels[status] || status;
     };
 
     return (
         <OrdersContainer>
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                marginBottom: '16px', 
-                flexWrap: 'wrap', 
-                gap: '8px' 
-            }}>
-                <h3 style={{ margin: 0 }}>
-                    Pedidos Recebidos
+            <OrdersHeader>
+                <HeaderTitle>
+                    📋 Pedidos Recebidos
                     {unreadOrders > 0 && (
                         <span style={{ 
                             fontSize: '14px', 
@@ -68,14 +163,28 @@ const Orders = ({
                             ({unreadOrders} novos)
                         </span>
                     )}
-                </h3>
-                <ActionButton onClick={onRefresh}>
-                    🔄 Atualizar
-                </ActionButton>
-            </div>
-            
-            {orders.length === 0 ? (
-                <p style={{ color: '#888', padding: '20px 0' }}>Nenhum pedido recebido.</p>
+                </HeaderTitle>
+
+                <FilterGroup>
+                    <StatusFilter
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        {statusOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </StatusFilter>
+                </FilterGroup>
+            </OrdersHeader>
+
+            {filteredOrders.length === 0 ? (
+                <p style={{ color: '#888', padding: '20px 0' }}>
+                    {allOrders.length === 0 
+                        ? 'Nenhum pedido recebido.' 
+                        : 'Nenhum pedido encontrado com o filtro selecionado.'}
+                </p>
             ) : (
                 <>
                     {/* TABELA DESKTOP */}
@@ -92,7 +201,7 @@ const Orders = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {orders.map(o => {
+                                {filteredOrders.map(o => {
                                     const items = parseItems(o.items);
                                     const statusClass = o.status || 'pending';
 
@@ -148,8 +257,8 @@ const Orders = ({
                                             </td>
                                             <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
                                             <td>
-                                                <Badge $status={statusMap[statusClass] || 'pending'}>
-                                                    {statusLabels[statusClass] || statusClass}
+                                                <Badge $status={getStatusForBadge(statusClass)}>
+                                                    {getStatusLabel(statusClass)}
                                                 </Badge>
                                             </td>
                                             <td>
@@ -231,7 +340,7 @@ const Orders = ({
 
                     {/* CARDS MOBILE */}
                     <div className="mobile-cards">
-                        {orders.map(o => {
+                        {filteredOrders.map(o => {
                             const items = parseItems(o.items);
                             const statusClass = o.status || 'pending';
 
@@ -292,8 +401,8 @@ const Orders = ({
                                     <MobileOrderRow>
                                         <span className="label">Status</span>
                                         <span className="value">
-                                            <Badge $status={statusMap[statusClass] || 'pending'}>
-                                                {statusLabels[statusClass] || statusClass}
+                                            <Badge $status={getStatusForBadge(statusClass)}>
+                                                {getStatusLabel(statusClass)}
                                             </Badge>
                                         </span>
                                     </MobileOrderRow>
