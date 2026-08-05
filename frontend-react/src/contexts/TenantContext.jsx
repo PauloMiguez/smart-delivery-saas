@@ -1,46 +1,143 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getTenantId } from '../services/api';
+import { useLocation } from 'react-router-dom';
 
-export const TenantContext = createContext();
-
-export const TenantProvider = ({ children }) => {
-    const [tenant, setTenant] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Limpar storage se não houver tenant na URL
-        const params = new URLSearchParams(window.location.search);
-        const hasTenantInUrl = params.has('tenant');
-        
-        if (!hasTenantInUrl) {
-            console.log('🧹 Limpando storage - sem tenant na URL');
-            localStorage.removeItem('tenant');
-            sessionStorage.removeItem('tenant');
-        }
-
-        const tenantId = getTenantId();
-        console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
-        setTenant(tenantId);
-        setLoading(false);
-        
-        if (!tenantId) {
-            console.log('🏠 Nenhum tenant encontrado - Mostrando página de boas-vindas');
-        } else {
-            console.log('✅ Tenant definido:', tenantId);
-        }
-    }, []);
-
-    return (
-        <TenantContext.Provider value={{ tenant, loading }}>
-            {children}
-        </TenantContext.Provider>
-    );
-};
+const TenantContext = createContext();
 
 export const useTenant = () => {
     const context = useContext(TenantContext);
     if (!context) {
-        throw new Error('useTenant deve ser usado dentro de TenantProvider');
+        throw new Error('useTenant must be used within a TenantProvider');
     }
     return context;
+};
+
+// ============================================================
+//  FUNÇÃO PARA OBTER TENANT
+// ============================================================
+export const getTenantId = () => {
+    // 1. Tenta da URL
+    const params = new URLSearchParams(window.location.search);
+    const tenant = params.get('tenant');
+    if (tenant) {
+        // ✅ Persistir no localStorage e sessionStorage
+        localStorage.setItem('tenant', tenant);
+        sessionStorage.setItem('tenant', tenant);
+        return tenant;
+    }
+    
+    // 2. Tenta do localStorage (persistente)
+    const localStored = localStorage.getItem('tenant');
+    if (localStored) {
+        sessionStorage.setItem('tenant', localStored);
+        return localStored;
+    }
+    
+    // 3. Tenta do sessionStorage
+    const stored = sessionStorage.getItem('tenant');
+    if (stored) {
+        return stored;
+    }
+    
+    return null;
+};
+
+export const TenantProvider = ({ children }) => {
+    const location = useLocation();
+    const [tenant, setTenant] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // ============================================================
+    //  ATUALIZAR TENANT QUANDO A URL MUDAR
+    // ============================================================
+    useEffect(() => {
+        const tenantId = getTenantId();
+        console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
+        
+        if (tenantId) {
+            setTenant(tenantId);
+            // ✅ Garantir que o tenant está em ambos os storages
+            localStorage.setItem('tenant', tenantId);
+            sessionStorage.setItem('tenant', tenantId);
+        } else {
+            // Se não tem tenant na URL, tentar recuperar do localStorage
+            const savedTenant = localStorage.getItem('tenant');
+            if (savedTenant) {
+                console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
+                setTenant(savedTenant);
+                // Adicionar tenant na URL se não tiver
+                const url = new URL(window.location);
+                if (!url.searchParams.has('tenant')) {
+                    url.searchParams.set('tenant', savedTenant);
+                    window.history.replaceState({}, '', url);
+                }
+            } else {
+                // Limpar se não tiver tenant
+                localStorage.removeItem('tenant');
+                sessionStorage.removeItem('tenant');
+                console.log('🧹 [TenantContext] Limpando storage - sem tenant');
+            }
+        }
+        setLoading(false);
+    }, [location]);
+
+    // ============================================================
+    //  RECUPERAR TENANT QUANDO A ABA FOR REATIVADA
+    // ============================================================
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                // Aba foi reativada, verificar se ainda tem tenant
+                const currentTenant = getTenantId();
+                if (currentTenant && !tenant) {
+                    console.log('🔄 [TenantContext] Recuperando tenant após reativação:', currentTenant);
+                    setTenant(currentTenant);
+                }
+                
+                // Verificar se o tenant ainda está na URL
+                const params = new URLSearchParams(window.location.search);
+                const urlTenant = params.get('tenant');
+                if (!urlTenant && tenant) {
+                    // Adicionar tenant na URL se não tiver
+                    const url = new URL(window.location);
+                    url.searchParams.set('tenant', tenant);
+                    window.history.replaceState({}, '', url);
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [tenant]);
+
+    // ============================================================
+    //  RECUPERAR TENANT QUANDO A PÁGINA FOR CARREGADA
+    // ============================================================
+    useEffect(() => {
+        const handleLoad = () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlTenant = params.get('tenant');
+            
+            if (!urlTenant && tenant) {
+                // Adicionar tenant na URL se não tiver
+                const url = new URL(window.location);
+                url.searchParams.set('tenant', tenant);
+                window.history.replaceState({}, '', url);
+            }
+        };
+
+        window.addEventListener('load', handleLoad);
+        return () => window.removeEventListener('load', handleLoad);
+    }, [tenant]);
+
+    const value = {
+        tenant,
+        loading,
+        setTenant
+    };
+
+    return (
+        <TenantContext.Provider value={value}>
+            {children}
+        </TenantContext.Provider>
+    );
 };
