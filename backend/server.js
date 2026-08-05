@@ -1118,27 +1118,31 @@ app.post('/api/orders', async (req, res) => {
 
         const deliveryType = config.delivery_type || 'fixa';
         let calculatedDeliveryFee = 0;
+        let deliveryFound = true;
 
         if (deliveryType === 'fixa') {
             calculatedDeliveryFee = parseFloat(config.delivery_fee) || 0;
         } else if (deliveryType === 'manual') {
             calculatedDeliveryFee = 0;
         } else if (deliveryType === 'dinamica') {
-            calculatedDeliveryFee = calcularTaxaEntrega(tenantId, customer_address, config);
+            const result = calcularTaxaEntrega(tenantId, customer_address, config);
+            calculatedDeliveryFee = result.fee || 0;
+            deliveryFound = result.found !== undefined ? result.found : true;
         }
 
-        // Usar a taxa enviada pelo frontend ou a calculada
-        const finalDeliveryFee = deliveryType === 'manual' ? 0 : (delivery_fee || calculatedDeliveryFee);
+        // ✅ Se não encontrou o bairro, taxa = 0 (será definida manualmente depois)
+        const finalDeliveryFee = (deliveryType === 'manual' || !deliveryFound) ? 0 : (delivery_fee || calculatedDeliveryFee);
+        const finalTotal = parseFloat(total) + finalDeliveryFee;
 
-        console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType})`);
-
-        let finalScheduledTime = null;
-        let finalStatus = 'pending';
-        let finalScheduledStatus = 'pending';
+        console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType}, encontrado: ${deliveryFound})`);
 
         // ============================================================
         //  VALIDAÇÃO DO AGENDAMENTO
         // ============================================================
+        let finalScheduledTime = null;
+        let finalStatus = 'pending';
+        let finalScheduledStatus = 'pending';
+
         if (is_scheduled && scheduled_time) {
             if (typeof scheduled_time !== 'string') {
                 return res.status(400).json({
@@ -1241,7 +1245,7 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(subtotal || 0),
                 finalDeliveryFee,
                 parseFloat(discount || 0),
-                parseFloat(total) + finalDeliveryFee,
+                finalTotal,
                 payment_method,
                 delivery_type,
                 notes || null,
@@ -1261,7 +1265,7 @@ app.post('/api/orders', async (req, res) => {
                 id: result.insertId,
                 orderNumber: orderNumber,
                 customer_name: customer_name,
-                total: parseFloat(total) + finalDeliveryFee,
+                total: finalTotal,
                 items: items,
                 status: finalStatus,
                 is_scheduled: is_scheduled,
