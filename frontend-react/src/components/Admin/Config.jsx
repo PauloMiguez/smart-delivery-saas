@@ -354,22 +354,6 @@ const Config = () => {
                         <small>Número para receber notificações de pedidos.</small>
                     </FormGroup>
 
-                    <FormGroup>
-                        <label>Taxa de Entrega (R$)</label>
-                        <Input
-                            type="number"
-                            name="delivery_fee"
-                            value={config.delivery_fee}
-                            onChange={handleChange}
-                            step="0.01"
-                            min="0"
-                        />
-                    </FormGroup>
-
-                    {/* ============================================================
-                        ❌ CAMPOS REMOVIDOS: open_time, close_time, is_open
-                        Agora gerenciados na aba "Horários" do admin
-                        ============================================================ */}
                 </ConfigSection>
 
                 <ConfigSection>

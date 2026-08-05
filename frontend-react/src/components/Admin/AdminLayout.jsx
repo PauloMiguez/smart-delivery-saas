@@ -38,6 +38,7 @@ const OperatingHours = lazy(() => import('./OperatingHours'));
 const ProductModal = lazy(() => import('./ProductModal'));
 const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
+const DeliverySettings = lazy(() => import('./DeliverySettings'));
 
 const ComponentLoader = () => (
     <div style={{
@@ -68,7 +69,7 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const { tenant, loading: tenantLoading } = useTenant();
     const { showToast } = useToast();
-    
+
     // ============================================================
     //  TODOS OS HOOKS PRIMEIRO (NUNCA CHAMAR HOOKS DEPOIS DE CONDICIONAIS)
     // ============================================================
@@ -105,23 +106,23 @@ const AdminLayout = () => {
     // ============================================================
     //  HOOKS DE EFEITO (TAMBÉM DEVEM VIR ANTES DE CONDICIONAIS)
     // ============================================================
-    
+
     // 1. Verificação de autenticação
     useEffect(() => {
         const token = localStorage.getItem('token');
         const tenantId = localStorage.getItem('tenant') || tenant;
-        
+
         console.log('🔐 Verificando autenticação no Admin...');
         console.log('🔑 Token:', token ? 'presente' : 'ausente');
         console.log('🏷️ Tenant:', tenantId);
-        
+
         if (!token || !tenantId) {
             console.log('❌ Não autenticado - Redirecionando para login');
             navigate(`/login?tenant=${tenantId || ''}`);
             setAuthChecked(true);
             return;
         }
-        
+
         setIsAuthenticated(true);
         setAuthChecked(true);
     }, [navigate, tenant]);
@@ -191,11 +192,11 @@ const AdminLayout = () => {
             console.log('⏳ Aguardando autenticação para conectar socket...');
             return;
         }
-        
+
         console.log('🔌 Inicializando socket para tenant:', tenant);
         const token = localStorage.getItem('token');
         console.log('🔑 Token presente:', !!token);
-        
+
         const socketInstance = connectSocket(token);
         setSocket(socketInstance);
 
@@ -276,19 +277,19 @@ const AdminLayout = () => {
     // ============================================================
     const applyFilters = () => {
         let filtered = [...products];
-        
+
         if (filters.search) {
             const searchLower = filters.search.toLowerCase();
-            filtered = filtered.filter(p => 
+            filtered = filtered.filter(p =>
                 p.name.toLowerCase().includes(searchLower) ||
                 (p.description && p.description.toLowerCase().includes(searchLower))
             );
         }
-        
+
         if (filters.category) {
             filtered = filtered.filter(p => p.category === filters.category);
         }
-        
+
         if (filters.status) {
             if (filters.status === 'active') {
                 filtered = filtered.filter(p => p.active === 1 || p.active === true);
@@ -296,7 +297,7 @@ const AdminLayout = () => {
                 filtered = filtered.filter(p => p.active === 0 || p.active === false);
             }
         }
-        
+
         setFilteredProducts(filtered);
         setCurrentPage(1);
     };
@@ -455,6 +456,7 @@ const AdminLayout = () => {
         { id: 'categories', label: 'Categorias', icon: '🏷️' },
         { id: 'orders', label: 'Pedidos', icon: '📋' },
         { id: 'hours', label: 'Horários', icon: '🕐' },
+        { id: 'delivery', label: 'Taxa de Entrega', icon: '🚚' },
         { id: 'config', label: 'Configurações', icon: '⚙️' }
     ];
 
@@ -538,6 +540,12 @@ const AdminLayout = () => {
                         <OperatingHours />
                     </Suspense>
                 );
+            case 'delivery':
+                return (
+                    <Suspense fallback={<ComponentLoader />}>
+                        <DeliverySettings />
+                    </Suspense>
+                );
             case 'config':
                 return (
                     <Suspense fallback={<ComponentLoader />}>
@@ -559,8 +567,8 @@ const AdminLayout = () => {
                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '8px' }}>
                         🏷️ {tenant}
                     </p>
-                    <p style={{ 
-                        fontSize: '11px', 
+                    <p style={{
+                        fontSize: '11px',
                         color: socketStatus === 'conectado' ? '#27ae60' : '#e74c3c',
                         marginTop: '4px'
                     }}>
@@ -598,9 +606,9 @@ const AdminLayout = () => {
                     <h2>
                         {navItems.find(i => i.id === activeTab)?.label || 'Dashboard'}
                         {activeTab === 'orders' && unreadOrders > 0 && (
-                            <span style={{ 
-                                fontSize: '14px', 
-                                color: '#e74c3c', 
+                            <span style={{
+                                fontSize: '14px',
+                                color: '#e74c3c',
                                 marginLeft: '12px',
                                 fontWeight: 'normal'
                             }}>
@@ -609,8 +617,8 @@ const AdminLayout = () => {
                         )}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ 
-                            fontSize: '12px', 
+                        <span style={{
+                            fontSize: '12px',
                             color: socketStatus === 'conectado' ? '#27ae60' : '#e74c3c'
                         }}>
                             {socketStatus === 'conectado' ? '🟢 Online' : '🔴 Offline'}

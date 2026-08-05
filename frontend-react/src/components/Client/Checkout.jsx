@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
@@ -41,6 +41,7 @@ const Title = styled.h2`
 const SummaryCard = styled(Card)`
     background: ${props => props.theme.colors.background};
     margin-bottom: 20px;
+    margin-top: 16px;
 `;
 
 const SummaryItem = styled.div`
@@ -294,22 +295,15 @@ const openWhatsApp = (phoneNumber, message) => {
 
     console.log('📱 Abrindo WhatsApp:', url);
 
-    // Detectar se é dispositivo móvel
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
+
     if (isMobile) {
-        // ✅ Mobile: Usar window.open (abre no app ou navegador)
         const newWindow = window.open(url, '_blank');
-        
-        // ✅ Fallback para iOS (se o window.open não funcionar)
         if (isIOS && (!newWindow || newWindow.closed)) {
-            // iOS às vezes bloqueia popups, usar location.href como fallback
             window.location.href = url;
         }
-        // Para Android, window.open geralmente funciona
     } else {
-        // ✅ Desktop: Abrir em nova aba (WhatsApp Web)
         window.open(url, '_blank');
     }
 };
@@ -341,16 +335,32 @@ const Checkout = () => {
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [isStoreOpen, setIsStoreOpen] = useState(true);
 
+    // ============================================================
+    //  STATE PARA TAXA DE ENTREGA
+    // ============================================================
+    const [deliveryFee, setDeliveryFee] = useState(0);
+    const [deliveryType, setDeliveryType] = useState('fixa');
+    const [isManualDelivery, setIsManualDelivery] = useState(false);
+
+    // ============================================================
+    //  CARREGAR CONFIGURAÇÕES
+    // ============================================================
     useEffect(() => {
         if (!tenant) return;
 
         const loadData = async () => {
             try {
-                // Carregar config
                 const res = await api.get('/config');
                 setConfig(res.data.data);
+                setDeliveryType(res.data.data.delivery_type || 'fixa');
+                
+                if (res.data.data.delivery_type === 'fixa') {
+                    setDeliveryFee(parseFloat(res.data.data.delivery_fee) || 0);
+                } else if (res.data.data.delivery_type === 'manual') {
+                    setDeliveryFee(0);
+                    setIsManualDelivery(true);
+                }
 
-                // Carregar status da loja
                 const statusRes = await api.get('/store/status');
                 if (statusRes.data.success) {
                     setIsStoreOpen(statusRes.data.data.is_open);
@@ -369,6 +379,59 @@ const Checkout = () => {
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
     }, [tenant]);
+
+    // ============================================================
+    //  CALCULAR TAXA DE ENTREGA DINÂMICA
+    // ============================================================
+    useEffect(() => {
+        if (deliveryType === 'manual') {
+            setIsManualDelivery(true);
+            setDeliveryFee(0);
+            return;
+        }
+        setIsManualDelivery(false);
+    }, [deliveryType]);
+
+    const calculateDeliveryFee = useCallback(async (address) => {
+        if (!address || address.trim().length < 5) {
+            if (deliveryType === 'fixa') {
+                setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
+            } else if (deliveryType === 'manual') {
+                setDeliveryFee(0);
+            }
+            return;
+        }
+
+        if (deliveryType === 'manual') {
+            setDeliveryFee(0);
+            return;
+        }
+
+        try {
+            const response = await api.post('/calculate-delivery', {
+                address: address,
+                tenant: tenant
+            });
+
+            if (response.data.success) {
+                setDeliveryFee(response.data.fee || 0);
+                setDeliveryType(response.data.type || 'fixa');
+            }
+        } catch (error) {
+            console.error('Erro ao calcular taxa:', error);
+            // Fallback para taxa fixa
+            setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
+        }
+    }, [tenant, config, deliveryType]);
+
+    // ============================================================
+    //  ATUALIZAR TAXA QUANDO ENDEREÇO MUDAR
+    // ============================================================
+    useEffect(() => {
+        if (formData.address && formData.address.trim().length >= 5) {
+            calculateDeliveryFee(formData.address);
+        }
+    }, [formData.address, calculateDeliveryFee]);
 
     // ============================================================
     //  FUNÇÕES DE AGENDAMENTO
@@ -407,52 +470,42 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  ✅ CORREÇÃO: Função para formatar scheduled_time
+    //  FORMATAR SCHEDULED TIME
     // ============================================================
     const formatScheduledTime = (datetime) => {
         if (!datetime) return null;
-        
+
         try {
-            // Se for uma string, remover qualquer timezone
             let clean = datetime;
-            
-            // Remover 'Z' (UTC) e qualquer offset (+03:00, -03:00, etc)
             clean = clean.replace('Z', '');
             clean = clean.replace(/[+-]\d{2}:\d{2}$/, '');
-            
-            // Se tiver espaço, converter para T
             clean = clean.replace(' ', 'T');
-            
-            // Garantir formato YYYY-MM-DDTHH:MM:SS
+
             const parts = clean.split('T');
             if (parts.length !== 2) {
                 console.error('❌ Formato inválido:', datetime);
                 return null;
             }
-            
+
             const datePart = parts[0];
             const timePart = parts[1];
-            
-            // Validar data
+
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(datePart)) {
                 console.error('❌ Data inválida:', datePart);
                 return null;
             }
-            
-            // Validar hora
+
             const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
             if (!timeRegex.test(timePart)) {
                 console.error('❌ Hora inválida:', timePart);
                 return null;
             }
-            
-            // Garantir segundos
+
             const timeWithSeconds = timePart.split(':').length === 2 ? `${timePart}:00` : timePart;
-            
             const formatted = `${datePart}T${timeWithSeconds}`;
             console.log('📅 Data formatada:', datetime, '->', formatted);
-            
+
             return formatted;
         } catch (error) {
             console.error('❌ Erro ao formatar data:', error);
@@ -461,7 +514,7 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  ✅ CORREÇÃO: VALIDAÇÃO COM LÓGICA DE LOJA FECHADA
+    //  VALIDAÇÃO
     // ============================================================
     const validateForm = () => {
         const newErrors = {};
@@ -475,15 +528,13 @@ const Checkout = () => {
         const addressError = validateAddress(formData.address);
         if (addressError) newErrors.address = addressError;
 
-        // ============================================================
-        //  ✅ CORREÇÃO: Agendamento é OBRIGATÓRIO quando loja fechada
-        // ============================================================
         if (!isStoreOpen && !selectedSchedule) {
+            showToast('🔴 Loja fechada. Selecione um horário de agendamento.', 'warning');
             return false;
         }
 
-        // Se o agendamento está ativo mas não selecionou horário
         if (isScheduled && !selectedSchedule) {
+            showToast('Selecione uma data e horário para o agendamento.', 'warning');
             return false;
         }
 
@@ -496,6 +547,9 @@ const Checkout = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // ============================================================
+    //  SUBMIT
+    // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -510,7 +564,6 @@ const Checkout = () => {
         setLoading(true);
 
         try {
-            const deliveryFee = parseFloat(config?.delivery_fee) || 0;
             const total = subtotal + deliveryFee;
 
             const invalidItems = cart.filter(item => !item.name || !item.price || !item.qty);
@@ -520,11 +573,8 @@ const Checkout = () => {
                 return;
             }
 
-            // ============================================================
-            //  ✅ CORREÇÃO: Formatar scheduled_time antes de enviar
-            // ============================================================
-            const scheduledTimeToSend = selectedSchedule 
-                ? formatScheduledTime(selectedSchedule.datetime) 
+            const scheduledTimeToSend = selectedSchedule
+                ? formatScheduledTime(selectedSchedule.datetime)
                 : null;
 
             const orderData = {
@@ -546,14 +596,12 @@ const Checkout = () => {
                 scheduled_time: scheduledTimeToSend
             };
 
-            // Se a loja está fechada, força o agendamento
             if (!isStoreOpen && !selectedSchedule) {
                 setLoading(false);
                 return;
             }
 
             console.log('📦 Enviando pedido:', orderData);
-            console.log('📅 Data agendada (enviada):', orderData.scheduled_time);
 
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
@@ -562,11 +610,7 @@ const Checkout = () => {
             const accessToken = response.data.data?.access_token;
             const orderId = response.data.data?.id;
 
-            console.log(`📋 Número do pedido: ${orderNumber}`);
-            console.log(`🔑 Token: ${accessToken?.substring(0, 16)}...`);
-
             const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
-            console.log(`🔗 Link de acompanhamento: ${trackLink}`);
 
             // ============================================================
             //  WHATSAPP
@@ -589,6 +633,10 @@ const Checkout = () => {
                 })}`
                 : '';
 
+            const deliveryFeeText = deliveryType === 'manual'
+                ? '📝 *Taxa de entrega:* Informada após o pedido'
+                : `🚚 *Taxa de entrega:* R$ ${deliveryFee.toFixed(2)}`;
+
             const message =
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -599,7 +647,7 @@ const Checkout = () => {
                 cart.map(i => `  • ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') +
                 `\n\n💰 *Resumo:*\n` +
                 `  Subtotal: R$ ${subtotal.toFixed(2)}\n` +
-                `  Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n` +
+                `  ${deliveryFeeText}\n` +
                 `  ─────────────────────\n` +
                 `  *TOTAL: R$ ${total.toFixed(2)}*\n\n` +
                 `💳 *Pagamento:* ${paymentMethod}\n` +
@@ -656,7 +704,6 @@ const Checkout = () => {
         );
     }
 
-    const deliveryFee = parseFloat(config?.delivery_fee) || 0;
     const total = subtotal + deliveryFee;
 
     return (
@@ -666,28 +713,6 @@ const Checkout = () => {
             </BackButton>
 
             <Title>📋 Finalizar Pedido</Title>
-
-            <SummaryCard>
-                <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>Resumo do pedido</h3>
-                {cart.map(item => (
-                    <SummaryItem key={item.id}>
-                        <span className="name">{item.qty}x {item.name}</span>
-                        <span>R$ {(item.price * item.qty).toFixed(2)}</span>
-                    </SummaryItem>
-                ))}
-                <SummaryItem>
-                    <span className="name">Subtotal</span>
-                    <span>R$ {subtotal.toFixed(2)}</span>
-                </SummaryItem>
-                <SummaryItem>
-                    <span className="name">Taxa de entrega</span>
-                    <span>R$ {deliveryFee.toFixed(2)}</span>
-                </SummaryItem>
-                <TotalRow>
-                    <span>Total</span>
-                    <span>R$ {total.toFixed(2)}</span>
-                </TotalRow>
-            </SummaryCard>
 
             <Form onSubmit={handleSubmit}>
                 <FormGroup>
@@ -745,12 +770,53 @@ const Checkout = () => {
                 </FormGroup>
 
                 {/* ============================================================
-                    SEÇÃO DE AGENDAMENTO - CORRIGIDA
+                    RESUMO DO PEDIDO (DEPOIS DO ENDEREÇO)
+                    ============================================================ */}
+                <SummaryCard>
+                    <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>📋 Resumo do pedido</h3>
+                    {cart.map(item => (
+                        <SummaryItem key={item.id}>
+                            <span className="name">{item.qty}x {item.name}</span>
+                            <span>R$ {(item.price * item.qty).toFixed(2)}</span>
+                        </SummaryItem>
+                    ))}
+                    <SummaryItem>
+                        <span className="name">Subtotal</span>
+                        <span>R$ {subtotal.toFixed(2)}</span>
+                    </SummaryItem>
+                    <SummaryItem>
+                        <span className="name">
+                            {deliveryType === 'manual' ? '📝 Taxa de entrega (manual)' : '🚚 Taxa de entrega'}
+                        </span>
+                        <span>
+                            {deliveryType === 'manual' 
+                                ? 'Informada após o pedido' 
+                                : `R$ ${deliveryFee.toFixed(2)}`}
+                        </span>
+                    </SummaryItem>
+                    <TotalRow>
+                        <span>Total</span>
+                        <span>R$ {total.toFixed(2)}</span>
+                    </TotalRow>
+                    {deliveryType === 'manual' && (
+                        <div style={{ 
+                            fontSize: '12px', 
+                            color: '#888', 
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            background: '#fef9e7',
+                            borderRadius: '6px',
+                            border: '1px solid #f39c12'
+                        }}>
+                            💡 A taxa de entrega será informada pelo restaurante após a confirmação do pedido.
+                        </div>
+                    )}
+                </SummaryCard>
+
+                {/* ============================================================
+                    SEÇÃO DE AGENDAMENTO
                     ============================================================ */}
                 <ScheduleSection>
-                    {/* ============================================================
-                        AVISO QUANDO LOJA FECHADA
-                        ============================================================ */}
                     {!isStoreOpen && (
                         <StoreClosedWarning>
                             <span className="title">🔴 Loja fechada no momento</span>
@@ -761,24 +827,18 @@ const Checkout = () => {
                         </StoreClosedWarning>
                     )}
 
-                    {/* ============================================================
-                        CHECKBOX DE AGENDAMENTO
-                        ============================================================ */}
                     <ScheduleToggle>
                         <input
                             type="checkbox"
                             checked={isScheduled}
                             onChange={toggleSchedule}
-                            disabled={!isStoreOpen} // Se loja fechada, agendamento é obrigatório
+                            disabled={!isStoreOpen}
                         />
                         <span>
                             {!isStoreOpen ? '📅 Agendar entrega (obrigatório)' : '📅 Agendar entrega para outro dia/horário'}
                         </span>
                     </ScheduleToggle>
 
-                    {/* ============================================================
-                        SELEÇÃO DE DATA/HORÁRIO
-                        ============================================================ */}
                     {(isScheduled || !isStoreOpen) && (
                         <div style={{ marginTop: '12px' }}>
                             {!showSchedulePicker && !selectedSchedule && (
@@ -859,9 +919,6 @@ const Checkout = () => {
                     {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
                 </SubmitButton>
 
-                {/* ============================================================
-                    MENSAGEM QUANDO BOTÃO DESABILITADO
-                    ============================================================ */}
                 {!isStoreOpen && !selectedSchedule && !loading && (
                     <div style={{
                         textAlign: 'center',

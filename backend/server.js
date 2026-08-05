@@ -46,6 +46,63 @@ function createLocalDate(dateStr) {
 }
 
 // ============================================================
+//  FUNÇÃO PARA CALCULAR TAXA DE ENTREGA DINÂMICA
+// ============================================================
+function calcularTaxaEntrega(tenantId, endereco, config) {
+    // Se for fixa, retorna o valor fixo
+    if (config.delivery_type === 'fixa') {
+        return parseFloat(config.delivery_fee) || 0;
+    }
+    
+    // Se for manual, retorna 0 (será definido depois)
+    if (config.delivery_type === 'manual') {
+        return 0;
+    }
+    
+    // Se for dinâmica, buscar por bairro
+    if (config.delivery_type === 'dinamica') {
+        try {
+            const zones = JSON.parse(config.delivery_zones || '[]');
+            
+            if (zones.length === 0) {
+                return parseFloat(config.delivery_fee) || 0;
+            }
+            
+            // Extrair bairro do endereço
+            const addressParts = endereco.split(',');
+            let bairro = '';
+            if (addressParts.length >= 2) {
+                const parts = addressParts.map(p => p.trim());
+                // O bairro geralmente é o penúltimo elemento
+                if (parts.length >= 3) {
+                    bairro = parts[parts.length - 2];
+                } else if (parts.length === 2) {
+                    bairro = parts[1];
+                }
+            }
+            
+            // Buscar zona que corresponde ao bairro
+            const zone = zones.find(z => 
+                z.bairro && bairro.toLowerCase().includes(z.bairro.toLowerCase())
+            );
+            
+            if (zone) {
+                return parseFloat(zone.valor) || 0;
+            }
+            
+            // Se não encontrar, retornar valor padrão
+            const defaultZone = zones.find(z => z.is_default) || zones[zones.length - 1];
+            return defaultZone ? parseFloat(defaultZone.valor) || parseFloat(config.delivery_fee) || 0 : parseFloat(config.delivery_fee) || 0;
+        } catch (error) {
+            console.error('Erro ao calcular taxa dinâmica:', error);
+            return parseFloat(config.delivery_fee) || 0;
+        }
+    }
+    
+    return parseFloat(config.delivery_fee) || 0;
+}
+
+// ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA
 // ============================================================
 async function checkStoreOpenNow(tenantId) {
@@ -460,8 +517,10 @@ app.post('/api/auth/register', async (req, res) => {
                 `INSERT INTO config (tenant_id, config_key, config_value) 
                  VALUES 
                  (?, 'store_name', ?),
-                 (?, 'is_open', 'true')`,
-                [subdomain, restaurantName, subdomain]
+                 (?, 'is_open', 'true'),
+                 (?, 'delivery_type', 'fixa'),
+                 (?, 'delivery_zones', '[]')`,
+                [subdomain, restaurantName, subdomain, subdomain, subdomain]
             );
 
             await connection.commit();
@@ -988,7 +1047,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // ============================================================
-//  4. ROTA POST /api/orders - CRIAR PEDIDO (COM AGENDAMENTO)
+//  4. ROTA POST /api/orders - CRIAR PEDIDO (COM AGENDAMENTO E TAXA)
 // ============================================================
 app.post('/api/orders', async (req, res) => {
     try {
@@ -1039,15 +1098,43 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
+        // ============================================================
+        //  BUSCAR CONFIGURAÇÕES PARA CALCULAR TAXA DE ENTREGA
+        // ============================================================
+        const [configRows] = await pool.query(
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            [tenantId]
+        );
+
+        const config = {};
+        configRows.forEach(row => {
+            config[row.config_key] = row.config_value;
+        });
+
+        const deliveryType = config.delivery_type || 'fixa';
+        let calculatedDeliveryFee = 0;
+
+        if (deliveryType === 'fixa') {
+            calculatedDeliveryFee = parseFloat(config.delivery_fee) || 0;
+        } else if (deliveryType === 'manual') {
+            calculatedDeliveryFee = 0;
+        } else if (deliveryType === 'dinamica') {
+            calculatedDeliveryFee = calcularTaxaEntrega(tenantId, customer_address, config);
+        }
+
+        // Usar a taxa enviada pelo frontend ou a calculada
+        const finalDeliveryFee = deliveryType === 'manual' ? 0 : (delivery_fee || calculatedDeliveryFee);
+
+        console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType})`);
+
         let finalScheduledTime = null;
         let finalStatus = 'pending';
         let finalScheduledStatus = 'pending';
 
         // ============================================================
-        //  VALIDAÇÃO DO AGENDAMENTO - CORRIGIDO (SEM CRIAR DATE)
+        //  VALIDAÇÃO DO AGENDAMENTO
         // ============================================================
         if (is_scheduled && scheduled_time) {
-            // ✅ Verificar se é uma string válida
             if (typeof scheduled_time !== 'string') {
                 return res.status(400).json({
                     success: false,
@@ -1055,7 +1142,6 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Validar formato YYYY-MM-DDTHH:MM:SS
             const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
             if (!dateRegex.test(scheduled_time)) {
                 return res.status(400).json({
@@ -1064,7 +1150,6 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Extrair componentes da string manualmente (sem criar Date)
             const parts = scheduled_time.split('T');
             const dateParts = parts[0].split('-').map(Number);
             const timeParts = parts[1].split(':').map(Number);
@@ -1075,10 +1160,6 @@ app.post('/api/orders', async (req, res) => {
             const hour = timeParts[0];
             const minute = timeParts[1];
 
-            console.log('📅 Agendamento recebido:', scheduled_time);
-            console.log('📅 Components:', { year, month, day, hour, minute });
-
-            // ✅ Validar data manualmente
             if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
                 return res.status(400).json({
                     success: false,
@@ -1086,15 +1167,10 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Validar limite de 2 dias (usando a data atual em UTC)
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const maxDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
             const scheduledDay = new Date(year, month - 1, day);
-
-            console.log('📅 Hoje:', today);
-            console.log('📅 Máximo:', maxDay);
-            console.log('📅 Agendado dia:', scheduledDay);
 
             if (scheduledDay < today || scheduledDay > maxDay) {
                 return res.status(400).json({
@@ -1103,7 +1179,6 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ Verificar disponibilidade do horário
             const isAvailable = await checkSlotAvailability(tenantId, scheduled_time);
             if (!isAvailable) {
                 return res.status(400).json({
@@ -1112,12 +1187,9 @@ app.post('/api/orders', async (req, res) => {
                 });
             }
 
-            // ✅ SALVAR EXATAMENTE COMO RECEBIDO (sem conversão)
             finalScheduledTime = scheduled_time;
             finalStatus = 'scheduled';
             finalScheduledStatus = 'pending';
-
-            console.log(`📅 Agendamento salvo (string original): ${finalScheduledTime}`);
         }
 
         const [lastOrder] = await pool.query(
@@ -1144,7 +1216,6 @@ app.post('/api/orders', async (req, res) => {
         console.log(`📋 Número do pedido: ${orderNumber} (Sequencial: ${nextNumber})`);
 
         const accessToken = crypto.randomBytes(32).toString('hex');
-        console.log(`🔑 Token gerado: ${accessToken.substring(0, 16)}...`);
 
         const [result] = await pool.query(
             `INSERT INTO orders (
@@ -1163,9 +1234,9 @@ app.post('/api/orders', async (req, res) => {
                 customer_address,
                 JSON.stringify(items),
                 parseFloat(subtotal || 0),
-                parseFloat(delivery_fee || 0),
+                finalDeliveryFee,
                 parseFloat(discount || 0),
-                parseFloat(total),
+                parseFloat(total) + finalDeliveryFee,
                 payment_method,
                 delivery_type,
                 notes || null,
@@ -1185,14 +1256,12 @@ app.post('/api/orders', async (req, res) => {
                 id: result.insertId,
                 orderNumber: orderNumber,
                 customer_name: customer_name,
-                total: parseFloat(total),
+                total: parseFloat(total) + finalDeliveryFee,
                 items: items,
                 status: finalStatus,
                 is_scheduled: is_scheduled,
                 scheduled_time: finalScheduledTime
             };
-
-            console.log('🔔 Enviando notificação de novo pedido para tenant:', tenantId);
 
             io.to(`tenant-${tenantId}`).emit('new-order-notification', {
                 order: orderData,
@@ -1212,7 +1281,9 @@ app.post('/api/orders', async (req, res) => {
                 order_number: orderNumber,
                 access_token: accessToken,
                 is_scheduled: is_scheduled,
-                scheduled_time: finalScheduledTime
+                scheduled_time: finalScheduledTime,
+                delivery_fee: finalDeliveryFee,
+                delivery_type: deliveryType
             },
             message: is_scheduled ? 'Pedido agendado com sucesso!' : 'Pedido criado com sucesso!'
         });
@@ -1438,10 +1509,13 @@ app.get('/api/config', async (req, res) => {
         const defaultConfig = {
             store_name: 'Minha Loja',
             delivery_fee: '3.00',
+            delivery_type: 'fixa',
+            delivery_zones: '[]',
             store_address: '',
             store_phone: '',
             banner_image: '',
-            logo_image: ''
+            logo_image: '',
+            is_open: 'true'
         };
 
         const finalConfig = { ...defaultConfig, ...config };
@@ -1454,6 +1528,65 @@ app.get('/api/config', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro ao carregar configurações: ' + error.message
+        });
+    }
+});
+
+// ============================================================
+//  ENDPOINT PARA CALCULAR TAXA DE ENTREGA
+// ============================================================
+app.post('/api/calculate-delivery', async (req, res) => {
+    try {
+        const { address, tenant } = req.body;
+        
+        if (!tenant) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant não informado'
+            });
+        }
+
+        if (!address) {
+            return res.status(400).json({
+                success: false,
+                error: 'Endereço não informado'
+            });
+        }
+
+        // Buscar configurações
+        const [configRows] = await pool.query(
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            [tenant]
+        );
+
+        const config = {};
+        configRows.forEach(row => {
+            config[row.config_key] = row.config_value;
+        });
+
+        const deliveryType = config.delivery_type || 'fixa';
+        let deliveryFee = 0;
+
+        if (deliveryType === 'fixa') {
+            deliveryFee = parseFloat(config.delivery_fee) || 0;
+        } else if (deliveryType === 'manual') {
+            deliveryFee = 0;
+        } else if (deliveryType === 'dinamica') {
+            deliveryFee = calcularTaxaEntrega(tenant, address, config);
+        }
+
+        res.json({
+            success: true,
+            fee: deliveryFee,
+            type: deliveryType,
+            message: deliveryType === 'manual' ? 'Taxa informada após o pedido' : undefined
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao calcular taxa:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao calcular taxa de entrega'
         });
     }
 });
@@ -1981,6 +2114,7 @@ app.get('/api/stats/dashboard', async (req, res) => {
             'confirmado': '🟢 Confirmado',
             'preparando': '🟠 Preparando',
             'entregue': '✅ Entregue',
+            'scheduled': '📅 Agendado',
             'cancelado': '❌ Cancelado'
         };
 
@@ -2232,9 +2366,13 @@ testDatabaseConnection().then(() => {
         console.log('✅ Server ready!');
         console.log('');
         console.log('📅 AGENDAMENTO:');
-        console.log('   ✅ Sem limite de pedidos por horário');
         console.log('   ✅ Limite de 2 dias para agendamento');
         console.log('   ✅ Horários configuráveis por dia');
         console.log('   ✅ Status "📅 Agendado" nos pedidos');
+        console.log('');
+        console.log('🚚 TAXA DE ENTREGA:');
+        console.log('   ✅ Fixa - valor único para todos os pedidos');
+        console.log('   ✅ Dinâmica - valor por bairro');
+        console.log('   ✅ Manual - definida após o pedido');
     });
 });
