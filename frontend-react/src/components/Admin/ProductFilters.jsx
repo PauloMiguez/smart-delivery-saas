@@ -13,11 +13,32 @@ const FilterContainer = styled.div`
     align-items: center;
 `;
 
-const SearchInput = styled(Input)`
-    flex: 1;
-    min-width: 200px;
-    padding: 8px 12px;
+const SearchInput = styled.input`
+    padding: 10px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
     font-size: 14px;
+    flex: 1;
+    min-width: 150px;
+    background: #fff;      /* ✅ FUNDO BRANCO */
+    color: #2d3436;        /* ✅ TEXTO ESCURO */
+    outline: none;
+    transition: border-color 0.2s;
+
+    &:focus {
+        border-color: #e67e22;
+    }
+
+    &::placeholder {
+        color: #b2bec3;    /* ✅ PLACEHOLDER CINZA CLARO */
+    }
+
+    @media (max-width: 768px) {
+        font-size: 16px;   /* ✅ Evita zoom no iOS */
+        padding: 12px 14px;
+        width: 100%;
+        min-width: unset;
+    }
 `;
 
 const Select = styled.select`
