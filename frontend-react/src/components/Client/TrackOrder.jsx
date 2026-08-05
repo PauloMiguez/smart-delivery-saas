@@ -511,7 +511,6 @@ const TrackOrder = () => {
                             </div>
                         ))}
 
-                        {/* ✅ SUBTOTAL */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -524,7 +523,6 @@ const TrackOrder = () => {
                             <span>{formatMoney(subtotal)}</span>
                         </div>
 
-                        {/* ✅ TAXA DE ENTREGA */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -539,7 +537,6 @@ const TrackOrder = () => {
                             </span>
                         </div>
 
-                        {/* ✅ TOTAL */}
                         <DetailTotal>
                             <span>Total</span>
                             <span>{formatMoney(total)}</span>
@@ -551,14 +548,20 @@ const TrackOrder = () => {
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
 
-                    {order.is_scheduled && order.is_scheduled !== 0 && order.scheduled_time && (
-                        <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
-                            <DetailLabel>📅 Agendado para</DetailLabel>
-                            <span style={{ color: '#e67e22', fontWeight: '600' }}>
-                                {formatLocalDate(order.scheduled_time, true)}
-                            </span>
-                        </DetailRow>
-                    )}
+                    {/* ✅ CORREÇÃO: Verificação robusta para agendamento */}
+                    {order.is_scheduled &&
+                        order.is_scheduled !== 0 &&
+                        order.is_scheduled !== '0' &&
+                        order.scheduled_time &&
+                        order.scheduled_time !== '0' &&
+                        order.scheduled_time !== 'null' && (
+                            <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
+                                <DetailLabel>📅 Agendado para</DetailLabel>
+                                <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                    {formatLocalDate(order.scheduled_time, true)}
+                                </span>
+                            </DetailRow>
+                        )}
 
                     <DetailRow>
                         <DetailLabel>Pagamento</DetailLabel>
@@ -571,13 +574,12 @@ const TrackOrder = () => {
                         </span>
                     </DetailRow>
                 </OrderDetails>
-            </OrderCard>
 
-            {isFromOrders && (
-                <Button primary onClick={goToMenu} style={{ width: '100%' }}>
-                    Voltar ao cardápio
-                </Button>
-            )}
+                {isFromOrders && (
+                    <Button primary onClick={goToMenu} style={{ width: '100%' }}>
+                        Voltar ao cardápio
+                    </Button>
+                )}
         </TrackContainer>
     );
 };
