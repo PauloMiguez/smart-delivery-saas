@@ -132,6 +132,17 @@ const DetailLabel = styled.span`
     color: #888;
 `;
 
+const DetailTotal = styled.div`
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0 0 0;
+    font-weight: bold;
+    border-top: 2px solid #f0f0f0;
+    margin-top: 4px;
+    font-size: 16px;
+    color: #2d3436;
+`;
+
 const LoadingContainer = styled.div`
     text-align: center;
     padding: 60px 0;
@@ -211,6 +222,14 @@ const formatLocalDate = (dateString, isScheduled = false) => {
         console.error('❌ Erro ao formatar data:', error);
         return dateString || '-';
     }
+};
+
+// ============================================================
+//  FUNÇÃO PARA FORMATAR VALOR MONETÁRIO
+// ============================================================
+const formatMoney = (value) => {
+    if (!value && value !== 0) return 'R$ 0,00';
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
 };
 
 const TrackOrder = () => {
@@ -417,6 +436,15 @@ const TrackOrder = () => {
 
     const isCancelled = order.status === 'cancelado';
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    
+    // ✅ Calcular subtotal (soma dos itens)
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    
+    // ✅ Taxa de entrega (vem do pedido)
+    const deliveryFee = parseFloat(order.delivery_fee) || 0;
+    
+    // ✅ Total (já vem do pedido)
+    const total = parseFloat(order.total) || 0;
 
     return (
         <TrackContainer>
@@ -469,17 +497,53 @@ const TrackOrder = () => {
 
                 <OrderDetails>
                     <div style={{ marginBottom: 12 }}>
-                        <strong style={{ color: '#555' }}>Itens:</strong>
+                        <strong style={{ color: '#555' }}>🛒 Itens:</strong>
                         {items.map((item, index) => (
-                            <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}>
+                            <div key={index} style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                padding: '4px 0', 
+                                fontSize: '14px', 
+                                borderBottom: '1px solid #f5f5f5' 
+                            }}>
                                 <span>{item.qty}x {item.name}</span>
-                                <span>R$ {(item.price * item.qty).toFixed(2)}</span>
+                                <span>{formatMoney(item.price * item.qty)}</span>
                             </div>
                         ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0 0', fontWeight: 'bold', borderTop: '2px solid #f0f0f0', marginTop: '4px' }}>
-                            <span>Total</span>
-                            <span>R$ {parseFloat(order.total).toFixed(2)}</span>
+                        
+                        {/* ✅ SUBTOTAL */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            padding: '8px 0 4px 0',
+                            fontSize: '14px',
+                            color: '#555',
+                            borderBottom: '1px solid #f0f0f0'
+                        }}>
+                            <span>Subtotal</span>
+                            <span>{formatMoney(subtotal)}</span>
                         </div>
+                        
+                        {/* ✅ TAXA DE ENTREGA */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            padding: '4px 0 8px 0',
+                            fontSize: '14px',
+                            color: '#555',
+                            borderBottom: '2px solid #f0f0f0'
+                        }}>
+                            <span>🚚 Taxa de entrega</span>
+                            <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
+                            </span>
+                        </div>
+                        
+                        {/* ✅ TOTAL */}
+                        <DetailTotal>
+                            <span>Total</span>
+                            <span>{formatMoney(total)}</span>
+                        </DetailTotal>
                     </div>
 
                     <DetailRow>
