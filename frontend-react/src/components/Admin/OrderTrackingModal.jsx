@@ -157,6 +157,7 @@ const statusLabels = {
     'confirmado': 'Confirmado',
     'preparando': 'Em preparação',
     'entregue': 'Entregue',
+    'scheduled': 'Agendado',
     'cancelado': 'Cancelado'
 };
 
