@@ -341,6 +341,7 @@ const Checkout = () => {
     const [deliveryFee, setDeliveryFee] = useState(0);
     const [deliveryType, setDeliveryType] = useState('fixa');
     const [isManualDelivery, setIsManualDelivery] = useState(false);
+    const [deliveryMessage, setDeliveryMessage] = useState('');
 
     // ============================================================
     //  CARREGAR CONFIGURAÇÕES
@@ -359,6 +360,7 @@ const Checkout = () => {
                 } else if (res.data.data.delivery_type === 'manual') {
                     setDeliveryFee(0);
                     setIsManualDelivery(true);
+                    setDeliveryMessage('A taxa de entrega será informada pelo restaurante após a confirmação do pedido.');
                 }
 
                 const statusRes = await api.get('/store/status');
@@ -383,26 +385,16 @@ const Checkout = () => {
     // ============================================================
     //  CALCULAR TAXA DE ENTREGA DINÂMICA
     // ============================================================
-    useEffect(() => {
-        if (deliveryType === 'manual') {
-            setIsManualDelivery(true);
-            setDeliveryFee(0);
-            return;
-        }
-        setIsManualDelivery(false);
-    }, [deliveryType]);
-
-    // ============================================================
-    //  CALCULAR TAXA DE ENTREGA DINÂMICA - CORRIGIDO
-    // ============================================================
     const calculateDeliveryFee = useCallback(async (address) => {
         if (!address || address.trim().length < 5) {
             if (deliveryType === 'fixa') {
                 setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
                 setIsManualDelivery(false);
-            } else if (deliveryType === 'manual') {
+                setDeliveryMessage('');
+            } else if (deliveryType === 'manual' || deliveryType === 'dinamica') {
                 setDeliveryFee(0);
                 setIsManualDelivery(true);
+                setDeliveryMessage('A taxa de entrega será informada pelo restaurante após a confirmação do pedido.');
             }
             return;
         }
@@ -410,6 +402,7 @@ const Checkout = () => {
         if (deliveryType === 'manual') {
             setDeliveryFee(0);
             setIsManualDelivery(true);
+            setDeliveryMessage('A taxa de entrega será informada pelo restaurante após a confirmação do pedido.');
             return;
         }
 
@@ -422,6 +415,7 @@ const Checkout = () => {
             if (response.data.success) {
                 const fee = response.data.fee || 0;
                 const found = response.data.found !== undefined ? response.data.found : true;
+                const message = response.data.message || '';
 
                 setDeliveryFee(fee);
 
@@ -429,9 +423,10 @@ const Checkout = () => {
                 if (!found) {
                     setIsManualDelivery(true);
                     setDeliveryFee(0);
-                    showToast('📍 Bairro não cadastrado. A taxa de entrega será informada após o pedido.', 'info');
+                    setDeliveryMessage('A taxa de entrega será informada pelo restaurante após a confirmação do pedido.');
                 } else {
                     setIsManualDelivery(false);
+                    setDeliveryMessage('');
                 }
 
                 setDeliveryType(response.data.type || 'fixa');
@@ -440,9 +435,10 @@ const Checkout = () => {
             console.error('Erro ao calcular taxa:', error);
             setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
             setIsManualDelivery(false);
+            setDeliveryMessage('');
         }
     }, [tenant, config, deliveryType]);
-    
+
     // ============================================================
     //  ATUALIZAR TAXA QUANDO ENDEREÇO MUDAR
     // ============================================================
@@ -652,7 +648,7 @@ const Checkout = () => {
                 })}`
                 : '';
 
-            const deliveryFeeText = deliveryType === 'manual'
+            const deliveryFeeText = isManualDelivery
                 ? '📝 *Taxa de entrega:* Informada após o pedido'
                 : `🚚 *Taxa de entrega:* R$ ${deliveryFee.toFixed(2)}`;
 
@@ -805,11 +801,11 @@ const Checkout = () => {
                     </SummaryItem>
                     <SummaryItem>
                         <span className="name">
-                            {deliveryType === 'manual' ? '📝 Taxa de entrega (manual)' : '🚚 Taxa de entrega'}
+                            {isManualDelivery ? '📝 Taxa de entrega (manual)' : '🚚 Taxa de entrega'}
                         </span>
                         <span>
-                            {deliveryType === 'manual'
-                                ? 'Informada após o pedido'
+                            {isManualDelivery 
+                                ? 'Informada após o pedido' 
                                 : `R$ ${deliveryFee.toFixed(2)}`}
                         </span>
                     </SummaryItem>
@@ -817,7 +813,9 @@ const Checkout = () => {
                         <span>Total</span>
                         <span>R$ {total.toFixed(2)}</span>
                     </TotalRow>
-                    {deliveryType === 'manual' && (
+                    
+                    {/* Mensagem quando taxa manual ou bairro não encontrado */}
+                    {isManualDelivery && (
                         <div style={{
                             fontSize: '12px',
                             color: '#888',
@@ -827,7 +825,7 @@ const Checkout = () => {
                             borderRadius: '6px',
                             border: '1px solid #f39c12'
                         }}>
-                            💡 A taxa de entrega será informada pelo restaurante após a confirmação do pedido.
+                            💡 {deliveryMessage || 'A taxa de entrega será informada pelo restaurante após a confirmação do pedido.'}
                         </div>
                     )}
                 </SummaryCard>
