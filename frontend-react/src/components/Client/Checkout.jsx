@@ -478,16 +478,16 @@ const Checkout = () => {
         // ============================================================
         //  ✅ CORREÇÃO: Agendamento é OBRIGATÓRIO quando loja fechada
         // ============================================================
-        if (!isStoreOpen && !selectedSchedule) {
-            showToast('🔴 Loja fechada. Selecione um horário de agendamento para continuar.', 'warning');
-            return false;
-        }
+        //if (!isStoreOpen && !selectedSchedule) {
+        //    showToast('🔴 Loja fechada. Selecione um horário de agendamento para continuar.', 'warning');
+        //    return false;
+        //}
 
         // Se o agendamento está ativo mas não selecionou horário
-        if (isScheduled && !selectedSchedule) {
-            showToast('Selecione uma data e horário para o agendamento.', 'warning');
-            return false;
-        }
+        //if (isScheduled && !selectedSchedule) {
+            //showToast('Selecione uma data e horário para o agendamento.', 'warning');
+            //return false;
+        //}
 
         if (cart.length === 0) {
             showToast('Adicione itens ao carrinho antes de finalizar.', 'warning');
