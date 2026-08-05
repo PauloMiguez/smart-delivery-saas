@@ -1132,7 +1132,7 @@ app.post('/api/orders', async (req, res) => {
 
         // ✅ Se não encontrou o bairro, taxa = 0 (será definida manualmente depois)
         const finalDeliveryFee = (deliveryType === 'manual' || !deliveryFound) ? 0 : (delivery_fee || calculatedDeliveryFee);
-        const finalTotal = parseFloat(total) + finalDeliveryFee;
+        const finalTotal = parseFloat(total) 
 
         console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType}, encontrado: ${deliveryFound})`);
 

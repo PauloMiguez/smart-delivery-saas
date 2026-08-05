@@ -245,7 +245,7 @@ const DeliverySettings = () => {
             };
 
             await api.put('/config', data);
-            showToast('✅ Configurações salvas com sucesso!', 'success');
+            showToast('Configurações salvas com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao salvar:', error);
             showToast('Erro ao salvar configurações', 'error');
