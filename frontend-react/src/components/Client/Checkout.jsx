@@ -353,7 +353,7 @@ const Checkout = () => {
                 const res = await api.get('/config');
                 setConfig(res.data.data);
                 setDeliveryType(res.data.data.delivery_type || 'fixa');
-                
+
                 if (res.data.data.delivery_type === 'fixa') {
                     setDeliveryFee(parseFloat(res.data.data.delivery_fee) || 0);
                 } else if (res.data.data.delivery_type === 'manual') {
@@ -392,18 +392,24 @@ const Checkout = () => {
         setIsManualDelivery(false);
     }, [deliveryType]);
 
+    // ============================================================
+    //  CALCULAR TAXA DE ENTREGA DINÂMICA - CORRIGIDO
+    // ============================================================
     const calculateDeliveryFee = useCallback(async (address) => {
         if (!address || address.trim().length < 5) {
             if (deliveryType === 'fixa') {
                 setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
+                setIsManualDelivery(false);
             } else if (deliveryType === 'manual') {
                 setDeliveryFee(0);
+                setIsManualDelivery(true);
             }
             return;
         }
 
         if (deliveryType === 'manual') {
             setDeliveryFee(0);
+            setIsManualDelivery(true);
             return;
         }
 
@@ -414,16 +420,29 @@ const Checkout = () => {
             });
 
             if (response.data.success) {
-                setDeliveryFee(response.data.fee || 0);
+                const fee = response.data.fee || 0;
+                const found = response.data.found !== undefined ? response.data.found : true;
+
+                setDeliveryFee(fee);
+
+                // ✅ Se não encontrou o bairro, tratar como manual
+                if (!found) {
+                    setIsManualDelivery(true);
+                    setDeliveryFee(0);
+                    showToast('📍 Bairro não cadastrado. A taxa de entrega será informada após o pedido.', 'info');
+                } else {
+                    setIsManualDelivery(false);
+                }
+
                 setDeliveryType(response.data.type || 'fixa');
             }
         } catch (error) {
             console.error('Erro ao calcular taxa:', error);
-            // Fallback para taxa fixa
             setDeliveryFee(parseFloat(config?.delivery_fee) || 0);
+            setIsManualDelivery(false);
         }
     }, [tenant, config, deliveryType]);
-
+    
     // ============================================================
     //  ATUALIZAR TAXA QUANDO ENDEREÇO MUDAR
     // ============================================================
@@ -789,8 +808,8 @@ const Checkout = () => {
                             {deliveryType === 'manual' ? '📝 Taxa de entrega (manual)' : '🚚 Taxa de entrega'}
                         </span>
                         <span>
-                            {deliveryType === 'manual' 
-                                ? 'Informada após o pedido' 
+                            {deliveryType === 'manual'
+                                ? 'Informada após o pedido'
                                 : `R$ ${deliveryFee.toFixed(2)}`}
                         </span>
                     </SummaryItem>
@@ -799,9 +818,9 @@ const Checkout = () => {
                         <span>R$ {total.toFixed(2)}</span>
                     </TotalRow>
                     {deliveryType === 'manual' && (
-                        <div style={{ 
-                            fontSize: '12px', 
-                            color: '#888', 
+                        <div style={{
+                            fontSize: '12px',
+                            color: '#888',
                             marginTop: '8px',
                             padding: '8px 12px',
                             background: '#fef9e7',

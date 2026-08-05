@@ -48,15 +48,18 @@ function createLocalDate(dateStr) {
 // ============================================================
 //  FUNÇÃO PARA CALCULAR TAXA DE ENTREGA DINÂMICA
 // ============================================================
+// ============================================================
+//  FUNÇÃO PARA CALCULAR TAXA DE ENTREGA DINÂMICA - CORRIGIDA
+// ============================================================
 function calcularTaxaEntrega(tenantId, endereco, config) {
     // Se for fixa, retorna o valor fixo
     if (config.delivery_type === 'fixa') {
-        return parseFloat(config.delivery_fee) || 0;
+        return { fee: parseFloat(config.delivery_fee) || 0, found: true };
     }
     
     // Se for manual, retorna 0 (será definido depois)
     if (config.delivery_type === 'manual') {
-        return 0;
+        return { fee: 0, found: false, message: 'Taxa informada após o pedido' };
     }
     
     // Se for dinâmica, buscar por bairro
@@ -65,7 +68,7 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
             const zones = JSON.parse(config.delivery_zones || '[]');
             
             if (zones.length === 0) {
-                return parseFloat(config.delivery_fee) || 0;
+                return { fee: 0, found: false, message: 'Nenhum bairro cadastrado' };
             }
             
             // Extrair bairro do endereço
@@ -81,27 +84,29 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
                 }
             }
             
-            // Buscar zona que corresponde ao bairro
+            console.log(`🔍 Buscando bairro: "${bairro}" em ${zones.length} zonas`);
+            
+            // Buscar zona que corresponde ao bairro (case insensitive)
             const zone = zones.find(z => 
                 z.bairro && bairro.toLowerCase().includes(z.bairro.toLowerCase())
             );
             
             if (zone) {
-                return parseFloat(zone.valor) || 0;
+                console.log(`✅ Bairro encontrado: ${zone.bairro} - Taxa: R$ ${zone.valor}`);
+                return { fee: parseFloat(zone.valor) || 0, found: true };
             }
             
-            // Se não encontrar, retornar valor padrão
-            const defaultZone = zones.find(z => z.is_default) || zones[zones.length - 1];
-            return defaultZone ? parseFloat(defaultZone.valor) || parseFloat(config.delivery_fee) || 0 : parseFloat(config.delivery_fee) || 0;
+            // ❌ Bairro não encontrado - retornar 0 com mensagem
+            console.log(`❌ Bairro "${bairro}" não encontrado na lista`);
+            return { fee: 0, found: false, message: 'Bairro não cadastrado - taxa será informada após o pedido' };
         } catch (error) {
             console.error('Erro ao calcular taxa dinâmica:', error);
-            return parseFloat(config.delivery_fee) || 0;
+            return { fee: 0, found: false, message: 'Erro ao calcular taxa' };
         }
     }
     
-    return parseFloat(config.delivery_fee) || 0;
+    return { fee: parseFloat(config.delivery_fee) || 0, found: true };
 }
-
 // ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA
 // ============================================================
@@ -1533,7 +1538,7 @@ app.get('/api/config', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT PARA CALCULAR TAXA DE ENTREGA
+//  ENDPOINT PARA CALCULAR TAXA DE ENTREGA - CORRIGIDO
 // ============================================================
 app.post('/api/calculate-delivery', async (req, res) => {
     try {
@@ -1565,21 +1570,22 @@ app.post('/api/calculate-delivery', async (req, res) => {
         });
 
         const deliveryType = config.delivery_type || 'fixa';
-        let deliveryFee = 0;
+        let result = { fee: 0, found: false, message: '' };
 
         if (deliveryType === 'fixa') {
-            deliveryFee = parseFloat(config.delivery_fee) || 0;
+            result = { fee: parseFloat(config.delivery_fee) || 0, found: true };
         } else if (deliveryType === 'manual') {
-            deliveryFee = 0;
+            result = { fee: 0, found: false, message: 'Taxa informada após o pedido' };
         } else if (deliveryType === 'dinamica') {
-            deliveryFee = calcularTaxaEntrega(tenant, address, config);
+            result = calcularTaxaEntrega(tenant, address, config);
         }
 
         res.json({
             success: true,
-            fee: deliveryFee,
+            fee: result.fee,
             type: deliveryType,
-            message: deliveryType === 'manual' ? 'Taxa informada após o pedido' : undefined
+            found: result.found,
+            message: result.message || (result.found ? undefined : 'Bairro não cadastrado - taxa será informada após o pedido')
         });
 
     } catch (error) {
@@ -1590,7 +1596,6 @@ app.post('/api/calculate-delivery', async (req, res) => {
         });
     }
 });
-
 // ============================================================
 //  ENDPOINT PARA VERIFICAR STATUS DA LOJA
 // ============================================================
