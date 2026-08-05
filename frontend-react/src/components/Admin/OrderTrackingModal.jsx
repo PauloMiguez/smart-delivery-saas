@@ -141,6 +141,17 @@ const DetailLabel = styled.span`
     color: #888;
 `;
 
+const DetailTotal = styled.div`
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0 0 0;
+    font-weight: bold;
+    border-top: 2px solid #f0f0f0;
+    margin-top: 4px;
+    font-size: 16px;
+    color: #2d3436;
+`;
+
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -158,14 +169,12 @@ const statusEmojis = {
 };
 
 // ============================================================
-//  FUNÇÃO CORRIGIDA - created_at em UTC, scheduled_time em string
+//  FUNÇÃO PARA FORMATAR DATA LOCAL (BRASIL)
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
         if (isScheduled) {
-            // ✅ scheduled_time: string pura YYYY-MM-DDTHH:MM:SS
-            // Extrair manualmente sem conversão
             const clean = dateString.replace(' ', 'T');
             const parts = clean.split('T');
             if (parts.length !== 2) return dateString;
@@ -188,12 +197,9 @@ const formatLocalDate = (dateString, isScheduled = false) => {
             
             return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
-            // ✅ created_at: está em UTC (salvo com -3h)
-            // Converter para local subtraindo 3 horas
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
             
-            // Subtrair 3 horas (UTC-3)
             const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
             
             return localDate.toLocaleString('pt-BR', {
@@ -208,6 +214,14 @@ const formatLocalDate = (dateString, isScheduled = false) => {
         console.error('❌ Erro ao formatar data:', error);
         return dateString || '-';
     }
+};
+
+// ============================================================
+//  FUNÇÃO PARA FORMATAR VALOR MONETÁRIO
+// ============================================================
+const formatMoney = (value) => {
+    if (!value && value !== 0) return 'R$ 0,00';
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
 };
 
 const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
@@ -234,7 +248,6 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
             if (response.data.success) {
                 setOrder(response.data.data);
                 console.log('✅ Pedido carregado no modal:', response.data.data.order_number);
-                console.log('📅 scheduled_time (raw):', response.data.data.scheduled_time);
             } else {
                 setError('Pedido não encontrado');
             }
@@ -284,6 +297,17 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
     }, [isOpen, order, tenant]);
 
     if (!isOpen) return null;
+
+    // Calcular valores
+    const items = order?.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : [];
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const deliveryFee = parseFloat(order?.delivery_fee) || 0;
+    const total = parseFloat(order?.total) || 0;
+    const isScheduled = Number(order?.is_scheduled) === 1;
+    const hasScheduledTime = order?.scheduled_time && 
+                             order.scheduled_time !== '0' && 
+                             order.scheduled_time !== 'null' &&
+                             order.scheduled_time !== '';
 
     return (
         <ModalOverlay isOpen={isOpen} onClick={onClose}>
@@ -335,17 +359,13 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <DetailLabel>Pagamento</DetailLabel>
                                 <span>{order.payment_method || 'N/A'}</span>
                             </DetailRow>
-                            <DetailRow>
-                                <DetailLabel>Total</DetailLabel>
-                                <strong>R$ {parseFloat(order.total).toFixed(2)}</strong>
-                            </DetailRow>
                             
                             <DetailRow>
                                 <DetailLabel>Data do Pedido</DetailLabel>
                                 <span>{formatLocalDate(order.created_at, false)}</span>
                             </DetailRow>
                             
-                            {order.is_scheduled && order.scheduled_time && (
+                            {isScheduled && hasScheduledTime && (
                                 <DetailRow style={{ 
                                     backgroundColor: '#fef9e7', 
                                     borderLeft: '3px solid #f39c12',
@@ -364,16 +384,33 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                         </div>
 
                         <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-                            <strong style={{ color: '#555', display: 'block', marginBottom: 8 }}>Itens:</strong>
-                            {(() => {
-                                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-                                return items.map((item, index) => (
-                                    <DetailRow key={index} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                        <span>{item.qty}x {item.name}</span>
-                                        <span>R$ {(item.price * item.qty).toFixed(2)}</span>
-                                    </DetailRow>
-                                ));
-                            })()}
+                            <strong style={{ color: '#555', display: 'block', marginBottom: 8 }}>🛒 Itens:</strong>
+                            {items.map((item, index) => (
+                                <DetailRow key={index} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                    <span>{item.qty}x {item.name}</span>
+                                    <span>{formatMoney(item.price * item.qty)}</span>
+                                </DetailRow>
+                            ))}
+                            
+                            {/* ✅ SUBTOTAL */}
+                            <DetailRow style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <span>Subtotal</span>
+                                <span>{formatMoney(subtotal)}</span>
+                            </DetailRow>
+                            
+                            {/* ✅ TAXA DE ENTREGA */}
+                            <DetailRow style={{ borderBottom: '2px solid #f0f0f0' }}>
+                                <span>🚚 Taxa de entrega</span>
+                                <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                    {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
+                                </span>
+                            </DetailRow>
+                            
+                            {/* ✅ TOTAL */}
+                            <DetailTotal>
+                                <span>Total</span>
+                                <span>{formatMoney(total)}</span>
+                            </DetailTotal>
                         </div>
                     </>
                 )}
