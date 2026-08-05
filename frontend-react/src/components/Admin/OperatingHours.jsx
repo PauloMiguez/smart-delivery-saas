@@ -34,6 +34,17 @@ const DayRow = styled.div`
     &:last-child {
         border-bottom: none;
     }
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 768px) {
+        gap: 8px;
+        padding: 10px 0;
+    }
+
+    @media (max-width: 480px) {
+        gap: 6px;
+        padding: 8px 0;
+    }
 `;
 
 const DayName = styled.div`
@@ -41,6 +52,17 @@ const DayName = styled.div`
     font-weight: 600;
     color: #2d3436;
     font-size: 14px;
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 768px) {
+        width: 100px;
+        font-size: 13px;
+    }
+
+    @media (max-width: 480px) {
+        width: 80px;
+        font-size: 12px;
+    }
 `;
 
 const Toggle = styled.label`
@@ -50,6 +72,12 @@ const Toggle = styled.label`
     height: 24px;
     cursor: pointer;
     flex-shrink: 0;
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        width: 40px;
+        height: 20px;
+    }
 `;
 
 const ToggleInput = styled.input`
@@ -87,6 +115,22 @@ const ToggleSlider = styled.span`
             transform: translateX(24px);
         }
     `}
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        border-radius: 20px;
+        &:before {
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+        }
+        ${props => props.$checked && `
+            &:before {
+                transform: translateX(20px);
+            }
+        `}
+    }
 `;
 
 const TimeInput = styled.input`
@@ -97,10 +141,34 @@ const TimeInput = styled.input`
     background: ${props => props.disabled ? '#f5f5f5' : '#fff'};
     cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
     width: 110px;
+    color: #2d3436; /* ✅ CORRIGIDO: Cor escura para visibilidade */
 
     &:focus {
         border-color: #e67e22;
         outline: none;
+    }
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 768px) {
+        width: 90px;
+        font-size: 13px;
+        padding: 4px 8px;
+    }
+
+    @media (max-width: 480px) {
+        width: 70px;
+        font-size: 12px;
+        padding: 3px 6px;
+    }
+`;
+
+const TimeSeparator = styled.span`
+    color: #888;
+    font-size: 14px;
+    flex-shrink: 0;
+
+    @media (max-width: 480px) {
+        font-size: 12px;
     }
 `;
 
@@ -110,6 +178,13 @@ const StatusBadge = styled.span`
     border-radius: 12px;
     background: ${props => props.$open ? '#d4edda' : '#f8d7da'};
     color: ${props => props.$open ? '#155724' : '#721c24'};
+    flex-shrink: 0;
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        font-size: 10px;
+        padding: 2px 8px;
+    }
 `;
 
 const ButtonContainer = styled.div`
@@ -117,6 +192,12 @@ const ButtonContainer = styled.div`
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        flex-direction: column;
+        gap: 8px;
+    }
 `;
 
 const SaveButton = styled.button`
@@ -133,6 +214,13 @@ const SaveButton = styled.button`
     &:hover:not(:disabled) {
         background: #d35400;
     }
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        padding: 12px;
+        font-size: 14px;
+        width: 100%;
+    }
 `;
 
 const ResetButton = styled.button`
@@ -147,6 +235,13 @@ const ResetButton = styled.button`
 
     &:hover {
         background: #7f8c8d;
+    }
+
+    /* ✅ RESPONSIVIDADE: Mobile */
+    @media (max-width: 480px) {
+        padding: 12px;
+        font-size: 14px;
+        width: 100%;
     }
 `;
 
@@ -198,7 +293,6 @@ const OperatingHours = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            // ✅ Removido max_orders_per_day do envio
             const hoursToSend = hours.map(h => ({
                 day_of_week: h.day_of_week,
                 is_open: h.is_open ? 1 : 0,
@@ -258,7 +352,7 @@ const OperatingHours = () => {
                             disabled={!isOpen}
                         />
 
-                        <span style={{ color: '#888', fontSize: '14px' }}>às</span>
+                        <TimeSeparator>às</TimeSeparator>
 
                         <TimeInput
                             type="time"
