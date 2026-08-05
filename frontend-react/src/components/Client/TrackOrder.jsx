@@ -551,7 +551,7 @@ const TrackOrder = () => {
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
 
-                    {order.is_scheduled && order.scheduled_time && (
+                    {order.is_scheduled && order.is_scheduled !== 0 && order.scheduled_time && (
                         <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
                             <DetailLabel>📅 Agendado para</DetailLabel>
                             <span style={{ color: '#e67e22', fontWeight: '600' }}>
