@@ -80,10 +80,10 @@ const ChartWrapper = styled.div`
 const getStatusColor = (name) => {
     const cleanName = name.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim().toLowerCase();
     if (cleanName.includes('pendente')) return '#f39c12';
-    if (cleanName.includes('confirmado')) return '#27ae60';
+    if (cleanName.includes('confirmado')) return '#2727ae';
     if (cleanName.includes('entregue')) return '#2ecc71';
-    if (cleanName.includes('cancelado')) return '#e74c3c';
-    if (cleanName.includes('preparando')) return '#e67e22';
+    if (cleanName.includes('cancelado')) return '#e4e73c';
+    if (cleanName.includes('preparando')) return '#22e6df';
     return '#3498db';
 };
 
@@ -96,6 +96,7 @@ const capitalizeStatus = (text) => {
         'confirmado': 'Confirmado',
         'preparando': 'Preparando',
         'entregue': 'Entregue',
+        'scheduled': 'Agendado',
         'cancelado': 'Cancelado'
     };
     const clean = text.replace(/[✅🟡🟢🔴🟠❌📦💰📊📈📅]/g, '').trim().toLowerCase();
