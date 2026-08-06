@@ -3,248 +3,289 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import styled from 'styled-components';
+import { tokens } from '../../styles/tokens';
 
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
 const Container = styled.div`
-    padding: 20px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: ${tokens.spacing.lg};
+  background: ${tokens.colors.surface};
+  border-radius: ${tokens.radius.md};
+  border: 1px solid ${tokens.colors.border};
+  box-shadow: ${tokens.shadows.sm};
+  font-family: ${tokens.typography.fontFamily};
 `;
 
 const Title = styled.h2`
-    margin: 0 0 20px 0;
-    color: #2d3436;
-    font-size: 20px;
+  margin: 0 0 ${tokens.spacing.lg} 0;
+  color: ${tokens.colors.text};
+  font-size: ${tokens.typography.fontSize['2xl']};
+  font-weight: ${tokens.typography.fontWeight.bold};
+  letter-spacing: -0.02em;
 `;
 
 const Description = styled.p`
-    color: #888;
-    font-size: 14px;
-    margin: -12px 0 20px 0;
+  color: ${tokens.colors.textSecondary};
+  font-size: ${tokens.typography.fontSize.sm};
+  margin: -${tokens.spacing.sm} 0 ${tokens.spacing.lg} 0;
+  line-height: ${tokens.typography.lineHeight.normal};
 `;
 
 const DayRow = styled.div`
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #eee;
-    gap: 12px;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  padding: ${tokens.spacing.sm} 0;
+  border-bottom: 1px solid ${tokens.colors.border};
+  gap: ${tokens.spacing.sm};
+  flex-wrap: wrap;
 
-    &:last-child {
-        border-bottom: none;
-    }
+  &:last-child {
+    border-bottom: none;
+  }
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 768px) {
-        gap: 8px;
-        padding: 10px 0;
-    }
+  @media (max-width: ${tokens.breakpoints.md}) {
+    gap: ${tokens.spacing.xs};
+    padding: ${tokens.spacing.xs} 0;
+  }
 
-    @media (max-width: 480px) {
-        gap: 6px;
-        padding: 8px 0;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    gap: ${tokens.spacing.xs};
+    padding: ${tokens.spacing.xs} 0;
+  }
 `;
 
 const DayName = styled.div`
-    width: 120px;
-    font-weight: 600;
-    color: #2d3436;
-    font-size: 14px;
+  width: 120px;
+  font-weight: ${tokens.typography.fontWeight.semibold};
+  color: ${tokens.colors.text};
+  font-size: ${tokens.typography.fontSize.sm};
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 768px) {
-        width: 100px;
-        font-size: 13px;
-    }
+  @media (max-width: ${tokens.breakpoints.md}) {
+    width: 100px;
+    font-size: ${tokens.typography.fontSize.xs};
+  }
 
-    @media (max-width: 480px) {
-        width: 80px;
-        font-size: 12px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 80px;
+    font-size: ${tokens.typography.fontSize.xs};
+  }
 `;
 
 const Toggle = styled.label`
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 24px;
-    cursor: pointer;
-    flex-shrink: 0;
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        width: 40px;
-        height: 20px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 40px;
+    height: 20px;
+  }
 `;
 
 const ToggleInput = styled.input`
-    opacity: 0;
-    width: 0;
-    height: 0;
+  opacity: 0;
+  width: 0;
+  height: 0;
 `;
 
 const ToggleSlider = styled.span`
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: ${tokens.colors.border};
+  transition: all 0.3s ease-in-out;
+  border-radius: 24px;
+
+  &:before {
     position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #ccc;
-    transition: 0.3s;
-    border-radius: 24px;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: ${tokens.colors.surface};
+    transition: all 0.3s ease-in-out;
+    border-radius: 50%;
+    box-shadow: ${tokens.shadows.sm};
+  }
 
+  ${props => props.$checked && `
+    background: ${tokens.colors.success};
     &:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background: white;
-        transition: 0.3s;
-        border-radius: 50%;
+      transform: translateX(24px);
     }
+  `}
 
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    border-radius: 20px;
+    &:before {
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+    }
     ${props => props.$checked && `
-        background: #27ae60;
-        &:before {
-            transform: translateX(24px);
-        }
+      &:before {
+        transform: translateX(20px);
+      }
     `}
-
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        border-radius: 20px;
-        &:before {
-            height: 14px;
-            width: 14px;
-            left: 3px;
-            bottom: 3px;
-        }
-        ${props => props.$checked && `
-            &:before {
-                transform: translateX(20px);
-            }
-        `}
-    }
+  }
 `;
 
 const TimeInput = styled.input`
-    padding: 6px 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    background: ${props => props.disabled ? '#f5f5f5' : '#fff'};
-    cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
-    width: 110px;
-    color: #2d3436; /* ✅ CORRIGIDO: Cor escura para visibilidade */
+  padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  border: 1.5px solid ${tokens.colors.border};
+  border-radius: ${tokens.radius.sm};
+  font-size: ${tokens.typography.fontSize.sm};
+  background: ${props => props.disabled ? tokens.colors.background : tokens.colors.surface};
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  width: 110px;
+  color: ${tokens.colors.text};
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
-        outline: none;
-    }
+  &:focus {
+    border-color: ${tokens.colors.accent};
+    box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+    outline: none;
+  }
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 768px) {
-        width: 90px;
-        font-size: 13px;
-        padding: 4px 8px;
-    }
+  @media (max-width: ${tokens.breakpoints.md}) {
+    width: 90px;
+    font-size: ${tokens.typography.fontSize.xs};
+    padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  }
 
-    @media (max-width: 480px) {
-        width: 70px;
-        font-size: 12px;
-        padding: 3px 6px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 70px;
+    font-size: ${tokens.typography.fontSize.xs};
+    padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  }
 `;
 
 const TimeSeparator = styled.span`
-    color: #888;
-    font-size: 14px;
-    flex-shrink: 0;
+  color: ${tokens.colors.textMuted};
+  font-size: ${tokens.typography.fontSize.sm};
+  flex-shrink: 0;
 
-    @media (max-width: 480px) {
-        font-size: 12px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    font-size: ${tokens.typography.fontSize.xs};
+  }
 `;
 
 const StatusBadge = styled.span`
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    background: ${props => props.$open ? '#d4edda' : '#f8d7da'};
-    color: ${props => props.$open ? '#155724' : '#721c24'};
-    flex-shrink: 0;
+  font-size: ${tokens.typography.fontSize.xs};
+  padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  border-radius: ${tokens.radius.full};
+  background: ${props => props.$open ? tokens.colors.successLight : tokens.colors.errorLight};
+  color: ${props => props.$open ? tokens.colors.success : tokens.colors.error};
+  flex-shrink: 0;
+  font-weight: ${tokens.typography.fontWeight.medium};
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        font-size: 10px;
-        padding: 2px 8px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    font-size: ${tokens.typography.fontSize.xs};
+    padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  }
 `;
 
 const ButtonContainer = styled.div`
-    margin-top: 24px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+  margin-top: ${tokens.spacing.lg};
+  display: flex;
+  justify-content: flex-end;
+  gap: ${tokens.spacing.sm};
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        flex-direction: column;
-        gap: 8px;
-    }
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    flex-direction: column;
+    gap: ${tokens.spacing.xs};
+  }
 `;
 
 const SaveButton = styled.button`
-    padding: 10px 32px;
-    background: #e67e22;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
-    opacity: ${props => props.disabled ? 0.7 : 1};
-    transition: background 0.3s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.xl};
+  background: ${tokens.colors.accent};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.base};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  opacity: ${props => props.disabled ? 0.6 : 1};
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:hover:not(:disabled) {
-        background: #d35400;
-    }
+  &:hover:not(:disabled) {
+    background: ${tokens.colors.accentHover};
+    transform: translateY(-1px);
+    box-shadow: ${tokens.shadows.md};
+  }
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        padding: 12px;
-        font-size: 14px;
-        width: 100%;
-    }
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    padding: ${tokens.spacing.md};
+    font-size: ${tokens.typography.fontSize.sm};
+    width: 100%;
+  }
 `;
 
 const ResetButton = styled.button`
-    padding: 10px 32px;
-    background: #95a5a6;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.3s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.xl};
+  background: ${tokens.colors.textMuted};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.base};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:hover {
-        background: #7f8c8d;
-    }
+  &:hover {
+    background: ${tokens.colors.textSecondary};
+    transform: translateY(-1px);
+    box-shadow: ${tokens.shadows.sm};
+  }
 
-    /* ✅ RESPONSIVIDADE: Mobile */
-    @media (max-width: 480px) {
-        padding: 12px;
-        font-size: 14px;
-        width: 100%;
-    }
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    padding: ${tokens.spacing.md};
+    font-size: ${tokens.typography.fontSize.sm};
+    width: 100%;
+  }
 `;
 
+const LoadingContainer = styled.div`
+  text-align: center;
+  padding: ${tokens.spacing.xl};
+  color: ${tokens.colors.textMuted};
+  font-size: ${tokens.typography.fontSize.sm};
+`;
+
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const OperatingHours = () => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -313,13 +354,19 @@ const OperatingHours = () => {
     };
 
     const handleReset = async () => {
-        if (!confirm('Tem certeza que deseja resetar os horários para o padrão?')) return;
+        if (!confirm('Tem certeza que deseja resetar os horários para o padrão?')) {
+            return;
+        }
         await loadHours();
         showToast('Horários resetados para o padrão', 'info');
     };
 
     if (loading) {
-        return <Container>🔄 Carregando horários...</Container>;
+        return (
+            <Container>
+                <LoadingContainer>🔄 Carregando horários...</LoadingContainer>
+            </Container>
+        );
     }
 
     return (
@@ -329,13 +376,13 @@ const OperatingHours = () => {
                 Configure os horários de funcionamento da loja para cada dia da semana.
                 O status "Aberto/Fechado" será atualizado automaticamente no cardápio.
             </Description>
-            
+
             {hours.map((day, index) => {
                 const isOpen = day.is_open === 1 || day.is_open === true;
                 return (
                     <DayRow key={day.id || index}>
                         <DayName>{dayNames[day.day_of_week]}</DayName>
-                        
+
                         <Toggle>
                             <ToggleInput
                                 type="checkbox"
