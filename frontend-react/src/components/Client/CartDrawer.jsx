@@ -73,12 +73,12 @@ const CloseButton = styled.button`
   padding: ${tokens.spacing.xs};
   transition: all 0.2s ease-in-out;
   line-height: 1;
-  
+
   &:hover {
     color: ${tokens.colors.text};
     transform: rotate(90deg);
   }
-  
+
   &:focus-visible {
     outline: 2px solid ${tokens.colors.accent};
     outline-offset: 2px;
@@ -103,19 +103,19 @@ const EmptyCart = styled.div`
   justify-content: center;
   color: ${tokens.colors.textMuted};
   padding: ${tokens.spacing.xl};
-  
+
   .icon {
     font-size: 56px;
     margin-bottom: ${tokens.spacing.md};
   }
-  
+
   h3 {
     font-size: ${tokens.typography.fontSize.lg};
     font-weight: ${tokens.typography.fontWeight.semibold};
     color: ${tokens.colors.text};
     margin: 0 0 ${tokens.spacing.xs} 0;
   }
-  
+
   p {
     font-size: ${tokens.typography.fontSize.sm};
     margin: 0;
@@ -129,7 +129,7 @@ const CartItem = styled.div`
   padding: ${tokens.spacing.sm} 0;
   border-bottom: 1px solid ${tokens.colors.border};
   align-items: center;
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -142,7 +142,7 @@ const ItemImage = styled.div`
   background: ${tokens.colors.background};
   overflow: hidden;
   flex-shrink: 0;
-  
+
   img {
     width: 100%;
     height: 100%;
@@ -202,17 +202,17 @@ const QtyButton = styled.button`
   align-items: center;
   justify-content: center;
   font-family: ${tokens.typography.fontFamily};
-  
+
   &:hover {
     background: ${tokens.colors.accentLight};
     border-color: ${tokens.colors.accent};
     color: ${tokens.colors.accent};
   }
-  
+
   &:active {
     transform: scale(0.92);
   }
-  
+
   &:focus-visible {
     outline: 2px solid ${tokens.colors.accent};
     outline-offset: 2px;
@@ -235,11 +235,11 @@ const RemoveButton = styled.button`
   font-size: ${tokens.typography.fontSize.sm};
   padding: ${tokens.spacing.xs};
   transition: all 0.2s ease-in-out;
-  
+
   &:hover {
     color: ${tokens.colors.error};
   }
-  
+
   &:focus-visible {
     outline: 2px solid ${tokens.colors.accent};
     outline-offset: 2px;
@@ -254,22 +254,13 @@ const Footer = styled.div`
   background: ${tokens.colors.surface};
 `;
 
-const SubtotalRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-size: ${tokens.typography.fontSize.base};
-  color: ${tokens.colors.text};
-  margin-bottom: ${tokens.spacing.sm};
-`;
-
 const TotalRow = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: ${tokens.typography.fontSize.lg};
   font-weight: ${tokens.typography.fontWeight.bold};
   color: ${tokens.colors.text};
-  padding-top: ${tokens.spacing.sm};
-  border-top: 2px solid ${tokens.colors.border};
+  padding: ${tokens.spacing.sm} 0;
 `;
 
 const CheckoutButton = styled.button`
@@ -285,22 +276,22 @@ const CheckoutButton = styled.button`
   transition: all 0.2s ease-in-out;
   margin-top: ${tokens.spacing.md};
   font-family: ${tokens.typography.fontFamily};
-  
+
   &:hover:not(:disabled) {
     background: ${tokens.colors.accentHover};
     transform: translateY(-2px);
     box-shadow: ${tokens.shadows.md};
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:focus-visible {
     outline: 2px solid ${tokens.colors.accent};
     outline-offset: 2px;
@@ -313,21 +304,19 @@ const CheckoutButton = styled.button`
 const CartDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { tenant } = useTenant();
-  const { cart, totalItems, subtotal, updateQty, removeFromCart } = useCart();
+  const { cart, subtotal, updateQty, removeFromCart } = useCart();
 
   const handleCheckout = () => {
     onClose();
     navigate(`/checkout?tenant=${tenant}`);
   };
 
-  // Garantir que o subtotal seja um número
   const safeSubtotal = parseFloat(subtotal) || 0;
-  const safeTotal = safeSubtotal;
 
   return (
     <>
       <Overlay $isOpen={isOpen} onClick={onClose} />
-      
+
       <Drawer $isOpen={isOpen}>
         <Header>
           <HeaderTitle>🛒 Seu Carrinho</HeaderTitle>
@@ -345,10 +334,9 @@ const CartDrawer = ({ isOpen, onClose }) => {
             </EmptyCart>
           ) : (
             cart.map(item => {
-              // ✅ Garantir que price seja um número
               const price = parseFloat(item.price) || 0;
               const itemTotal = price * (item.qty || 1);
-              
+
               return (
                 <CartItem key={item.id}>
                   {item.image_url ? (
@@ -358,26 +346,26 @@ const CartDrawer = ({ isOpen, onClose }) => {
                   ) : (
                     <ItemImagePlaceholder>🍔</ItemImagePlaceholder>
                   )}
-                  
+
                   <ItemInfo>
                     <ItemName>{item.name}</ItemName>
                     <ItemPrice>R$ {formatPrice(price)}</ItemPrice>
-                    
+
                     <ItemControls>
-                      <QtyButton 
+                      <QtyButton
                         onClick={() => updateQty(item.id, (item.qty || 1) - 1)}
                         aria-label="Diminuir quantidade"
                       >
                         −
                       </QtyButton>
                       <QtyDisplay>{item.qty || 1}</QtyDisplay>
-                      <QtyButton 
+                      <QtyButton
                         onClick={() => updateQty(item.id, (item.qty || 1) + 1)}
                         aria-label="Aumentar quantidade"
                       >
                         +
                       </QtyButton>
-                      <RemoveButton 
+                      <RemoveButton
                         onClick={() => removeFromCart(item.id)}
                         aria-label="Remover item"
                       >
@@ -385,9 +373,9 @@ const CartDrawer = ({ isOpen, onClose }) => {
                       </RemoveButton>
                     </ItemControls>
                   </ItemInfo>
-                  
-                  <div style={{ 
-                    fontSize: tokens.typography.fontSize.sm, 
+
+                  <div style={{
+                    fontSize: tokens.typography.fontSize.sm,
                     fontWeight: tokens.typography.fontWeight.semibold,
                     color: tokens.colors.accent,
                     alignSelf: 'flex-start',
@@ -403,15 +391,12 @@ const CartDrawer = ({ isOpen, onClose }) => {
 
         {cart.length > 0 && (
           <Footer>
-            <SubtotalRow>
-              <span>Subtotal</span>
-              <span>R$ {formatPrice(safeSubtotal)}</span>
-            </SubtotalRow>
+            {/* ✅ APENAS TOTAL (SEM SUBTOTAL REDUNDANTE) */}
             <TotalRow>
               <span>Total</span>
-              <span>R$ {formatPrice(safeTotal)}</span>
+              <span>R$ {formatPrice(safeSubtotal)}</span>
             </TotalRow>
-            
+
             <CheckoutButton onClick={handleCheckout}>
               Finalizar Pedido
             </CheckoutButton>
