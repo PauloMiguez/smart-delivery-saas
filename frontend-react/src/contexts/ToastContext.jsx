@@ -1,76 +1,122 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+import { tokens } from '../styles/tokens';
 
+// ============================================================
+//  ANIMAÇÕES
+// ============================================================
+const slideIn = keyframes`
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+const slideOut = keyframes`
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+`;
+
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
 const ToastContainer = styled.div`
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 400px;
-    width: 100%;
+  position: fixed;
+  top: ${tokens.spacing.lg};
+  right: ${tokens.spacing.lg};
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: ${tokens.spacing.sm};
+  max-width: 400px;
+  width: 100%;
+  font-family: ${tokens.typography.fontFamily};
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    top: ${tokens.spacing.sm};
+    right: ${tokens.spacing.sm};
+    left: ${tokens.spacing.sm};
+    max-width: 100%;
+  }
 `;
 
 const ToastItem = styled.div`
-    padding: 12px 16px;
-    border-radius: ${props => props.theme.borderRadius.md};
-    background: ${props => props.theme.colors.card};
-    box-shadow: ${props => props.theme.shadows.lg};
-    font-size: 14px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: slideIn 0.3s ease;
-    border-left: 4px solid ${props => {
-        switch (props.type) {
-            case 'success': return props.theme.colors.success;
-            case 'error': return props.theme.colors.danger;
-            case 'warning': return props.theme.colors.warning;
-            default: return props.theme.colors.primary;
-        }
-    }};
+  padding: ${tokens.spacing.md} ${tokens.spacing.lg};
+  border-radius: ${tokens.radius.md};
+  background: ${tokens.colors.surface};
+  box-shadow: ${tokens.shadows.lg};
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  display: flex;
+  align-items: center;
+  gap: ${tokens.spacing.sm};
+  animation: ${slideIn} 0.3s ease;
+  border: 1px solid ${tokens.colors.border};
+  border-left: 4px solid ${props => {
+    switch (props.$type) {
+      case 'success': return tokens.colors.success;
+      case 'error': return tokens.colors.error;
+      case 'warning': return tokens.colors.warning;
+      default: return tokens.colors.accent;
+    }
+  }};
 
-    ${props => props.removing && `
-        animation: slideOut 0.3s ease forwards;
-    `}
+  ${props => props.$removing && `
+    animation: ${slideOut} 0.3s ease forwards;
+  `}
 
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+  .icon {
+    font-size: ${tokens.typography.fontSize.lg};
+    flex-shrink: 0;
+  }
+
+  .message {
+    flex: 1;
+    color: ${tokens.colors.text};
+    line-height: ${tokens.typography.lineHeight.normal};
+  }
+
+  .close {
+    background: none;
+    border: none;
+    color: ${tokens.colors.textMuted};
+    font-size: ${tokens.typography.fontSize.lg};
+    cursor: pointer;
+    padding: ${tokens.spacing.xs};
+    transition: all 0.2s ease-in-out;
+    line-height: 1;
+    border-radius: ${tokens.radius.sm};
+
+    &:hover {
+      color: ${tokens.colors.text};
+      background: ${tokens.colors.background};
     }
 
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
+    &:focus-visible {
+      outline: 2px solid ${tokens.colors.accent};
+      outline-offset: 2px;
     }
-
-    .icon {
-        font-size: 20px;
-    }
-
-    .message {
-        flex: 1;
-    }
-
-    .close {
-        background: none;
-        border: none;
-        color: ${props => props.theme.colors.textMuted};
-        font-size: 18px;
-        cursor: pointer;
-        padding: 0 4px;
-
-        &:hover {
-            color: ${props => props.theme.colors.text};
-        }
-    }
+  }
 `;
 
+// ============================================================
+//  CONTEXT
+// ============================================================
 const ToastContext = createContext();
 
+// ============================================================
+//  PROVIDER
+// ============================================================
 export const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
 
@@ -80,7 +126,7 @@ export const ToastProvider = ({ children }) => {
 
         setTimeout(() => {
             setToasts(prev => 
-                prev.map(t => t.id === id ? { ...t, removing: true } : t)
+                prev.map(t => t.id === id ? { ...t, $removing: true } : t)
             );
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
@@ -108,12 +154,16 @@ export const ToastProvider = ({ children }) => {
                 {toasts.map(toast => (
                     <ToastItem 
                         key={toast.id} 
-                        type={toast.type}
-                        removing={toast.removing}
+                        $type={toast.type}
+                        $removing={toast.$removing}
                     >
                         <span className="icon">{icons[toast.type] || '📢'}</span>
                         <span className="message">{toast.message}</span>
-                        <button className="close" onClick={() => removeToast(toast.id)}>
+                        <button 
+                            className="close" 
+                            onClick={() => removeToast(toast.id)}
+                            aria-label="Fechar notificação"
+                        >
                             ✕
                         </button>
                     </ToastItem>
@@ -123,6 +173,9 @@ export const ToastProvider = ({ children }) => {
     );
 };
 
+// ============================================================
+//  HOOK
+// ============================================================
 export const useToast = () => {
     const context = useContext(ToastContext);
     if (!context) {
