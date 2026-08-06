@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import styled, { ThemeProvider } from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import { connectSocket, disconnectSocket } from '../../services/socket';
 import { playNewOrderSound, playNotificationSound } from '../../utils/notificationSound';
+import { tokens } from '../../styles/tokens';
 import {
     AdminContainer,
     Sidebar,
@@ -29,6 +31,9 @@ import {
     MobileActions
 } from './AdminLayout.styled';
 
+// ============================================================
+//  IMPORTS LAZY
+// ============================================================
 const Dashboard = lazy(() => import('./Dashboard'));
 const Products = lazy(() => import('./Products'));
 const Categories = lazy(() => import('./Categories'));
@@ -40,6 +45,9 @@ const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
 const DeliverySettings = lazy(() => import('./DeliverySettings'));
 
+// ============================================================
+//  COMPONENT LOADER
+// ============================================================
 const ComponentLoader = () => (
     <div style={{
         display: 'flex',
@@ -51,8 +59,8 @@ const ComponentLoader = () => (
         <div style={{
             width: 36,
             height: 36,
-            border: '3px solid #f3f3f3',
-            borderTop: '3px solid #e67e22',
+            border: '3px solid #e8ebeb',
+            borderTop: `3px solid ${tokens.colors.accent}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite'
         }} />
@@ -65,13 +73,52 @@ const ComponentLoader = () => (
     </div>
 );
 
+// ============================================================
+//  STYLED COMPONENTS ADICIONAIS
+// ============================================================
+const AuthLoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: ${tokens.typography.fontFamily};
+  font-size: ${tokens.typography.fontSize.base};
+  color: ${tokens.colors.textSecondary};
+  background: ${tokens.colors.background};
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: ${tokens.typography.fontFamily};
+  font-size: ${tokens.typography.fontSize.base};
+  color: ${tokens.colors.textSecondary};
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: ${tokens.typography.fontFamily};
+  font-size: ${tokens.typography.fontSize.base};
+  color: ${tokens.colors.error};
+  padding: ${tokens.spacing.lg};
+  text-align: center;
+`;
+
+// ============================================================
+//  ADMIN LAYOUT
+// ============================================================
 const AdminLayout = () => {
     const navigate = useNavigate();
     const { tenant, loading: tenantLoading } = useTenant();
     const { showToast } = useToast();
 
     // ============================================================
-    //  TODOS OS HOOKS PRIMEIRO (NUNCA CHAMAR HOOKS DEPOIS DE CONDICIONAIS)
+    //  TODOS OS HOOKS PRIMEIRO
     // ============================================================
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
@@ -104,7 +151,7 @@ const AdminLayout = () => {
     const [authChecked, setAuthChecked] = useState(false);
 
     // ============================================================
-    //  HOOKS DE EFEITO (TAMBÉM DEVEM VIR ANTES DE CONDICIONAIS)
+    //  HOOKS DE EFEITO
     // ============================================================
 
     // 1. Verificação de autenticação
@@ -127,7 +174,7 @@ const AdminLayout = () => {
         setAuthChecked(true);
     }, [navigate, tenant]);
 
-    // 2. Carregar dados (só executa se autenticado)
+    // 2. Carregar dados
     const loadData = useCallback(async () => {
         if (!isAuthenticated || !tenant) return;
         try {
@@ -273,7 +320,7 @@ const AdminLayout = () => {
     }, [filteredProducts, itemsPerPage]);
 
     // ============================================================
-    //  FUNÇÃO applyFilters (precisa estar definida antes do useEffect acima)
+    //  FUNÇÃO applyFilters
     // ============================================================
     const applyFilters = () => {
         let filtered = [...products];
@@ -303,10 +350,14 @@ const AdminLayout = () => {
     };
 
     // ============================================================
-    //  CONDICIONAIS (SOMENTE DEPOIS DE TODOS OS HOOKS E USEFFECTS)
+    //  CONDICIONAIS
     // ============================================================
     if (!authChecked) {
-        return <div style={{ textAlign: 'center', padding: '40px' }}>Verificando autenticação...</div>;
+        return (
+            <AuthLoadingContainer>
+                Verificando autenticação...
+            </AuthLoadingContainer>
+        );
     }
 
     if (!isAuthenticated) {
@@ -314,11 +365,19 @@ const AdminLayout = () => {
     }
 
     if (tenantLoading) {
-        return <div className="loader">Carregando tenant...</div>;
+        return (
+            <LoadingContainer>
+                Carregando tenant...
+            </LoadingContainer>
+        );
     }
 
     if (!tenant) {
-        return <div>Tenant não encontrado</div>;
+        return (
+            <ErrorContainer>
+                Tenant não encontrado
+            </ErrorContainer>
+        );
     }
 
     // ============================================================
@@ -569,7 +628,7 @@ const AdminLayout = () => {
                     </p>
                     <p style={{
                         fontSize: '11px',
-                        color: socketStatus === 'conectado' ? '#27ae60' : '#e74c3c',
+                        color: socketStatus === 'conectado' ? '#2e7d32' : '#d32f2f',
                         marginTop: '4px'
                     }}>
                         {socketStatus === 'conectado' ? '🟢 Online' : '🔴 Offline'}
@@ -588,7 +647,7 @@ const AdminLayout = () => {
                         {item.label}
                         {item.id === 'orders' && unreadOrders > 0 && (
                             <span style={{
-                                background: '#e74c3c',
+                                background: tokens.colors.error,
                                 color: '#fff',
                                 borderRadius: '50%',
                                 padding: '2px 8px',
@@ -608,7 +667,7 @@ const AdminLayout = () => {
                         {activeTab === 'orders' && unreadOrders > 0 && (
                             <span style={{
                                 fontSize: '14px',
-                                color: '#e74c3c',
+                                color: tokens.colors.error,
                                 marginLeft: '12px',
                                 fontWeight: 'normal'
                             }}>
@@ -619,7 +678,7 @@ const AdminLayout = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <span style={{
                             fontSize: '12px',
-                            color: socketStatus === 'conectado' ? '#27ae60' : '#e74c3c'
+                            color: socketStatus === 'conectado' ? '#2e7d32' : '#d32f2f'
                         }}>
                             {socketStatus === 'conectado' ? '🟢 Online' : '🔴 Offline'}
                         </span>
