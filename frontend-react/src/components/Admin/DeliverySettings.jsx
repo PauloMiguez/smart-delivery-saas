@@ -3,179 +3,300 @@ import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
+import { tokens } from '../../styles/tokens';
 
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
 const Container = styled.div`
-    padding: 20px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: ${tokens.spacing.lg};
+  background: ${tokens.colors.surface};
+  border-radius: ${tokens.radius.md};
+  box-shadow: ${tokens.shadows.sm};
+  border: 1px solid ${tokens.colors.border};
+  font-family: ${tokens.typography.fontFamily};
 `;
 
 const Title = styled.h2`
-    margin: 0 0 20px 0;
-    color: #2d3436;
-    font-size: 20px;
+  margin: 0 0 ${tokens.spacing.lg} 0;
+  color: ${tokens.colors.text};
+  font-size: ${tokens.typography.fontSize['2xl']};
+  font-weight: ${tokens.typography.fontWeight.bold};
+  letter-spacing: -0.02em;
 `;
 
 const Description = styled.p`
-    color: #888;
-    font-size: 14px;
-    margin: -12px 0 20px 0;
+  color: ${tokens.colors.textSecondary};
+  font-size: ${tokens.typography.fontSize.sm};
+  margin: -${tokens.spacing.sm} 0 ${tokens.spacing.lg} 0;
+  line-height: ${tokens.typography.lineHeight.normal};
 `;
 
 const FormGroup = styled.div`
-    margin-bottom: 20px;
+  margin-bottom: ${tokens.spacing.lg};
 `;
 
 const Label = styled.label`
-    display: block;
-    font-weight: 600;
-    font-size: 14px;
-    color: #555;
-    margin-bottom: 6px;
+  display: block;
+  font-weight: ${tokens.typography.fontWeight.medium};
+  font-size: ${tokens.typography.fontSize.sm};
+  color: ${tokens.colors.textSecondary};
+  margin-bottom: ${tokens.spacing.xs};
 `;
 
 const Select = styled.select`
-    width: 100%;
-    max-width: 300px;
-    padding: 10px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
-    background: #fff;
-    color: #2d3436;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s;
+  width: 100%;
+  max-width: 300px;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  border: 1.5px solid ${tokens.colors.border};
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.sm};
+  background: ${tokens.colors.surface};
+  color: ${tokens.colors.text};
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
-    }
+  &:hover {
+    border-color: ${tokens.colors.borderHover};
+  }
+
+  &:focus {
+    border-color: ${tokens.colors.accent};
+    box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    max-width: 100%;
+  }
 `;
 
 const Input = styled.input`
-    width: 100%;
-    max-width: 300px;
-    padding: 10px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #2d3436;
-    outline: none;
-    transition: border-color 0.2s;
-    background: ${props => props.disabled ? '#f5f5f5' : '#fff'};
+  width: 100%;
+  max-width: 300px;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  border: 1.5px solid ${tokens.colors.border};
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.sm};
+  color: ${tokens.colors.text};
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  background: ${props => props.disabled ? tokens.colors.background : tokens.colors.surface};
+  font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
-    }
+  &:hover:not(:disabled) {
+    border-color: ${tokens.colors.borderHover};
+  }
+
+  &:focus:not(:disabled) {
+    border-color: ${tokens.colors.accent};
+    box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    max-width: 100%;
+  }
 `;
 
 const ZoneRow = styled.div`
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-    flex-wrap: wrap;
+  display: flex;
+  gap: ${tokens.spacing.sm};
+  align-items: center;
+  padding: ${tokens.spacing.sm} 0;
+  border-bottom: 1px solid ${tokens.colors.border};
+  flex-wrap: wrap;
 
-    &:last-child {
-        border-bottom: none;
-    }
+  &:last-child {
+    border-bottom: none;
+  }
 `;
 
 const ZoneInput = styled.input`
-    padding: 8px 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 14px;
-    flex: 1;
-    min-width: 120px;
-    color: #2d3436;
-    outline: none;
-    transition: border-color 0.2s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  border: 1.5px solid ${tokens.colors.border};
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.sm};
+  flex: 1;
+  min-width: 120px;
+  color: ${tokens.colors.text};
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
-    }
+  &:focus {
+    border-color: ${tokens.colors.accent};
+    box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    min-width: 100px;
+  }
 `;
 
 const ZoneValue = styled.input`
-    padding: 8px 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 14px;
-    width: 100px;
-    color: #2d3436;
-    outline: none;
-    transition: border-color 0.2s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  border: 1.5px solid ${tokens.colors.border};
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.sm};
+  width: 100px;
+  color: ${tokens.colors.text};
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
-    }
+  &:focus {
+    border-color: ${tokens.colors.accent};
+    box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 80px;
+  }
 `;
 
 const AddButton = styled.button`
-    padding: 8px 16px;
-    background: #27ae60;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background 0.2s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  background: ${tokens.colors.success};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.md};
+  cursor: pointer;
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:hover {
-        background: #219a52;
-    }
+  &:hover {
+    background: ${tokens.colors.success};
+    opacity: 0.85;
+    transform: translateY(-1px);
+    box-shadow: ${tokens.shadows.sm};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 100%;
+  }
 `;
 
 const RemoveButton = styled.button`
-    padding: 4px 10px;
-    background: #e74c3c;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.2s;
+  padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  background: ${tokens.colors.error};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.sm};
+  cursor: pointer;
+  font-size: ${tokens.typography.fontSize.xs};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:hover {
-        background: #c0392b;
-    }
+  &:hover {
+    background: ${tokens.colors.error};
+    opacity: 0.85;
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
 `;
 
 const ButtonContainer = styled.div`
-    margin-top: 24px;
-    display: flex;
-    justify-content: flex-end;
+  margin-top: ${tokens.spacing.lg};
+  display: flex;
+  justify-content: flex-end;
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    justify-content: stretch;
+  }
 `;
 
 const SaveButton = styled.button`
-    padding: 10px 32px;
-    background: #e67e22;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
-    opacity: ${props => props.disabled ? 0.7 : 1};
-    transition: background 0.3s;
+  padding: ${tokens.spacing.sm} ${tokens.spacing.xl};
+  background: ${tokens.colors.accent};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.base};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  opacity: ${props => props.disabled ? 0.6 : 1};
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
 
-    &:hover:not(:disabled) {
-        background: #d35400;
-    }
+  &:hover:not(:disabled) {
+    background: ${tokens.colors.accentHover};
+    transform: translateY(-1px);
+    box-shadow: ${tokens.shadows.md};
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    width: 100%;
+    justify-content: center;
+  }
 `;
 
 const InfoBox = styled.div`
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #e67e22;
-    margin: 12px 0;
-    font-size: 14px;
-    color: #555;
+  padding: ${tokens.spacing.md};
+  background: ${tokens.colors.accentLight};
+  border-radius: ${tokens.radius.md};
+  border-left: 3px solid ${tokens.colors.accent};
+  margin: ${tokens.spacing.sm} 0;
+  font-size: ${tokens.typography.fontSize.sm};
+  color: ${tokens.colors.textSecondary};
+  line-height: ${tokens.typography.lineHeight.normal};
 `;
 
+const EmptyState = styled.p`
+  color: ${tokens.colors.textMuted};
+  padding: ${tokens.spacing.md} 0;
+  font-size: ${tokens.typography.fontSize.sm};
+`;
+
+const ZoneName = styled.span`
+  font-weight: ${tokens.typography.fontWeight.medium};
+  min-width: 120px;
+  color: ${tokens.colors.text};
+`;
+
+const ZonePrice = styled.span`
+  color: ${tokens.colors.accent};
+  font-weight: ${tokens.typography.fontWeight.semibold};
+`;
+
+const AddZoneContainer = styled.div`
+  display: flex;
+  gap: ${tokens.spacing.sm};
+  margin-bottom: ${tokens.spacing.sm};
+  flex-wrap: wrap;
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    flex-direction: column;
+  }
+`;
+
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const DeliverySettings = () => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -245,7 +366,7 @@ const DeliverySettings = () => {
             };
 
             await api.put('/config', data);
-            showToast('Configurações salvas com sucesso!', 'success');
+            showToast('✅ Configurações salvas com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao salvar:', error);
             showToast('Erro ao salvar configurações', 'error');
@@ -266,9 +387,10 @@ const DeliverySettings = () => {
             </Description>
 
             <FormGroup>
-                <Label>Tipo de Cálculo</Label>
-                <Select 
-                    value={deliveryType} 
+                <Label htmlFor="deliveryType">Tipo de Cálculo</Label>
+                <Select
+                    id="deliveryType"
+                    value={deliveryType}
                     onChange={(e) => setDeliveryType(e.target.value)}
                 >
                     <option value="fixa">💰 Fixa</option>
@@ -279,8 +401,9 @@ const DeliverySettings = () => {
 
             {deliveryType === 'fixa' && (
                 <FormGroup>
-                    <Label>Valor Fixo da Entrega (R$)</Label>
+                    <Label htmlFor="deliveryFee">Valor Fixo da Entrega (R$)</Label>
                     <Input
+                        id="deliveryFee"
                         type="number"
                         step="0.01"
                         min="0"
@@ -302,7 +425,7 @@ const DeliverySettings = () => {
                         O sistema identificará o bairro pelo endereço do cliente.
                     </InfoBox>
 
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <AddZoneContainer>
                         <ZoneInput
                             placeholder="Nome do bairro"
                             value={newZoneBairro}
@@ -317,21 +440,17 @@ const DeliverySettings = () => {
                             onChange={(e) => setNewZoneValor(e.target.value)}
                         />
                         <AddButton onClick={handleAddZone}>+ Adicionar</AddButton>
-                    </div>
+                    </AddZoneContainer>
 
                     {zones.length === 0 ? (
-                        <p style={{ color: '#888', padding: '12px 0' }}>
+                        <EmptyState>
                             Nenhuma zona configurada. Adicione bairros acima.
-                        </p>
+                        </EmptyState>
                     ) : (
                         zones.map((zone, index) => (
                             <ZoneRow key={index}>
-                                <span style={{ fontWeight: '500', minWidth: '120px' }}>
-                                    {zone.bairro}
-                                </span>
-                                <span style={{ color: '#e67e22', fontWeight: '600' }}>
-                                    R$ {zone.valor.toFixed(2)}
-                                </span>
+                                <ZoneName>{zone.bairro}</ZoneName>
+                                <ZonePrice>R$ {zone.valor.toFixed(2)}</ZonePrice>
                                 <RemoveButton onClick={() => handleRemoveZone(index)}>
                                     ✕ Remover
                                 </RemoveButton>
@@ -343,8 +462,8 @@ const DeliverySettings = () => {
 
             {deliveryType === 'manual' && (
                 <InfoBox>
-                    ✋ A taxa de entrega será definida manualmente pelo restaurante 
-                    após o pedido ser enviado. O cliente verá a mensagem 
+                    ✋ A taxa de entrega será definida manualmente pelo restaurante
+                    após o pedido ser enviado. O cliente verá a mensagem
                     "Taxa de entrega será informada após o pedido".
                 </InfoBox>
             )}
