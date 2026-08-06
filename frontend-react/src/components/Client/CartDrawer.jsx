@@ -254,7 +254,7 @@ const Footer = styled.div`
   background: ${tokens.colors.surface};
 `;
 
-const TotalRow = styled.div`
+const SubtotalRow = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: ${tokens.typography.fontSize.lg};
@@ -391,11 +391,20 @@ const CartDrawer = ({ isOpen, onClose }) => {
 
         {cart.length > 0 && (
           <Footer>
-            {/* ✅ APENAS TOTAL (SEM SUBTOTAL REDUNDANTE) */}
-            <TotalRow>
-              <span>Total</span>
+            {/* ✅ CORRIGIDO: Subtotal (sem taxa de entrega) */}
+            <SubtotalRow>
+              <span>Subtotal</span>
               <span>R$ {formatPrice(safeSubtotal)}</span>
-            </TotalRow>
+            </SubtotalRow>
+
+            <div style={{
+              fontSize: tokens.typography.fontSize.xs,
+              color: tokens.colors.textMuted,
+              textAlign: 'center',
+              marginTop: tokens.spacing.xs
+            }}>
+              Taxa de entrega calculada no checkout
+            </div>
 
             <CheckoutButton onClick={handleCheckout}>
               Finalizar Pedido
