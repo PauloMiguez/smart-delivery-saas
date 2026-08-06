@@ -519,9 +519,6 @@ const ClientLayout = () => {
 
                     <StoreMeta>
                         <StatusRow>
-                            <Badge status={isOpen ? 'open' : 'closed'}>
-                                {isOpen ? 'Aberto agora' : 'Fechado'}
-                            </Badge>
                             {!isOpen && (
                                 <StatusNotice>
                                     Agendamento disponível
