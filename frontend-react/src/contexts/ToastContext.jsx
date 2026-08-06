@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { tokens } from '../styles/tokens';
 
 // ============================================================
@@ -60,20 +60,43 @@ const ToastItem = styled.div`
   display: flex;
   align-items: center;
   gap: ${tokens.spacing.sm};
-  animation: ${slideIn} 0.3s ease;
   border: 1px solid ${tokens.colors.border};
-  border-left: 4px solid ${props => {
-    switch (props.$type) {
-      case 'success': return tokens.colors.success;
-      case 'error': return tokens.colors.error;
-      case 'warning': return tokens.colors.warning;
-      default: return tokens.colors.accent;
-    }
-  }};
+  border-left: 4px solid ${tokens.colors.accent};
 
-  ${props => props.$removing && `
-    animation: ${slideOut} 0.3s ease forwards;
-  `}
+  ${props => {
+    switch (props.$type) {
+      case 'success':
+        return css`
+          border-left-color: ${tokens.colors.success};
+        `;
+      case 'error':
+        return css`
+          border-left-color: ${tokens.colors.error};
+        `;
+      case 'warning':
+        return css`
+          border-left-color: ${tokens.colors.warning};
+        `;
+      default:
+        return css`
+          border-left-color: ${tokens.colors.accent};
+        `;
+    }
+  }}
+
+  ${props => {
+    if (props.$entering) {
+      return css`
+        animation: ${slideIn} 0.3s ease forwards;
+      `;
+    }
+    if (props.$exiting) {
+      return css`
+        animation: ${slideOut} 0.3s ease forwards;
+      `;
+    }
+    return '';
+  }}
 
   .icon {
     font-size: ${tokens.typography.fontSize.lg};
@@ -122,11 +145,17 @@ export const ToastProvider = ({ children }) => {
 
     const showToast = useCallback((message, type = 'info', duration = 3500) => {
         const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
+        setToasts(prev => [...prev, { id, message, type, entering: true }]);
 
         setTimeout(() => {
             setToasts(prev => 
-                prev.map(t => t.id === id ? { ...t, $removing: true } : t)
+                prev.map(t => t.id === id ? { ...t, entering: false } : t)
+            );
+        }, 100);
+
+        setTimeout(() => {
+            setToasts(prev => 
+                prev.map(t => t.id === id ? { ...t, exiting: true } : t)
             );
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
@@ -155,7 +184,8 @@ export const ToastProvider = ({ children }) => {
                     <ToastItem 
                         key={toast.id} 
                         $type={toast.type}
-                        $removing={toast.$removing}
+                        $entering={toast.entering}
+                        $exiting={toast.exiting}
                     >
                         <span className="icon">{icons[toast.type] || '📢'}</span>
                         <span className="message">{toast.message}</span>
