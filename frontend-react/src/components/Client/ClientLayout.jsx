@@ -319,6 +319,9 @@ const EmptyStateContainer = styled.div`
   border: 1px dashed ${props => props.theme.colors.borderDark};
 `;
 
+// ============================================================
+//  ✅ CARRINHO FLUTUANTE - COM SUBTOTAL
+// ============================================================
 const FloatingCart = styled.button`
   position: fixed;
   bottom: 24px;
@@ -333,7 +336,7 @@ const FloatingCart = styled.button`
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
   z-index: 90;
   display: flex;
   align-items: center;
@@ -363,7 +366,7 @@ const FloatingBadge = styled.span`
 // ============================================================
 const ClientLayout = () => {
     const { tenant, loading: tenantLoading } = useTenant();
-    const { totalItems } = useCart();
+    const { totalItems, totalPrice } = useCart(); // ✅ USANDO totalPrice
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -590,8 +593,14 @@ const ClientLayout = () => {
                     </ProductGrid>
                 )}
 
+                {/* ✅ CARRINHO FLUTUANTE COM SUBTOTAL */}
                 <FloatingCart onClick={() => setIsCartOpen(true)}>
-                    <span>Ver Carrinho</span>
+                    <span>🛒</span>
+                    {totalItems > 0 ? (
+                        <span>R$ {totalPrice.toFixed(2)}</span>
+                    ) : (
+                        <span>Ver Carrinho</span>
+                    )}
                     {totalItems > 0 && (
                         <FloatingBadge>{totalItems}</FloatingBadge>
                     )}

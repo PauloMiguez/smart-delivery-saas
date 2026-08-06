@@ -7,6 +7,9 @@ export const CartProvider = ({ children }) => {
     const [totalItems, setTotalItems] = useState(0);
     const [subtotal, setSubtotal] = useState(0);
 
+    // ✅ totalPrice é um alias para subtotal (mantém compatibilidade)
+    const totalPrice = subtotal;
+
     // Carregar carrinho do localStorage
     useEffect(() => {
         const savedCart = localStorage.getItem('cart');
@@ -19,7 +22,7 @@ export const CartProvider = ({ children }) => {
         }
     }, []);
 
-    // Salvar carrinho no localStorage
+    // Salvar carrinho no localStorage e atualizar totais
     useEffect(() => {
         localStorage.setItem('cart', JSON.stringify(cart));
         updateTotals();
@@ -66,15 +69,22 @@ export const CartProvider = ({ children }) => {
         setCart([]);
     };
 
+    const getItemQuantity = (productId) => {
+        const item = cart.find(item => item.id === productId);
+        return item ? item.qty : 0;
+    };
+
     return (
         <CartContext.Provider value={{
             cart,
             totalItems,
             subtotal,
+            totalPrice,        // ✅ Adicionado para compatibilidade
             addToCart,
             removeFromCart,
             updateQty,
-            clearCart
+            clearCart,
+            getItemQuantity    // ✅ Adicionado para uso no ProductCard
         }}>
             {children}
         </CartContext.Provider>
