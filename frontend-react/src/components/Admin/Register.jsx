@@ -246,7 +246,7 @@ const Register = () => {
                                 name="restaurantName"
                                 value={formData.restaurantName}
                                 onChange={handleChange}
-                                placeholder="Ex: Fire Burger"
+                                placeholder="Ex: Seu Restaurante"
                                 required
                             />
                         </FormGroup>
@@ -258,7 +258,7 @@ const Register = () => {
                                 name="subdomain"
                                 value={formData.subdomain}
                                 onChange={handleChange}
-                                placeholder="fireburger"
+                                placeholder="seurestaurante"
                                 required
                             />
                             <small>Seu endereço será: ://smartdelivery.com</small>
@@ -283,7 +283,7 @@ const Register = () => {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                placeholder="contato@fireburger.com"
+                                placeholder="contato@seurestaurante.com"
                                 required
                             />
                         </FormGroup>
@@ -295,7 +295,7 @@ const Register = () => {
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                placeholder="(85) 99999-9999"
+                                placeholder="(21) 99999-9999"
                             />
                         </FormGroup>
 
