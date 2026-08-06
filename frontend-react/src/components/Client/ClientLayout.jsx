@@ -1,7 +1,7 @@
 // frontend-react/src/components/Client/ClientLayout.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import styled, { ThemeProvider, createGlobalStyle } from 'styled-components';
+import styled, { ThemeProvider } from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
 import { api } from '../../services/api';
@@ -9,262 +9,242 @@ import { Badge } from '../Shared/Container';
 import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 
-// Forçar carregamento dos componentes de pedidos (evita tree-shaking)
 import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
 
 // ============================================================
-// 🎨 DESIGN SYSTEM TOKENS (THEME)
+//  DESIGN SYSTEM / THEME (Delivery & Automation Warm Theme)
 // ============================================================
 const theme = {
   colors: {
-    // Neutral Palette (Cool Slate Neutrals)
-    bgPrimary: '#FAFAFB',
-    bgSurface: '#FFFFFF',
-    bgSubtle: '#F1F5F9',
-    bgMuted: '#E2E8F0',
-    
-    // Text Hierarchy
-    textPrimary: '#0F172A',   // Slate 900 (Sem preto puro)
-    textSecondary: '#475569', // Slate 600
-    textMuted: '#94A3B8',     // Slate 400
-    
-    // Accent Color (Uso ultra-moderado)
-    accent: '#D97706',        // Amber/Warm Rust
-    accentHover: '#B45309',
-    accentLight: '#FEF3C7',
-    
-    // Borders & Lines
-    border: '#E2E8F0',
-    borderLight: '#F1F5F9',
-    
-    // Status Indicators
-    success: '#059669',
-    successBg: '#ECFDF5',
-    error: '#DC2626',
-    errorBg: '#FEF2F2',
+    primary: '#D9531E', // Terracotta/Warm Warm Red (Apetite, moderno)
+    primaryHover: '#C04313',
+    primaryLight: '#FDF3EF',
+    textMain: '#1F2421',
+    textMuted: '#60696B',
+    textSubtle: '#8C9699',
+    background: '#FAFAFA',
+    surface: '#FFFFFF',
+    border: '#E8EBEB',
+    borderDark: '#D1D8D8',
+    success: '#2E7D32',
+    successBg: '#E8F5E9',
+    danger: '#D32F2F',
+    dangerBg: '#FFEBEE',
   },
-  typography: {
-    fontFamily: "'Plus Jakarta Sans', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif",
-    h1: { size: '1.5rem', height: '1.25', weight: '700' },     // 24px
-    h2: { size: '1.25rem', height: '1.3', weight: '600' },     // 20px
-    body: { size: '0.875rem', height: '1.5', weight: '400' },   // 14px
-    caption: { size: '0.75rem', height: '1.4', weight: '500' }, // 12px
-  },
-  spacing: (factor) => `${factor * 8}px`, // Sistema de 8px
-  radii: {
+  radius: {
     sm: '6px',
     md: '10px',
-    lg: '14px',
+    lg: '16px',
     full: '9999px',
   },
   shadows: {
-    subtle: '0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.03)',
-    card: '0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -2px rgba(15, 23, 42, 0.02)',
-    floating: '0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04)',
-  },
-  transitions: {
-    default: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    card: '0px 2px 8px rgba(0, 0, 0, 0.04)',
+    floating: '0px 8px 24px rgba(217, 83, 30, 0.25)',
   }
 };
 
-// Global styles injected for typography optimization
-const GlobalStyles = createGlobalStyle`
-  body {
-    background-color: ${({ theme }) => theme.colors.bgPrimary};
-    color: ${({ theme }) => theme.colors.textPrimary};
-    font-family: ${({ theme }) => theme.typography.fontFamily};
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    margin: 0;
-  }
-`;
-
 // ============================================================
-// 🧩 STYLED COMPONENTS
+//  STYLED COMPONENTS - MOBILE FIRST
 // ============================================================
 
 const AppContainer = styled.div`
+  width: 100%;
   max-width: 1024px;
   margin: 0 auto;
-  padding: 0 ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(10)} ${({ theme }) => theme.spacing(2)};
+  padding: 0 16px 100px 16px;
   box-sizing: border-box;
-
-  @media (min-width: 768px) {
-    padding: 0 ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(10)} ${({ theme }) => theme.spacing(4)};
-  }
+  background-color: ${props => props.theme.colors.background};
+  min-height: 100vh;
 `;
 
-// Banner Section
-const BannerWrapper = styled.header`
-  margin: 0 -${({ theme }) => theme.spacing(2)};
-  position: relative;
+const BannerWrapper = styled.div`
+  margin: 0 -16px;
   overflow: hidden;
-  
+  background-color: ${props => props.theme.colors.border};
+
   @media (min-width: 768px) {
-    margin: ${({ theme }) => theme.spacing(2)} 0 0 0;
-    border-radius: ${({ theme }) => theme.radii.lg};
+    margin: 16px 0 0 0;
+    border-radius: ${props => props.theme.radius.lg};
   }
 `;
 
 const BannerImage = styled.div`
   width: 100%;
-  height: 180px;
-  background-image: url(${props => props.$image});
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-color: ${({ theme }) => theme.colors.bgSubtle};
+  height: 160px;
+  background: url(${props => props.$image}) center/cover no-repeat;
   
-  @media (min-width: 600px) {
-    height: 240px;
+  @media (min-width: 480px) {
+    height: 220px;
+  }
+  
+  @media (min-width: 768px) {
+    height: 280px;
   }
 `;
 
 const BannerPlaceholder = styled.div`
   width: 100%;
-  height: 180px;
-  background-color: ${({ theme }) => theme.colors.bgSubtle};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  height: 160px;
+  background-color: ${props => props.theme.colors.primaryLight};
+  border-bottom: 1px solid ${props => props.theme.colors.border};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: ${({ theme }) => theme.typography.h1.size};
-  font-weight: ${({ theme }) => theme.typography.h1.weight};
-  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: 20px;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  color: ${props => props.theme.colors.primary};
 
-  @media (min-width: 600px) {
-    height: 240px;
+  @media (min-width: 480px) {
+    height: 220px;
+    font-size: 26px;
   }
 `;
 
-// Store Info Card
-const StoreInfoCard = styled.section`
-  background: ${({ theme }) => theme.colors.bgSurface};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: ${({ theme }) => theme.spacing(3)};
-  margin-top: -${({ theme }) => theme.spacing(4)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+const StoreInfoCard = styled.div`
+  background: ${props => props.theme.colors.surface};
+  border-radius: ${props => props.theme.radius.md};
+  padding: 20px;
+  margin-top: -24px;
   position: relative;
   z-index: 2;
-  box-shadow: ${({ theme }) => theme.shadows.card};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: ${props => props.theme.shadows.card};
+  border: 1px solid ${props => props.theme.colors.border};
+  margin-bottom: 24px;
 `;
 
 const StoreHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: 16px;
 `;
 
-const StoreName = styled.h1`
-  font-size: ${({ theme }) => theme.typography.h1.size};
-  line-height: ${({ theme }) => theme.typography.h1.height};
-  font-weight: ${({ theme }) => theme.typography.h1.weight};
-  color: ${({ theme }) => theme.colors.textPrimary};
-  margin: 0;
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing(2)};
+const StoreLogoWrapper = styled.div`
+  width: 56px;
+  height: 56px;
+  border-radius: ${props => props.theme.radius.md};
+  border: 1px solid ${props => props.theme.colors.border};
+  overflow: hidden;
+  flex-shrink: 0;
+  background: ${props => props.theme.colors.surface};
 `;
 
 const LogoImage = styled.img`
-  width: 44px;
-  height: 44px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: ${({ theme }) => theme.colors.bgSurface};
 `;
 
 const LogoPlaceholder = styled.div`
-  width: 44px;
-  height: 44px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.bgSubtle};
+  width: 100%;
+  height: 100%;
+  background: ${props => props.theme.colors.primaryLight};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.125rem;
+  font-size: 22px;
+`;
+
+const StoreTitleGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const StoreName = styled.h1`
+  font-size: 20px;
+  font-weight: 700;
+  color: ${props => props.theme.colors.textMain};
+  margin: 0;
+  letter-spacing: -0.02em;
+
+  @media (min-width: 480px) {
+    font-size: 24px;
+  }
 `;
 
 const StoreMeta = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(1.5)};
-  margin-top: ${({ theme }) => theme.spacing(2)};
+  gap: 10px;
+  margin-top: 16px;
 `;
 
-const MetaRow = styled.div`
+const StatusRow = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(1.5)};
+  gap: 10px;
   flex-wrap: wrap;
-  font-size: ${({ theme }) => theme.typography.body.size};
-  color: ${({ theme }) => theme.colors.textSecondary};
+`;
 
-  .address {
-    font-size: ${({ theme }) => theme.typography.caption.size};
-    color: ${({ theme }) => theme.colors.textMuted};
-  }
+const StatusNotice = styled.span`
+  font-size: 13px;
+  color: ${props => props.theme.colors.primary};
+  font-weight: 500;
 `;
 
 const StoreHoursInfo = styled.div`
-  font-size: ${({ theme }) => theme.typography.caption.size};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  padding: ${({ theme }) => theme.spacing(1.5)} ${({ theme }) => theme.spacing(2)};
-  background: ${({ theme }) => theme.colors.bgSubtle};
-  border-radius: ${({ theme }) => theme.radii.sm};
+  font-size: 13px;
+  color: ${props => props.theme.colors.textMuted};
+  padding: 10px 14px;
+  background: ${props => props.theme.colors.background};
+  border-radius: ${props => props.theme.radius.sm};
+  border: 1px solid ${props => props.theme.colors.border};
+`;
 
-  .highlight {
-    color: ${({ theme }) => theme.colors.textPrimary};
-    font-weight: 600;
-  }
+const HighlightTime = styled.strong`
+  color: ${props => props.theme.colors.textMain};
+  font-weight: 600;
+`;
+
+const AddressText = styled.p`
+  font-size: 13px;
+  color: ${props => props.theme.colors.textMuted};
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const OrdersLinkWrapper = styled.div`
-  margin-top: ${({ theme }) => theme.spacing(2)};
-  padding-top: ${({ theme }) => theme.spacing(2)};
-  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid ${props => props.theme.colors.border};
 `;
 
 const OrdersLink = styled(Link)`
   display: inline-flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(1)};
-  color: ${({ theme }) => theme.colors.textPrimary};
-  font-size: ${({ theme }) => theme.typography.body.size};
+  gap: 8px;
+  color: ${props => props.theme.colors.textMain};
   font-weight: 600;
+  font-size: 14px;
   text-decoration: none;
-  padding: ${({ theme }) => `${theme.spacing(1)} ${theme.spacing(1.5)}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.bgSurface};
-  transition: ${({ theme }) => theme.transitions.default};
+  padding: 8px 14px;
+  border-radius: ${props => props.theme.radius.sm};
+  background-color: ${props => props.theme.colors.background};
+  border: 1px solid ${props => props.theme.colors.border};
+  transition: all 0.2s ease;
 
   &:hover {
-    background: ${({ theme }) => theme.colors.bgSubtle};
-    border-color: ${({ theme }) => theme.colors.textMuted};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
+    background-color: ${props => props.theme.colors.primaryLight};
+    border-color: ${props => props.theme.colors.primary};
+    color: ${props => props.theme.colors.primary};
   }
 `;
 
-// Categories Horizontal Navigation
 const CategoryTabsWrapper = styled.nav`
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: ${props => props.theme.colors.background};
+  padding: 12px 0;
+  margin: 0 -16px 20px -16px;
   overflow-x: auto;
-  padding: ${({ theme }) => `${theme.spacing(1)} 0 ${theme.spacing(2)} 0`};
-  margin: 0 -${({ theme }) => theme.spacing(2)};
-  padding-left: ${({ theme }) => theme.spacing(2)};
-  padding-right: ${({ theme }) => theme.spacing(2)};
   scrollbar-width: none;
-  
+  border-bottom: 1px solid ${props => props.theme.colors.border};
+
   &::-webkit-scrollbar {
     display: none;
   }
@@ -272,369 +252,358 @@ const CategoryTabsWrapper = styled.nav`
 
 const CategoryTabsContainer = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing(1)};
+  gap: 8px;
+  padding: 0 16px;
   width: max-content;
 `;
 
 const CategoryTab = styled.button`
-  padding: ${({ theme }) => `${theme.spacing(1)} ${theme.spacing(2.5)}`};
-  border: 1px solid ${props => props.$active ? props.theme.colors.textPrimary : props.theme.colors.border};
-  border-radius: ${({ theme }) => theme.radii.full};
-  background: ${props => props.$active ? props.theme.colors.textPrimary : props.theme.colors.bgSurface};
-  color: ${props => props.$active ? props.theme.colors.bgSurface : props.theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.typography.body.size};
+  padding: 8px 16px;
+  border: 1px solid ${props => props.$active ? props.theme.colors.primary : props.theme.colors.border};
+  border-radius: ${props => props.theme.radius.full};
+  background: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.surface};
+  color: ${props => props.$active ? '#FFFFFF' : props.theme.colors.textMuted};
+  font-size: 14px;
   font-weight: ${props => props.$active ? '600' : '500'};
   cursor: pointer;
   white-space: nowrap;
-  transition: ${({ theme }) => theme.transitions.default};
+  transition: all 0.15s ease-in-out;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.textPrimary};
-    color: ${props => props.$active ? props.theme.colors.bgSurface : props.theme.colors.textPrimary};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
+    color: ${props => props.$active ? '#FFFFFF' : props.theme.colors.textMain};
+    border-color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.borderDark};
   }
 `;
 
-// Menu Section
 const MenuHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: ${({ theme }) => `${theme.spacing(2)} 0 ${theme.spacing(1.5)} 0`};
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  align-items: baseline;
+  margin-bottom: 16px;
 `;
 
 const MenuTitle = styled.h2`
-  font-size: ${({ theme }) => theme.typography.h2.size};
-  font-weight: ${({ theme }) => theme.typography.h2.weight};
-  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: 18px;
+  font-weight: 700;
+  color: ${props => props.theme.colors.textMain};
   margin: 0;
   letter-spacing: -0.01em;
 `;
 
 const MenuCount = styled.span`
-  font-size: ${({ theme }) => theme.typography.caption.size};
-  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 13px;
+  color: ${props => props.theme.colors.textSubtle};
   font-weight: 500;
 `;
 
-const ProductGrid = styled.main`
+const ProductGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: 16px;
   
-  @media (min-width: 640px) {
+  @media (min-width: 600px) {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (min-width: 960px) {
+  @media (min-width: 900px) {
     grid-template-columns: repeat(3, 1fr);
   }
 `;
 
-// Floating Cart Button
+const EmptyStateContainer = styled.div`
+  text-align: center;
+  padding: 48px 16px;
+  color: ${props => props.theme.colors.textSubtle};
+  background: ${props => props.theme.colors.surface};
+  border-radius: ${props => props.theme.radius.md};
+  border: 1px dashed ${props => props.theme.colors.borderDark};
+`;
+
 const FloatingCart = styled.button`
   position: fixed;
-  bottom: ${({ theme }) => theme.spacing(3)};
-  right: ${({ theme }) => theme.spacing(3)};
+  bottom: 24px;
+  right: 24px;
   height: 52px;
-  padding: 0 ${({ theme }) => theme.spacing(3)};
-  border-radius: ${({ theme }) => theme.radii.full};
-  background: ${({ theme }) => theme.colors.textPrimary};
-  color: ${({ theme }) => theme.colors.bgSurface};
+  padding: 0 20px;
+  border-radius: ${props => props.theme.radius.full};
+  background: ${props => props.theme.colors.primary};
   border: none;
-  box-shadow: ${({ theme }) => theme.shadows.floating};
-  font-size: ${({ theme }) => theme.typography.body.size};
+  box-shadow: ${props => props.theme.shadows.floating};
+  color: #FFFFFF;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: ${({ theme }) => theme.transitions.default};
-  z-index: 99;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 90;
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(1.5)};
+  gap: 10px;
 
   &:hover {
     transform: translateY(-2px);
-    background: ${({ theme }) => theme.colors.textSecondary};
+    background-color: ${props => props.theme.colors.primaryHover};
   }
 
   &:active {
     transform: translateY(0);
   }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
 `;
 
 const FloatingBadge = styled.span`
-  background: ${({ theme }) => theme.colors.accent};
-  color: ${({ theme }) => theme.colors.bgSurface};
-  font-size: ${({ theme }) => theme.typography.caption.size};
+  background: #FFFFFF;
+  color: ${props => props.theme.colors.primary};
+  font-size: 12px;
   font-weight: 700;
-  min-width: 20px;
-  height: 20px;
-  border-radius: ${({ theme }) => theme.radii.full};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: ${({ theme }) => `${theme.spacing(6)} 0`};
-  color: ${({ theme }) => theme.colors.textMuted};
-  
-  p {
-    margin-top: ${({ theme }) => theme.spacing(1)};
-    font-size: ${({ theme }) => theme.typography.body.size};
-  }
+  padding: 2px 8px;
+  border-radius: ${props => props.theme.radius.full};
 `;
 
 // ============================================================
-// 🚀 COMPONENTE PRINCIPAL
+//  COMPONENTE PRINCIPAL
 // ============================================================
-const ClientLayoutContent = () => {
-  const { tenant, loading: tenantLoading } = useTenant();
-  const { totalItems } = useCart();
-  const [config, setConfig] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('');
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
-  const [storeStatus, setStoreStatus] = useState(null);
-  const [operatingHours, setOperatingHours] = useState([]);
+const ClientLayout = () => {
+    const { tenant, loading: tenantLoading } = useTenant();
+    const { totalItems } = useCart();
+    const [config, setConfig] = useState(null);
+    const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [activeCategory, setActiveCategory] = useState('');
+    const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isOpen, setIsOpen] = useState(false);
+    const [storeStatus, setStoreStatus] = useState(null);
+    const [operatingHours, setOperatingHours] = useState([]);
 
-  const _forceComponents = [OrdersHistory, TrackOrder];
+    const _forceComponents = [OrdersHistory, TrackOrder];
 
-  if (!tenant && !tenantLoading) {
+    if (!tenant && !tenantLoading) {
+        return (
+            <ThemeProvider theme={theme}>
+                <AppContainer style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <EmptyStateContainer style={{ maxWidth: 400 }}>
+                        <h1 style={{ fontSize: 22, color: theme.colors.textMain, marginBottom: 8 }}>Smart Delivery</h1>
+                        <p style={{ fontSize: 14, margin: 0 }}>Para acessar um restaurante, informe o subdomínio correto na URL.</p>
+                    </EmptyStateContainer>
+                </AppContainer>
+            </ThemeProvider>
+        );
+    }
+
+    useEffect(() => {
+        if (!tenant) return;
+
+        const loadData = async () => {
+            try {
+                setIsLoading(true);
+                const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
+                    api.get('/config'),
+                    api.get('/products?active_only=true'),
+                    api.get('/categories'),
+                    api.get('/store/status'),
+                    api.get('/operating-hours')
+                ]);
+
+                const productsData = productsRes.data.data || [];
+                const categoriesData = categoriesRes.data.data || [];
+
+                setConfig(configRes.data.data);
+                setProducts(productsData);
+                setStoreStatus(statusRes.data.data);
+                setOperatingHours(hoursRes.data.data || []);
+
+                if (statusRes.data.success) {
+                    setIsOpen(statusRes.data.data.is_open);
+                }
+
+                const sortedCategories = categoriesData
+                    .filter(cat => productsData.some(p => p.category === cat.name && p.active))
+                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                    .map(cat => cat.name);
+
+                setCategories(sortedCategories);
+                if (sortedCategories.length > 0) {
+                    setActiveCategory(sortedCategories[0]);
+                }
+                setFilteredProducts(productsData);
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadData();
+    }, [tenant]);
+
+    useEffect(() => {
+        if (!tenant) return;
+
+        const checkStatus = async () => {
+            try {
+                const response = await api.get('/store/status');
+                if (response.data.success) {
+                    setIsOpen(response.data.data.is_open);
+                    setStoreStatus(response.data.data);
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+            }
+        };
+
+        checkStatus();
+        const interval = setInterval(checkStatus, 60000);
+        return () => clearInterval(interval);
+    }, [tenant]);
+
+    useEffect(() => {
+        if (activeCategory) {
+            setFilteredProducts(products.filter(p => p.category === activeCategory));
+        } else {
+            setFilteredProducts(products);
+        }
+    }, [activeCategory, products]);
+
+    const scrollToCategory = (category) => {
+        setActiveCategory(category);
+        const element = document.getElementById(`category-${category}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    const getTodayHours = () => {
+        const today = new Date().getDay();
+        return operatingHours.find(h => h.day_of_week === today);
+    };
+
+    const todayHours = getTodayHours();
+
+    if (tenantLoading || (isLoading && !config)) {
+        return <div style={{ padding: 40, textAlign: 'center', color: '#8C9699' }}>Carregando cardápio...</div>;
+    }
+
+    const hasBanner = !!config?.banner_image;
+    const storeName = config?.store_name || 'Restaurante';
+    const logoImage = config?.logo_image;
+
     return (
-      <EmptyState style={{ maxWidth: 480, margin: '60px auto' }}>
-        <StoreName style={{ justifyContent: 'center', marginBottom: 12 }}>Smart Delivery</StoreName>
-        <p>Informe um subdomínio válido para continuar.</p>
-      </EmptyState>
-    );
-  }
+        <ThemeProvider theme={theme}>
+            <AppContainer>
+                <BannerWrapper>
+                    {hasBanner ? (
+                        <BannerImage $image={config.banner_image} />
+                    ) : (
+                        <BannerPlaceholder>
+                            {storeName}
+                        </BannerPlaceholder>
+                    )}
+                </BannerWrapper>
 
-  useEffect(() => {
-    if (!tenant) return;
+                <StoreInfoCard>
+                    <StoreHeader>
+                        <StoreLogoWrapper>
+                            {logoImage ? (
+                                <LogoImage src={logoImage} alt={storeName} />
+                            ) : (
+                                <LogoPlaceholder>🍽️</LogoPlaceholder>
+                            )}
+                        </StoreLogoWrapper>
+                        <StoreTitleGroup>
+                            <StoreName>{storeName}</StoreName>
+                        </StoreTitleGroup>
+                    </StoreHeader>
 
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
-          api.get('/config'),
-          api.get('/products?active_only=true'),
-          api.get('/categories'),
-          api.get('/store/status'),
-          api.get('/operating-hours')
-        ]);
+                    <StoreMeta>
+                        <StatusRow>
+                            <Badge status={isOpen ? 'open' : 'closed'}>
+                                {isOpen ? 'Aberto agora' : 'Fechado'}
+                            </Badge>
+                            {!isOpen && (
+                                <StatusNotice>
+                                    Agendamento disponível
+                                </StatusNotice>
+                            )}
+                            {storeStatus?.reason && (
+                                <span style={{ fontSize: '13px', color: theme.colors.textSubtle }}>
+                                    ({storeStatus.reason})
+                                </span>
+                            )}
+                        </StatusRow>
 
-        const productsData = productsRes.data.data || [];
-        const categoriesData = categoriesRes.data.data || [];
+                        {todayHours && (
+                            <StoreHoursInfo>
+                                {todayHours.is_open ? (
+                                    <>
+                                        Horário de hoje: <HighlightTime>{todayHours.open_time?.substring(0, 5)}</HighlightTime> às <HighlightTime>{todayHours.close_time?.substring(0, 5)}</HighlightTime>
+                                    </>
+                                ) : (
+                                    <span>Fechado hoje</span>
+                                )}
+                            </StoreHoursInfo>
+                        )}
 
-        setConfig(configRes.data.data);
-        setProducts(productsData);
-        setStoreStatus(statusRes.data.data);
-        setOperatingHours(hoursRes.data.data || []);
+                        {config?.store_address && (
+                            <AddressText>📍 {config.store_address}</AddressText>
+                        )}
+                    </StoreMeta>
 
-        if (statusRes.data.success) {
-          setIsOpen(statusRes.data.data.is_open);
-        }
+                    <OrdersLinkWrapper>
+                        <OrdersLink to={`/verify-orders?tenant=${tenant}`}>
+                            <span>📋</span> Meus Pedidos
+                        </OrdersLink>
+                    </OrdersLinkWrapper>
+                </StoreInfoCard>
 
-        const sortedCategories = categoriesData
-          .filter(cat => productsData.some(p => p.category === cat.name && p.active))
-          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-          .map(cat => cat.name);
-
-        setCategories(sortedCategories);
-        if (sortedCategories.length > 0) {
-          setActiveCategory(sortedCategories[0]);
-        }
-        setFilteredProducts(productsData);
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [tenant]);
-
-  useEffect(() => {
-    if (!tenant) return;
-
-    const checkStatus = async () => {
-      try {
-        const response = await api.get('/store/status');
-        if (response.data.success) {
-          setIsOpen(response.data.data.is_open);
-          setStoreStatus(response.data.data);
-        }
-      } catch (error) {
-        console.error('Erro ao verificar status:', error);
-      }
-    };
-
-    const interval = setInterval(checkStatus, 60000);
-    return () => clearInterval(interval);
-  }, [tenant]);
-
-  useEffect(() => {
-    if (activeCategory) {
-      setFilteredProducts(products.filter(p => p.category === activeCategory));
-    } else {
-      setFilteredProducts(products);
-    }
-  }, [activeCategory, products]);
-
-  const scrollToCategory = (category) => {
-    setActiveCategory(category);
-    const element = document.getElementById(`category-${category}`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const getTodayHours = () => {
-    const today = new Date().getDay();
-    return operatingHours.find(h => h.day_of_week === today);
-  };
-
-  const todayHours = getTodayHours();
-
-  if (tenantLoading || (isLoading && !config)) {
-    return <EmptyState><p>Carregando cardápio...</p></EmptyState>;
-  }
-
-  const hasBanner = !!config?.banner_image;
-  const storeName = config?.store_name || 'Restaurante';
-  const logoImage = config?.logo_image;
-
-  return (
-    <>
-      <AppContainer>
-        <BannerWrapper>
-          {hasBanner ? (
-            <BannerImage $image={config.banner_image} />
-          ) : (
-            <BannerPlaceholder>{storeName}</BannerPlaceholder>
-          )}
-        </BannerWrapper>
-
-        <StoreInfoCard>
-          <StoreHeader>
-            {logoImage ? (
-              <LogoImage src={logoImage} alt={storeName} />
-            ) : (
-              <LogoPlaceholder>🍽️</LogoPlaceholder>
-            )}
-            <StoreName>{storeName}</StoreName>
-          </StoreHeader>
-
-          <StoreMeta>
-            <MetaRow>
-              <Badge status={isOpen ? 'open' : 'closed'}>
-                {isOpen ? 'Aberto agora' : 'Fechado'}
-              </Badge>
-              {storeStatus?.reason && (
-                <span className="address">• {storeStatus.reason}</span>
-              )}
-            </MetaRow>
-
-            {todayHours && (
-              <StoreHoursInfo>
-                {todayHours.is_open ? (
-                  <>
-                    Horário hoje: <span className="highlight">
-                      {todayHours.open_time?.substring(0, 5)} - {todayHours.close_time?.substring(0, 5)}
-                    </span>
-                  </>
-                ) : (
-                  <span>Fechado hoje</span>
+                {categories.length > 0 && (
+                    <CategoryTabsWrapper>
+                        <CategoryTabsContainer>
+                            {categories.map(cat => (
+                                <CategoryTab
+                                    key={cat}
+                                    $active={activeCategory === cat}
+                                    onClick={() => scrollToCategory(cat)}
+                                >
+                                    {cat}
+                                </CategoryTab>
+                            ))}
+                        </CategoryTabsContainer>
+                    </CategoryTabsWrapper>
                 )}
-              </StoreHoursInfo>
-            )}
 
-            {config?.store_address && (
-              <MetaRow>
-                <span className="address">{config.store_address}</span>
-              </MetaRow>
-            )}
-          </StoreMeta>
+                <MenuHeader>
+                    <MenuTitle>Cardápio</MenuTitle>
+                    {filteredProducts.length > 0 && (
+                        <MenuCount>{filteredProducts.length} itens disponíveis</MenuCount>
+                    )}
+                </MenuHeader>
 
-          <OrdersLinkWrapper>
-            <OrdersLink to={`/verify-orders?tenant=${tenant}`}>
-              Meus Pedidos
-            </OrdersLink>
-          </OrdersLinkWrapper>
-        </StoreInfoCard>
+                {filteredProducts.length === 0 ? (
+                    <EmptyStateContainer>
+                        <p>Nenhum produto disponível nesta categoria no momento.</p>
+                    </EmptyStateContainer>
+                ) : (
+                    <ProductGrid>
+                        {filteredProducts.map(product => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </ProductGrid>
+                )}
 
-        {categories.length > 0 && (
-          <CategoryTabsWrapper>
-            <CategoryTabsContainer>
-              {categories.map(cat => (
-                <CategoryTab
-                  key={cat}
-                  $active={activeCategory === cat}
-                  onClick={() => scrollToCategory(cat)}
-                >
-                  {cat}
-                </CategoryTab>
-              ))}
-            </CategoryTabsContainer>
-          </CategoryTabsWrapper>
-        )}
+                <FloatingCart onClick={() => setIsCartOpen(true)}>
+                    <span>Ver Carrinho</span>
+                    {totalItems > 0 && (
+                        <FloatingBadge>{totalItems}</FloatingBadge>
+                    )}
+                </FloatingCart>
 
-        <MenuHeader>
-          <MenuTitle>Cardápio</MenuTitle>
-          {filteredProducts.length > 0 && (
-            <MenuCount>{filteredProducts.length} itens</MenuCount>
-          )}
-        </MenuHeader>
-
-        {filteredProducts.length === 0 ? (
-          <EmptyState>
-            <p>Nenhum item disponível nesta categoria.</p>
-          </EmptyState>
-        ) : (
-          <ProductGrid>
-            {filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </ProductGrid>
-        )}
-      </AppContainer>
-
-      <FloatingCart onClick={() => setIsCartOpen(true)} aria-label="Ver Carrinho">
-        <span>Carrinho</span>
-        {totalItems > 0 && <FloatingBadge>{totalItems}</FloatingBadge>}
-      </FloatingCart>
-
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-      />
-    </>
-  );
+                <CartDrawer
+                    isOpen={isCartOpen}
+                    onClose={() => setIsCartOpen(false)}
+                />
+            </AppContainer>
+        </ThemeProvider>
+    );
 };
 
-export default function ClientLayout() {
-  return (
-    <ThemeProvider theme={theme}>
-      <GlobalStyles />
-      <ClientLayoutContent />
-    </ThemeProvider>
-  );
-}
+export default ClientLayout;
