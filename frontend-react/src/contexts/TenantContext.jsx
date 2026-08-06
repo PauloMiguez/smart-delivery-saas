@@ -1,6 +1,47 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { tokens } from '../styles/tokens';
 
-// ✅ Criar o contexto
+// ============================================================
+//  STYLED COMPONENTS PARA MENSAGENS
+// ============================================================
+const getStatusStyle = (type) => {
+  switch(type) {
+    case 'info':
+      return {
+        icon: 'ℹ️',
+        color: tokens.colors.accent,
+        background: tokens.colors.accentLight
+      };
+    case 'success':
+      return {
+        icon: '✅',
+        color: tokens.colors.success,
+        background: tokens.colors.successLight
+      };
+    case 'warning':
+      return {
+        icon: '⚠️',
+        color: tokens.colors.warning,
+        background: tokens.colors.warningLight
+      };
+    case 'error':
+      return {
+        icon: '❌',
+        color: tokens.colors.error,
+        background: tokens.colors.errorLight
+      };
+    default:
+      return {
+        icon: 'ℹ️',
+        color: tokens.colors.textSecondary,
+        background: tokens.colors.background
+      };
+  }
+};
+
+// ============================================================
+//  CRIAR CONTEXTO
+// ============================================================
 const TenantContext = createContext();
 
 export const useTenant = () => {
@@ -11,11 +52,10 @@ export const useTenant = () => {
     return context;
 };
 
-// ✅ Exportar o contexto para uso no App.jsx
 export { TenantContext };
 
 // ============================================================
-//  FUNÇÃO PARA OBTER TENANT (SEM useLocation)
+//  FUNÇÃO PARA OBTER TENANT
 // ============================================================
 export const getTenantId = () => {
     // 1. Tenta da URL
@@ -43,9 +83,26 @@ export const getTenantId = () => {
     return null;
 };
 
+// ============================================================
+//  FORMATAR MENSAGEM DE STATUS
+// ============================================================
+const formatTenantMessage = (message, type = 'info') => {
+    const style = getStatusStyle(type);
+    return {
+        message,
+        type,
+        style,
+        formatted: `${style.icon} ${message}`
+    };
+};
+
+// ============================================================
+//  PROVIDER
+// ============================================================
 export const TenantProvider = ({ children }) => {
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [status, setStatus] = useState(null);
 
     // ============================================================
     //  CARREGAR TENANT INICIAL
@@ -58,12 +115,14 @@ export const TenantProvider = ({ children }) => {
             setTenant(tenantId);
             localStorage.setItem('tenant', tenantId);
             sessionStorage.setItem('tenant', tenantId);
+            setStatus(formatTenantMessage(`Tenant carregado: ${tenantId}`, 'success'));
         } else {
             const savedTenant = localStorage.getItem('tenant');
             if (savedTenant) {
                 console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
                 setTenant(savedTenant);
-                // Adicionar tenant na URL
+                setStatus(formatTenantMessage(`Tenant recuperado: ${savedTenant}`, 'info'));
+                
                 const url = new URL(window.location);
                 if (!url.searchParams.has('tenant')) {
                     url.searchParams.set('tenant', savedTenant);
@@ -72,6 +131,7 @@ export const TenantProvider = ({ children }) => {
             } else {
                 localStorage.removeItem('tenant');
                 sessionStorage.removeItem('tenant');
+                setStatus(formatTenantMessage('Nenhum tenant encontrado', 'warning'));
                 console.log('🧹 [TenantContext] Limpando storage - sem tenant');
             }
         }
@@ -88,6 +148,7 @@ export const TenantProvider = ({ children }) => {
                 if (currentTenant && !tenant) {
                     console.log('🔄 [TenantContext] Recuperando tenant após reativação:', currentTenant);
                     setTenant(currentTenant);
+                    setStatus(formatTenantMessage(`Tenant recuperado: ${currentTenant}`, 'info'));
                 }
                 
                 const params = new URLSearchParams(window.location.search);
@@ -135,6 +196,7 @@ export const TenantProvider = ({ children }) => {
                 setTenant(urlTenant);
                 localStorage.setItem('tenant', urlTenant);
                 sessionStorage.setItem('tenant', urlTenant);
+                setStatus(formatTenantMessage(`Tenant alterado: ${urlTenant}`, 'info'));
             }
         };
 
@@ -142,10 +204,50 @@ export const TenantProvider = ({ children }) => {
         return () => window.removeEventListener('popstate', handlePopState);
     }, [tenant]);
 
+    // ============================================================
+    //  FUNÇÃO PARA ATUALIZAR TENANT MANUALMENTE
+    // ============================================================
+    const updateTenant = (newTenant) => {
+        if (!newTenant) {
+            setStatus(formatTenantMessage('Tenant inválido', 'error'));
+            return false;
+        }
+        
+        setTenant(newTenant);
+        localStorage.setItem('tenant', newTenant);
+        sessionStorage.setItem('tenant', newTenant);
+        
+        const url = new URL(window.location);
+        url.searchParams.set('tenant', newTenant);
+        window.history.replaceState({}, '', url);
+        
+        setStatus(formatTenantMessage(`Tenant atualizado: ${newTenant}`, 'success'));
+        return true;
+    };
+
+    // ============================================================
+    //  LIMPAR TENANT
+    // ============================================================
+    const clearTenant = () => {
+        setTenant(null);
+        localStorage.removeItem('tenant');
+        sessionStorage.removeItem('tenant');
+        
+        const url = new URL(window.location);
+        url.searchParams.delete('tenant');
+        window.history.replaceState({}, '', url);
+        
+        setStatus(formatTenantMessage('Tenant removido', 'warning'));
+    };
+
     const value = {
         tenant,
         loading,
-        setTenant
+        status,
+        setTenant,
+        updateTenant,
+        clearTenant,
+        getTenantId
     };
 
     return (
