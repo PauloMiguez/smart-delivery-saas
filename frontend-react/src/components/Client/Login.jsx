@@ -1,90 +1,233 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
 import { api } from '../../services/api';
-import { Container, Button, Input } from '../Shared/Container';
 
-const LoginContainer = styled(Container)`
-    padding-top: 40px;
-    max-width: 420px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+// ============================================================
+//  FONTES GLOBAIS
+// ============================================================
+const FormThemeSettings = createGlobalStyle`
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+  
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background-color: #f8fafc;
+    margin: 0;
+    padding: 0;
+  }
+`;
+
+// ============================================================
+//  INPUT CUSTOMIZADO
+// ============================================================
+const StyledInput = styled.input`
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  padding: 10px 14px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.15s ease-in-out;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  &:hover {
+    border-color: #94a3b8;
+  }
+
+  &:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+  }
+
+  &:disabled {
+    background: #f1f5f9;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+`;
+
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
+const LoginContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f1f5f9;
+  padding: 16px;
+
+  @media (min-width: 640px) {
+    padding: 32px;
+  }
 `;
 
 const LoginBox = styled.div`
-    background: #fff;
+  background: #ffffff;
+  padding: 24px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 
+              0 2px 4px -2px rgba(0, 0, 0, 0.03),
+              0 20px 25px -5px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (min-width: 480px) {
     padding: 40px;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    border: 1px solid #f0f0f0;
+  }
 `;
 
-const Title = styled.h1`
-    font-size: 28px;
+const Logo = styled.div`
+  text-align: center;
+  margin-bottom: 28px;
+
+  h1 {
+    font-size: 22px;
     font-weight: 700;
-    color: #2d3436;
-    margin-bottom: 8px;
-    text-align: center;
-`;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+    margin: 0;
+    
+    span {
+      color: #2563eb;
+    }
 
-const Subtitle = styled.p`
-    text-align: center;
-    color: #888;
-    font-size: 14px;
-    margin-bottom: 24px;
+    @media (min-width: 480px) {
+      font-size: 24px;
+    }
+  }
+
+  p {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    margin: 6px 0 0 0;
+
+    @media (min-width: 480px) {
+      font-size: 14px;
+    }
+  }
 `;
 
 const Form = styled.form`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 `;
 
 const FormGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 
-    label {
-        font-weight: 600;
-        font-size: 14px;
-        color: #555;
-    }
+  label {
+    font-weight: 500;
+    font-size: 13px;
+    color: #334155;
+    letter-spacing: -0.01em;
+  }
 
-    small {
-        color: #888;
-        font-size: 12px;
-    }
+  small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+`;
+
+const SubmitButton = styled.button`
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  margin-top: 8px;
+
+  &:hover:not(:disabled) {
+    background-color: #1e293b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
 `;
 
 const ErrorMessage = styled.div`
-    background: #fdedec;
-    color: #e74c3c;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    border-left: 3px solid #e74c3c;
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #fee2e2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const Footer = styled.div`
-    text-align: center;
-    margin-top: 20px;
-    font-size: 14px;
-    color: #888;
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: #475569;
 
-    a {
-        color: #e67e22;
-        text-decoration: none;
-        font-weight: 600;
+  a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease-in-out;
 
-        &:hover {
-            text-decoration: underline;
-        }
+    &:hover {
+      color: #1d4ed8;
+      text-decoration: underline;
     }
+
+    &:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+  }
 `;
 
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const Login = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -113,6 +256,10 @@ const Login = () => {
         }
 
         try {
+            // Salvar tenant antes do login (para o interceptor)
+            localStorage.setItem('tenant', formData.tenant);
+            sessionStorage.setItem('tenant', formData.tenant);
+
             const response = await api.post('/auth/login', {
                 email: formData.email,
                 password: formData.password
@@ -124,6 +271,7 @@ const Login = () => {
                 
                 localStorage.setItem('token', token);
                 localStorage.setItem('tenant', tenantId);
+                sessionStorage.setItem('tenant', tenantId);
                 
                 navigate('/admin?tenant=' + tenantId);
             }
@@ -135,61 +283,70 @@ const Login = () => {
     };
 
     return (
-        <LoginContainer>
-            <LoginBox>
-                <Title>🔐 Smart Delivery</Title>
-                <Subtitle>Faça login para acessar o painel</Subtitle>
+        <>
+            <FormThemeSettings />
+            <LoginContainer>
+                <LoginBox>
+                    <Logo>
+                        <h1>🔐 <span>Smart</span>Delivery</h1>
+                        <p>Faça login para acessar o painel</p>
+                    </Logo>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
+                    <Form onSubmit={handleSubmit}>
+                        {error && <ErrorMessage>⚠️ {error}</ErrorMessage>}
 
-                <Form onSubmit={handleSubmit}>
-                    <FormGroup>
-                        <label>E-mail</label>
-                        <Input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="admin@fireburger.com"
-                            required
-                        />
-                    </FormGroup>
+                        <FormGroup>
+                            <label htmlFor="email">E-mail</label>
+                            <StyledInput
+                                id="email"
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="admin@fireburger.com"
+                                required
+                                autoFocus
+                            />
+                        </FormGroup>
 
-                    <FormGroup>
-                        <label>Senha</label>
-                        <Input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="••••••••"
-                            required
-                        />
-                    </FormGroup>
+                        <FormGroup>
+                            <label htmlFor="password">Senha</label>
+                            <StyledInput
+                                id="password"
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="••••••••"
+                                required
+                            />
+                        </FormGroup>
 
-                    <FormGroup>
-                        <label>Subdomínio do Restaurante *</label>
-                        <Input
-                            type="text"
-                            name="tenant"
-                            value={formData.tenant}
-                            onChange={handleChange}
-                            placeholder="fireburger"
-                            required
-                        />
-                        <small>Ex: fireburger.smartdelivery.com</small>
-                    </FormGroup>
+                        <FormGroup>
+                            <label htmlFor="tenant">Subdomínio do Restaurante *</label>
+                            <StyledInput
+                                id="tenant"
+                                type="text"
+                                name="tenant"
+                                value={formData.tenant}
+                                onChange={handleChange}
+                                placeholder="fireburger"
+                                required
+                            />
+                            <small>Ex: fireburger.smartdelivery.com</small>
+                        </FormGroup>
 
-                    <Button primary disabled={loading} style={{ padding: '14px' }}>
-                        {loading ? 'Entrando...' : 'Entrar'}
-                    </Button>
-                </Form>
+                        <SubmitButton type="submit" disabled={loading}>
+                            {loading ? 'Entrando...' : 'Entrar'}
+                        </SubmitButton>
+                    </Form>
 
-                <Footer>
-                    Não tem uma conta? <a href="/register">Cadastre-se</a>
-                </Footer>
-            </LoginBox>
-        </LoginContainer>
+                    <Footer>
+                        Não tem uma conta? <a href="/register">Cadastre-se</a>
+                    </Footer>
+                </LoginBox>
+            </LoginContainer>
+        </>
     );
 };
 
