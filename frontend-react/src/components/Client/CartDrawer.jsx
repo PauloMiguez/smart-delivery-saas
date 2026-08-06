@@ -6,6 +6,14 @@ import { useTenant } from '../../contexts/TenantContext';
 import { tokens } from '../../styles/tokens';
 
 // ============================================================
+//  FUNÇÃO PARA FORMATAR PREÇO
+// ============================================================
+const formatPrice = (value) => {
+  const num = parseFloat(value);
+  return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
+};
+
+// ============================================================
 //  STYLED COMPONENTS
 // ============================================================
 const Overlay = styled.div`
@@ -305,14 +313,16 @@ const CheckoutButton = styled.button`
 const CartDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { tenant } = useTenant();
-  const { cart, totalItems, subtotal, updateQty, removeFromCart, clearCart } = useCart();
+  const { cart, totalItems, subtotal, updateQty, removeFromCart } = useCart();
 
   const handleCheckout = () => {
     onClose();
     navigate(`/checkout?tenant=${tenant}`);
   };
 
-  const total = subtotal;
+  // Garantir que o subtotal seja um número
+  const safeSubtotal = parseFloat(subtotal) || 0;
+  const safeTotal = safeSubtotal;
 
   return (
     <>
@@ -334,54 +344,60 @@ const CartDrawer = ({ isOpen, onClose }) => {
               <p>Adicione itens do cardápio para começar.</p>
             </EmptyCart>
           ) : (
-            cart.map(item => (
-              <CartItem key={item.id}>
-                {item.image_url ? (
-                  <ItemImage>
-                    <img src={item.image_url} alt={item.name} />
-                  </ItemImage>
-                ) : (
-                  <ItemImagePlaceholder>🍔</ItemImagePlaceholder>
-                )}
-                
-                <ItemInfo>
-                  <ItemName>{item.name}</ItemName>
-                  <ItemPrice>R$ {item.price.toFixed(2)}</ItemPrice>
+            cart.map(item => {
+              // ✅ Garantir que price seja um número
+              const price = parseFloat(item.price) || 0;
+              const itemTotal = price * (item.qty || 1);
+              
+              return (
+                <CartItem key={item.id}>
+                  {item.image_url ? (
+                    <ItemImage>
+                      <img src={item.image_url} alt={item.name} />
+                    </ItemImage>
+                  ) : (
+                    <ItemImagePlaceholder>🍔</ItemImagePlaceholder>
+                  )}
                   
-                  <ItemControls>
-                    <QtyButton 
-                      onClick={() => updateQty(item.id, item.qty - 1)}
-                      aria-label="Diminuir quantidade"
-                    >
-                      −
-                    </QtyButton>
-                    <QtyDisplay>{item.qty}</QtyDisplay>
-                    <QtyButton 
-                      onClick={() => updateQty(item.id, item.qty + 1)}
-                      aria-label="Aumentar quantidade"
-                    >
-                      +
-                    </QtyButton>
-                    <RemoveButton 
-                      onClick={() => removeFromCart(item.id)}
-                      aria-label="Remover item"
-                    >
-                      ✕
-                    </RemoveButton>
-                  </ItemControls>
-                </ItemInfo>
-                
-                <div style={{ 
-                  fontSize: tokens.typography.fontSize.sm, 
-                  fontWeight: tokens.typography.fontWeight.semibold,
-                  color: tokens.colors.accent,
-                  alignSelf: 'flex-start',
-                  marginTop: tokens.spacing.xs
-                }}>
-                  R$ {(item.price * item.qty).toFixed(2)}
-                </div>
-              </CartItem>
-            ))
+                  <ItemInfo>
+                    <ItemName>{item.name}</ItemName>
+                    <ItemPrice>R$ {formatPrice(price)}</ItemPrice>
+                    
+                    <ItemControls>
+                      <QtyButton 
+                        onClick={() => updateQty(item.id, (item.qty || 1) - 1)}
+                        aria-label="Diminuir quantidade"
+                      >
+                        −
+                      </QtyButton>
+                      <QtyDisplay>{item.qty || 1}</QtyDisplay>
+                      <QtyButton 
+                        onClick={() => updateQty(item.id, (item.qty || 1) + 1)}
+                        aria-label="Aumentar quantidade"
+                      >
+                        +
+                      </QtyButton>
+                      <RemoveButton 
+                        onClick={() => removeFromCart(item.id)}
+                        aria-label="Remover item"
+                      >
+                        ✕
+                      </RemoveButton>
+                    </ItemControls>
+                  </ItemInfo>
+                  
+                  <div style={{ 
+                    fontSize: tokens.typography.fontSize.sm, 
+                    fontWeight: tokens.typography.fontWeight.semibold,
+                    color: tokens.colors.accent,
+                    alignSelf: 'flex-start',
+                    marginTop: tokens.spacing.xs
+                  }}>
+                    R$ {formatPrice(itemTotal)}
+                  </div>
+                </CartItem>
+              );
+            })
           )}
         </CartItems>
 
@@ -389,11 +405,11 @@ const CartDrawer = ({ isOpen, onClose }) => {
           <Footer>
             <SubtotalRow>
               <span>Subtotal</span>
-              <span>R$ {subtotal.toFixed(2)}</span>
+              <span>R$ {formatPrice(safeSubtotal)}</span>
             </SubtotalRow>
             <TotalRow>
               <span>Total</span>
-              <span>R$ {total.toFixed(2)}</span>
+              <span>R$ {formatPrice(safeTotal)}</span>
             </TotalRow>
             
             <CheckoutButton onClick={handleCheckout}>
