@@ -1,33 +1,33 @@
 // ============================================================
-//  DESIGN TOKENS - SMART DELIVERY SAAS
+//  DESIGN TOKENS - SMART DELIVERY SAAS (Foodtech Warm Theme)
 // ============================================================
 
 export const tokens = {
   colors: {
     // Neutros
-    background: '#f8fafc',
+    background: '#fafafa',
     surface: '#ffffff',
-    text: '#0f172a',
-    textSecondary: '#475569',
-    textMuted: '#94a3b8',
-    placeholder: '#94a3b8',
+    text: '#1f2421',
+    textSecondary: '#60696b',
+    textMuted: '#8c9699',
+    placeholder: '#a1aab0',
     
     // Bordas
-    border: '#e2e8f0',
-    borderHover: '#cbd5e1',
+    border: '#e8ebeb',
+    borderHover: '#d1d8d8',
     
-    // Accent (azul)
-    accent: '#2563eb',
-    accentHover: '#1d4ed8',
-    accentLight: 'rgba(37, 99, 235, 0.08)',
+    // Accent / Brand (Terracota Quente - Apetite & Foodtech)
+    accent: '#d9531e',
+    accentHover: '#c04313',
+    accentLight: '#fdf3ef',
     
-    // Status
-    success: '#16a34a',
-    successLight: 'rgba(22, 163, 74, 0.08)',
-    warning: '#f59e0b',
-    warningLight: 'rgba(245, 158, 11, 0.08)',
-    error: '#dc2626',
-    errorLight: 'rgba(220, 38, 38, 0.08)',
+    // Status (Avisos, Sucesso e Erros)
+    success: '#2e7d32',
+    successLight: '#e8f5e9',
+    warning: '#d97706',
+    warningLight: '#fef3c7',
+    error: '#d32f2f',
+    errorLight: '#ffebee',
   },
   
   spacing: {
@@ -41,22 +41,23 @@ export const tokens = {
   
   radius: {
     sm: '6px',
-    md: '8px',
-    lg: '12px',
-    xl: '16px',
+    md: '10px',
+    lg: '16px',
+    xl: '24px',
+    full: '9999px',
   },
   
   typography: {
     fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     
     fontSize: {
-      xs: '0.75rem',
-      sm: '0.875rem',
-      base: '1rem',
-      lg: '1.125rem',
-      xl: '1.25rem',
-      '2xl': '1.5rem',
-      '3xl': '2rem',
+      xs: '0.75rem',    // 12px
+      sm: '0.875rem',   // 14px
+      base: '1rem',     // 16px
+      lg: '1.125rem',   // 18px
+      xl: '1.25rem',    // 20px
+      '2xl': '1.5rem',  // 24px
+      '3xl': '2rem',    // 32px
     },
     
     fontWeight: {
@@ -74,9 +75,11 @@ export const tokens = {
   },
   
   shadows: {
-    sm: '0 1px 2px rgba(0, 0, 0, 0.04)',
-    md: '0 4px 12px rgba(0, 0, 0, 0.06)',
-    lg: '0 8px 32px rgba(0, 0, 0, 0.08)',
+    // Elevações suaves sem opacidade preta marcada
+    sm: '0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02)',
+    md: '0 4px 12px rgba(0, 0, 0, 0.04)',
+    lg: '0 8px 24px rgba(0, 0, 0, 0.06)',
+    floating: '0 8px 24px rgba(217, 83, 30, 0.22)', // Elevação do botão do carrinho
   },
   
   breakpoints: {
