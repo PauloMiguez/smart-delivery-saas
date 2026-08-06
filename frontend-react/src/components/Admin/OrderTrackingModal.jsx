@@ -4,41 +4,55 @@ import { api } from '../../services/api';
 import { connectSocket, disconnectSocket } from '../../services/socket';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
+import { tokens } from '../../styles/tokens';
+import { printOrderPDF } from '../../utils/printOrder';
 
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
 const ModalOverlay = styled.div`
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.4);
     display: ${props => props.isOpen ? 'flex' : 'none'};
     justify-content: center;
     align-items: center;
     z-index: 9999;
     padding: 20px;
+    backdrop-filter: blur(4px);
 `;
 
 const ModalContent = styled.div`
-    background: #fff;
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 500px;
+    background: ${tokens.colors.surface};
+    border-radius: ${tokens.radius.lg};
+    padding: ${tokens.spacing.xl};
+    max-width: 560px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
-    animation: slideIn 0.3s ease;
+    animation: slideUp 0.3s ease;
     position: relative;
+    border: 1px solid ${tokens.colors.border};
+    box-shadow: ${tokens.shadows.lg};
 
-    @keyframes slideIn {
-        from {
-            transform: translateY(-20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+        background: ${tokens.colors.background};
+        border-radius: ${tokens.radius.sm};
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${tokens.colors.border};
+        border-radius: ${tokens.radius.sm};
     }
 `;
 
@@ -46,91 +60,109 @@ const ModalHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e67e22;
+    margin-bottom: ${tokens.spacing.md};
+    padding-bottom: ${tokens.spacing.sm};
+    border-bottom: 2px solid ${tokens.colors.accent};
 `;
 
 const ModalTitle = styled.h3`
     margin: 0;
-    color: #2d3436;
-    font-size: 18px;
+    color: ${tokens.colors.text};
+    font-size: ${tokens.typography.fontSize.lg};
+    font-weight: ${tokens.typography.fontWeight.semibold};
 `;
 
 const CloseButton = styled.button`
     background: none;
     border: none;
-    font-size: 24px;
+    font-size: ${tokens.typography.fontSize['2xl']};
     cursor: pointer;
-    color: #888;
-    padding: 0 8px;
+    color: ${tokens.colors.textMuted};
+    padding: ${tokens.spacing.xs};
+    transition: all 0.2s ease-in-out;
 
     &:hover {
-        color: #2d3436;
+        color: ${tokens.colors.text};
+        transform: rotate(90deg);
     }
 `;
 
 const LoadingContainer = styled.div`
     text-align: center;
-    padding: 40px 0;
-    color: #888;
+    padding: ${tokens.spacing.xl} 0;
+    color: ${tokens.colors.textMuted};
 `;
 
 const ErrorContainer = styled.div`
     text-align: center;
-    padding: 40px 0;
-    color: #e74c3c;
+    padding: ${tokens.spacing.xl} 0;
+    color: ${tokens.colors.error};
 `;
 
 const OrderCard = styled.div`
-    padding: 16px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    margin-bottom: 12px;
+    padding: ${tokens.spacing.md};
+    background: ${tokens.colors.background};
+    border-radius: ${tokens.radius.md};
+    margin-bottom: ${tokens.spacing.sm};
 `;
 
 const OrderNumber = styled.div`
-    font-size: 18px;
-    font-weight: 700;
-    color: #e67e22;
-    margin-bottom: 8px;
+    font-size: ${tokens.typography.fontSize.lg};
+    font-weight: ${tokens.typography.fontWeight.bold};
+    color: ${tokens.colors.accent};
+    margin-bottom: ${tokens.spacing.xs};
 `;
 
 const StatusBadge = styled.div`
     display: inline-block;
-    padding: 6px 14px;
-    border-radius: 30px;
-    font-weight: 600;
-    font-size: 13px;
-    background: ${props => {
+    padding: ${tokens.spacing.xs} ${tokens.spacing.md};
+    border-radius: ${tokens.radius.full};
+    font-weight: ${tokens.typography.fontWeight.semibold};
+    font-size: ${tokens.typography.fontSize.sm};
+
+    ${props => {
         switch(props.status) {
-            case 'pending': return '#fef9e7';
-            case 'confirmado': return '#d5f5e3';
-            case 'preparando': return '#fdebd0';
-            case 'entregue': return '#d5f5e3';
-            case 'cancelado': return '#fdedec';
-            default: return '#f5f5f5';
+            case 'pending':
+                return `
+                    background: ${tokens.colors.warningLight};
+                    color: ${tokens.colors.warning};
+                `;
+            case 'confirmado':
+                return `
+                    background: ${tokens.colors.successLight};
+                    color: ${tokens.colors.success};
+                `;
+            case 'preparando':
+                return `
+                    background: ${tokens.colors.accentLight};
+                    color: ${tokens.colors.accent};
+                `;
+            case 'entregue':
+                return `
+                    background: ${tokens.colors.successLight};
+                    color: ${tokens.colors.success};
+                `;
+            case 'cancelado':
+                return `
+                    background: ${tokens.colors.errorLight};
+                    color: ${tokens.colors.error};
+                `;
+            default:
+                return `
+                    background: ${tokens.colors.background};
+                    color: ${tokens.colors.textSecondary};
+                `;
         }
-    }};
-    color: ${props => {
-        switch(props.status) {
-            case 'pending': return '#f39c12';
-            case 'confirmado': return '#27ae60';
-            case 'preparando': return '#e67e22';
-            case 'entregue': return '#27ae60';
-            case 'cancelado': return '#e74c3c';
-            default: return '#888';
-        }
-    }};
+    }}
 `;
 
 const DetailRow = styled.div`
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
-    font-size: 14px;
-    color: #555;
-    border-bottom: 1px solid #f0f0f0;
+    padding: ${tokens.spacing.xs} 0;
+    font-size: ${tokens.typography.fontSize.sm};
+    color: ${tokens.colors.textSecondary};
+    border-bottom: 1px solid ${tokens.colors.border};
 
     &:last-child {
         border-bottom: none;
@@ -138,94 +170,61 @@ const DetailRow = styled.div`
 `;
 
 const DetailLabel = styled.span`
-    color: #888;
+    color: ${tokens.colors.textMuted};
 `;
 
 const DetailTotal = styled.div`
     display: flex;
     justify-content: space-between;
-    padding: 8px 0 0 0;
-    font-weight: bold;
-    border-top: 2px solid #f0f0f0;
-    margin-top: 4px;
-    font-size: 16px;
-    color: #2d3436;
+    padding: ${tokens.spacing.sm} 0 0 0;
+    font-weight: ${tokens.typography.fontWeight.bold};
+    border-top: 2px solid ${tokens.colors.border};
+    margin-top: ${tokens.spacing.xs};
+    font-size: ${tokens.typography.fontSize.base};
+    color: ${tokens.colors.text};
 `;
 
-const statusLabels = {
-    'pending': 'Aguardando confirmação',
-    'confirmado': 'Confirmado',
-    'preparando': 'Em preparação',
-    'entregue': 'Entregue',
-    'scheduled': 'Agendado',
-    'cancelado': 'Cancelado'
-};
+const ButtonGroup = styled.div`
+    display: flex;
+    gap: ${tokens.spacing.sm};
+    margin-top: ${tokens.spacing.md};
+    flex-wrap: wrap;
+`;
 
-const statusEmojis = {
-    'pending': '📋',
-    'confirmado': '✅',
-    'preparando': '👨‍🍳',
-    'entregue': '📦',
-    'cancelado': '❌'
-};
+const PrintButton = styled.button`
+    padding: ${tokens.spacing.sm} ${tokens.spacing.lg};
+    background: ${tokens.colors.accent};
+    color: ${tokens.colors.surface};
+    border: none;
+    border-radius: ${tokens.radius.md};
+    font-size: ${tokens.typography.fontSize.sm};
+    font-weight: ${tokens.typography.fontWeight.medium};
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-family: ${tokens.typography.fontFamily};
+    display: flex;
+    align-items: center;
+    gap: ${tokens.spacing.xs};
 
-// ============================================================
-//  FUNÇÃO PARA FORMATAR DATA LOCAL (BRASIL)
-// ============================================================
-const formatLocalDate = (dateString, isScheduled = false) => {
-    if (!dateString) return '-';
-    try {
-        if (isScheduled) {
-            const clean = dateString.replace(' ', 'T');
-            const parts = clean.split('T');
-            if (parts.length !== 2) return dateString;
-            
-            const datePart = parts[0];
-            const timePart = parts[1];
-            
-            const dateComponents = datePart.split('-');
-            if (dateComponents.length !== 3) return dateString;
-            
-            const year = dateComponents[0];
-            const month = dateComponents[1];
-            const day = dateComponents[2];
-            
-            const timeComponents = timePart.split(':');
-            if (timeComponents.length < 2) return dateString;
-            
-            const hours = timeComponents[0];
-            const minutes = timeComponents[1];
-            
-            return `${day}/${month}/${year}, ${hours}:${minutes}`;
-        } else {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return '-';
-            
-            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-            
-            return localDate.toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-    } catch (error) {
-        console.error('❌ Erro ao formatar data:', error);
-        return dateString || '-';
+    &:hover {
+        background: ${tokens.colors.accentHover};
+        transform: translateY(-1px);
     }
-};
+
+    &:active {
+        transform: translateY(0);
+    }
+
+    &:focus-visible {
+        outline: 2px solid ${tokens.colors.accent};
+        outline-offset: 2px;
+    }
+`;
 
 // ============================================================
-//  FUNÇÃO PARA FORMATAR VALOR MONETÁRIO
+//  COMPONENTE PRINCIPAL
 // ============================================================
-const formatMoney = (value) => {
-    if (!value && value !== 0) return 'R$ 0,00';
-    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
-};
-
-const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
+const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const [order, setOrder] = useState(null);
@@ -284,7 +283,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                         updated_at: new Date().toISOString()
                     }));
                     showToast(
-                        `Status atualizado: ${statusEmojis[data.order.status]} ${statusLabels[data.order.status]}`,
+                        `Status atualizado: ${getStatusEmoji(data.order.status)} ${getStatusLabel(data.order.status)}`,
                         'info'
                     );
                 }
@@ -297,9 +296,73 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
         };
     }, [isOpen, order, tenant]);
 
+    // ============================================================
+    //  FUNÇÕES AUXILIARES
+    // ============================================================
+    const getStatusLabel = (status) => {
+        const labels = {
+            'pending': 'Pendente',
+            'confirmado': 'Confirmado',
+            'preparando': 'Em preparo',
+            'entregue': 'Entregue',
+            'cancelado': 'Cancelado'
+        };
+        return labels[status] || status;
+    };
+
+    const getStatusEmoji = (status) => {
+        const emojis = {
+            'pending': '📋',
+            'confirmado': '✅',
+            'preparando': '👨‍🍳',
+            'entregue': '📦',
+            'cancelado': '❌'
+        };
+        return emojis[status] || '📋';
+    };
+
+    const formatLocalDate = (dateString, isScheduled = false) => {
+        if (!dateString) return '-';
+        try {
+            if (isScheduled) {
+                const clean = dateString.replace(' ', 'T');
+                const parts = clean.split('T');
+                if (parts.length !== 2) return dateString;
+                const datePart = parts[0];
+                const timePart = parts[1];
+                const dateComponents = datePart.split('-');
+                const timeComponents = timePart.split(':');
+                return `${dateComponents[2]}/${dateComponents[1]}/${dateComponents[0]}, ${timeComponents[0]}:${timeComponents[1]}`;
+            } else {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '-';
+                const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+                return localDate.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        } catch {
+            return '-';
+        }
+    };
+
+    const formatMoney = (value) => {
+        const num = parseFloat(value);
+        return isNaN(num) ? 'R$ 0,00' : `R$ ${num.toFixed(2).replace('.', ',')}`;
+    };
+
+    const handlePrint = () => {
+        if (order) {
+            printOrderPDF(order, storeName || 'Smart Delivery');
+        }
+    };
+
     if (!isOpen) return null;
 
-    // Calcular valores
     const items = order?.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : [];
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const deliveryFee = parseFloat(order?.delivery_fee) || 0;
@@ -319,10 +382,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                 </ModalHeader>
 
                 {loading && (
-                    <LoadingContainer>
-                        <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                        <p>Carregando pedido...</p>
-                    </LoadingContainer>
+                    <LoadingContainer>⏳ Carregando pedido...</LoadingContainer>
                 )}
 
                 {error && !loading && (
@@ -337,8 +397,18 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                         <OrderCard>
                             <OrderNumber>#{order.order_number}</OrderNumber>
                             <StatusBadge status={order.status}>
-                                {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
+                                {getStatusEmoji(order.status)} {getStatusLabel(order.status)}
                             </StatusBadge>
+                            {isScheduled && hasScheduledTime && (
+                                <span style={{ 
+                                    marginLeft: tokens.spacing.sm,
+                                    fontSize: tokens.typography.fontSize.sm,
+                                    color: tokens.colors.accent,
+                                    fontWeight: tokens.typography.fontWeight.medium
+                                }}>
+                                    📅 {formatLocalDate(order.scheduled_time, true)}
+                                </span>
+                            )}
                         </OrderCard>
 
                         <div>
@@ -360,59 +430,49 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token }) => {
                                 <DetailLabel>Pagamento</DetailLabel>
                                 <span>{order.payment_method || 'N/A'}</span>
                             </DetailRow>
-                            
                             <DetailRow>
-                                <DetailLabel>Data do Pedido</DetailLabel>
-                                <span>{formatLocalDate(order.created_at, false)}</span>
+                                <DetailLabel>Data</DetailLabel>
+                                <span>{formatLocalDate(order.created_at)}</span>
                             </DetailRow>
-                            
-                            {isScheduled && hasScheduledTime && (
-                                <DetailRow style={{ 
-                                    backgroundColor: '#fef9e7', 
-                                    borderLeft: '3px solid #f39c12',
-                                    padding: '8px 12px',
-                                    borderRadius: '4px',
-                                    marginTop: '4px'
-                                }}>
-                                    <DetailLabel style={{ fontWeight: '600' }}>
-                                        📅 Agendado para
-                                    </DetailLabel>
-                                    <span style={{ color: '#e67e22', fontWeight: '700' }}>
-                                        {formatLocalDate(order.scheduled_time, true)}
-                                    </span>
-                                </DetailRow>
-                            )}
                         </div>
 
-                        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-                            <strong style={{ color: '#555', display: 'block', marginBottom: 8 }}>🛒 Itens:</strong>
+                        <div style={{ marginTop: tokens.spacing.md, paddingTop: tokens.spacing.sm, borderTop: `1px solid ${tokens.colors.border}` }}>
+                            <strong style={{ color: tokens.colors.text, display: 'block', marginBottom: tokens.spacing.xs, fontSize: tokens.typography.fontSize.sm }}>
+                                🛒 Itens:
+                            </strong>
                             {items.map((item, index) => (
-                                <DetailRow key={index} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                <DetailRow key={index} style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                     <span>{item.qty}x {item.name}</span>
-                                    <span>{formatMoney(item.price * item.qty)}</span>
+                                    <span style={{ fontWeight: tokens.typography.fontWeight.medium }}>
+                                        {formatMoney(item.price * item.qty)}
+                                    </span>
                                 </DetailRow>
                             ))}
                             
-                            {/* ✅ SUBTOTAL */}
-                            <DetailRow style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>Subtotal</span>
                                 <span>{formatMoney(subtotal)}</span>
                             </DetailRow>
                             
-                            {/* ✅ TAXA DE ENTREGA */}
-                            <DetailRow style={{ borderBottom: '2px solid #f0f0f0' }}>
+                            <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>🚚 Taxa de entrega</span>
-                                <span style={{ color: '#e67e22', fontWeight: '600' }}>
+                                <span style={{ color: tokens.colors.accent }}>
                                     {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
                                 </span>
                             </DetailRow>
                             
-                            {/* ✅ TOTAL */}
                             <DetailTotal>
                                 <span>Total</span>
                                 <span>{formatMoney(total)}</span>
                             </DetailTotal>
                         </div>
+
+                        {/* BOTÃO DE IMPRESSÃO */}
+                        <ButtonGroup>
+                            <PrintButton onClick={handlePrint}>
+                                🖨️ Imprimir / PDF
+                            </PrintButton>
+                        </ButtonGroup>
                     </>
                 )}
             </ModalContent>
