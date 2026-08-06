@@ -1,7 +1,7 @@
 // frontend-react/src/components/Client/ClientLayout.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { ThemeProvider, createGlobalStyle } from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
 import { useCart } from '../../contexts/CartContext';
 import { api } from '../../services/api';
@@ -9,672 +9,632 @@ import { Badge } from '../Shared/Container';
 import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 
-// ============================================================
-//  FORÇAR CARREGAMENTO DOS COMPONENTES DE PEDIDOS
-// ============================================================
+// Forçar carregamento dos componentes de pedidos (evita tree-shaking)
 import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
 
 // ============================================================
-//  CONTAINER PRINCIPAL
+// 🎨 DESIGN SYSTEM TOKENS (THEME)
 // ============================================================
-const AppContainer = styled.div`
-    max-width: 100vw;
-    overflow-x: hidden;
-    padding: 0 16px 80px 16px;
-    box-sizing: border-box;
+const theme = {
+  colors: {
+    // Neutral Palette (Cool Slate Neutrals)
+    bgPrimary: '#FAFAFB',
+    bgSurface: '#FFFFFF',
+    bgSubtle: '#F1F5F9',
+    bgMuted: '#E2E8F0',
+    
+    // Text Hierarchy
+    textPrimary: '#0F172A',   // Slate 900 (Sem preto puro)
+    textSecondary: '#475569', // Slate 600
+    textMuted: '#94A3B8',     // Slate 400
+    
+    // Accent Color (Uso ultra-moderado)
+    accent: '#D97706',        // Amber/Warm Rust
+    accentHover: '#B45309',
+    accentLight: '#FEF3C7',
+    
+    // Borders & Lines
+    border: '#E2E8F0',
+    borderLight: '#F1F5F9',
+    
+    // Status Indicators
+    success: '#059669',
+    successBg: '#ECFDF5',
+    error: '#DC2626',
+    errorBg: '#FEF2F2',
+  },
+  typography: {
+    fontFamily: "'Plus Jakarta Sans', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif",
+    h1: { size: '1.5rem', height: '1.25', weight: '700' },     // 24px
+    h2: { size: '1.25rem', height: '1.3', weight: '600' },     // 20px
+    body: { size: '0.875rem', height: '1.5', weight: '400' },   // 14px
+    caption: { size: '0.75rem', height: '1.4', weight: '500' }, // 12px
+  },
+  spacing: (factor) => `${factor * 8}px`, // Sistema de 8px
+  radii: {
+    sm: '6px',
+    md: '10px',
+    lg: '14px',
+    full: '9999px',
+  },
+  shadows: {
+    subtle: '0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.03)',
+    card: '0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -2px rgba(15, 23, 42, 0.02)',
+    floating: '0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04)',
+  },
+  transitions: {
+    default: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+  }
+};
+
+// Global styles injected for typography optimization
+const GlobalStyles = createGlobalStyle`
+  body {
+    background-color: ${({ theme }) => theme.colors.bgPrimary};
+    color: ${({ theme }) => theme.colors.textPrimary};
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+  }
 `;
 
 // ============================================================
-//  BANNER
+// 🧩 STYLED COMPONENTS
 // ============================================================
-const BannerWrapper = styled.div`
-    margin: -16px -16px 0 -16px;
-    overflow: hidden;
-    
-    @media (min-width: 600px) {
-        margin: 0 -16px 0 -16px;
-        border-radius: 0 0 24px 24px;
-    }
+
+const AppContainer = styled.div`
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 0 ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(10)} ${({ theme }) => theme.spacing(2)};
+  box-sizing: border-box;
+
+  @media (min-width: 768px) {
+    padding: 0 ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(10)} ${({ theme }) => theme.spacing(4)};
+  }
+`;
+
+// Banner Section
+const BannerWrapper = styled.header`
+  margin: 0 -${({ theme }) => theme.spacing(2)};
+  position: relative;
+  overflow: hidden;
+  
+  @media (min-width: 768px) {
+    margin: ${({ theme }) => theme.spacing(2)} 0 0 0;
+    border-radius: ${({ theme }) => theme.radii.lg};
+  }
 `;
 
 const BannerImage = styled.div`
-    width: 100%;
-    height: 200px;
-    background: url(${props => props.$image}) center/cover no-repeat;
-    background-color: #f0f0f0;
-    
-    @media (min-width: 480px) {
-        height: 260px;
-    }
-    
-    @media (min-width: 768px) {
-        height: 320px;
-    }
+  width: 100%;
+  height: 180px;
+  background-image: url(${props => props.$image});
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-color: ${({ theme }) => theme.colors.bgSubtle};
+  
+  @media (min-width: 600px) {
+    height: 240px;
+  }
 `;
 
 const BannerPlaceholder = styled.div`
-    width: 100%;
-    height: 200px;
-    background: linear-gradient(135deg, #e67e22, #d35400);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: 700;
-    color: #fff;
-    
-    @media (min-width: 480px) {
-        height: 260px;
-        font-size: 32px;
-    }
+  width: 100%;
+  height: 180px;
+  background-color: ${({ theme }) => theme.colors.bgSubtle};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: ${({ theme }) => theme.typography.h1.size};
+  font-weight: ${({ theme }) => theme.typography.h1.weight};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  letter-spacing: -0.02em;
+
+  @media (min-width: 600px) {
+    height: 240px;
+  }
 `;
 
-// ============================================================
-//  STORE INFO
-// ============================================================
-const StoreInfoCard = styled.div`
-    background: #fff;
-    border-radius: 16px;
-    padding: 20px;
-    margin-top: -16px;
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #f0f0f0;
-    margin-bottom: 16px;
+// Store Info Card
+const StoreInfoCard = styled.section`
+  background: ${({ theme }) => theme.colors.bgSurface};
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => theme.spacing(3)};
+  margin-top: -${({ theme }) => theme.spacing(4)};
+  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  position: relative;
+  z-index: 2;
+  box-shadow: ${({ theme }) => theme.shadows.card};
+  border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const StoreHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(2)};
 `;
 
 const StoreName = styled.h1`
-    font-size: 24px;
-    font-weight: 700;
-    color: #2d3436;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  font-size: ${({ theme }) => theme.typography.h1.size};
+  line-height: ${({ theme }) => theme.typography.h1.height};
+  font-weight: ${({ theme }) => theme.typography.h1.weight};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  margin: 0;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(2)};
 `;
 
 const LogoImage = styled.img`
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 2px solid #f0f0f0;
-    object-fit: cover;
-    background: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  object-fit: cover;
+  background: ${({ theme }) => theme.colors.bgSurface};
 `;
 
 const LogoPlaceholder = styled.div`
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 2px solid #f0f0f0;
-    background: #f8f9fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: 700;
-    color: #b2bec3;
+  width: 44px;
+  height: 44px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.bgSubtle};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
 `;
 
 const StoreMeta = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 8px;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing(1.5)};
+  margin-top: ${({ theme }) => theme.spacing(2)};
 `;
 
 const MetaRow = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    color: #636e72;
-    
-    .address {
-        font-size: 13px;
-        color: #888;
-    }
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(1.5)};
+  flex-wrap: wrap;
+  font-size: ${({ theme }) => theme.typography.body.size};
+  color: ${({ theme }) => theme.colors.textSecondary};
+
+  .address {
+    font-size: ${({ theme }) => theme.typography.caption.size};
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
 `;
 
 const StoreHoursInfo = styled.div`
-    font-size: 13px;
-    color: #888;
-    margin-top: 4px;
-    padding: 8px 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    
-    .highlight {
-        color: #e67e22;
-        font-weight: 600;
-    }
+  font-size: ${({ theme }) => theme.typography.caption.size};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  padding: ${({ theme }) => theme.spacing(1.5)} ${({ theme }) => theme.spacing(2)};
+  background: ${({ theme }) => theme.colors.bgSubtle};
+  border-radius: ${({ theme }) => theme.radii.sm};
+
+  .highlight {
+    color: ${({ theme }) => theme.colors.textPrimary};
+    font-weight: 600;
+  }
 `;
 
-// ============================================================
-//  LINK DE MEUS PEDIDOS
-// ============================================================
 const OrdersLinkWrapper = styled.div`
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
+  margin-top: ${({ theme }) => theme.spacing(2)};
+  padding-top: ${({ theme }) => theme.spacing(2)};
+  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
 `;
 
 const OrdersLink = styled(Link)`
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #e67e22;
-    font-weight: 600;
-    font-size: 14px;
-    text-decoration: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-        background: #fef9e7;
-        color: #d35400;
-    }
-    
-    .icon {
-        font-size: 18px;
-    }
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(1)};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.body.size};
+  font-weight: 600;
+  text-decoration: none;
+  padding: ${({ theme }) => `${theme.spacing(1)} ${theme.spacing(1.5)}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.bgSurface};
+  transition: ${({ theme }) => theme.transitions.default};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.bgSubtle};
+    border-color: ${({ theme }) => theme.colors.textMuted};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
 `;
 
-// ============================================================
-//  CATEGORY TABS
-// ============================================================
-const CategoryTabsWrapper = styled.div`
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 8px 0 16px 0;
-    margin: 0 -16px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-left: 16px;
-    padding-right: 16px;
-    
-    &::-webkit-scrollbar {
-        display: none;
-    }
+// Categories Horizontal Navigation
+const CategoryTabsWrapper = styled.nav`
+  overflow-x: auto;
+  padding: ${({ theme }) => `${theme.spacing(1)} 0 ${theme.spacing(2)} 0`};
+  margin: 0 -${({ theme }) => theme.spacing(2)};
+  padding-left: ${({ theme }) => theme.spacing(2)};
+  padding-right: ${({ theme }) => theme.spacing(2)};
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const CategoryTabsContainer = styled.div`
-    display: flex;
-    gap: 8px;
-    width: max-content;
+  display: flex;
+  gap: ${({ theme }) => theme.spacing(1)};
+  width: max-content;
 `;
 
 const CategoryTab = styled.button`
-    padding: 8px 18px;
-    border: 2px solid ${props => props.active ? '#e67e22' : '#dfe6e9'};
-    border-radius: 30px;
-    background: ${props => props.active ? '#fef9e7' : '#fff'};
-    color: ${props => props.active ? '#e67e22' : '#2d3436'};
-    font-size: 14px;
-    font-weight: ${props => props.active ? '600' : '500'};
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    
-    &:hover {
-        border-color: #e67e22;
-        background: ${props => props.active ? '#fef9e7' : '#fef9e7'};
-    }
-    
-    &:active {
-        transform: scale(0.96);
-    }
+  padding: ${({ theme }) => `${theme.spacing(1)} ${theme.spacing(2.5)}`};
+  border: 1px solid ${props => props.$active ? props.theme.colors.textPrimary : props.theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.full};
+  background: ${props => props.$active ? props.theme.colors.textPrimary : props.theme.colors.bgSurface};
+  color: ${props => props.$active ? props.theme.colors.bgSurface : props.theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.body.size};
+  font-weight: ${props => props.$active ? '600' : '500'};
+  cursor: pointer;
+  white-space: nowrap;
+  transition: ${({ theme }) => theme.transitions.default};
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.textPrimary};
+    color: ${props => props.$active ? props.theme.colors.bgSurface : props.theme.colors.textPrimary};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
 `;
 
-// ============================================================
-//  PRODUCT GRID
-// ============================================================
-const ProductGrid = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    padding-bottom: 80px;
-    
-    @media (min-width: 420px) {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-`;
-
-// ============================================================
-//  HEADER DO CARDÁPIO
-// ============================================================
+// Menu Section
 const MenuHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 2px solid #dfe6e9;
-    margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: ${({ theme }) => `${theme.spacing(2)} 0 ${theme.spacing(1.5)} 0`};
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const MenuTitle = styled.h2`
-    font-size: 20px;
-    font-weight: 700;
-    color: #2d3436;
-    margin: 0;
+  font-size: ${({ theme }) => theme.typography.h2.size};
+  font-weight: ${({ theme }) => theme.typography.h2.weight};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  margin: 0;
+  letter-spacing: -0.01em;
 `;
 
 const MenuCount = styled.span`
-    font-size: 14px;
-    color: #b2bec3;
+  font-size: ${({ theme }) => theme.typography.caption.size};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-weight: 500;
 `;
 
-// ============================================================
-//  CARRINHO FLUTUANTE
-// ============================================================
+const ProductGrid = styled.main`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: ${({ theme }) => theme.spacing(2)};
+  
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 960px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+`;
+
+// Floating Cart Button
 const FloatingCart = styled.button`
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: #e67e22;
-    border: 2px solid rgba(255,255,255,0.3);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    color: #fff;
-    font-size: 28px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
-    
-    .cart-icon {
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-        line-height: 1;
-    }
-    
-    &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 30px rgba(230,126,34,0.5);
-    }
-    
-    &:active {
-        transform: scale(0.95);
-    }
+  position: fixed;
+  bottom: ${({ theme }) => theme.spacing(3)};
+  right: ${({ theme }) => theme.spacing(3)};
+  height: 52px;
+  padding: 0 ${({ theme }) => theme.spacing(3)};
+  border-radius: ${({ theme }) => theme.radii.full};
+  background: ${({ theme }) => theme.colors.textPrimary};
+  color: ${({ theme }) => theme.colors.bgSurface};
+  border: none;
+  box-shadow: ${({ theme }) => theme.shadows.floating};
+  font-size: ${({ theme }) => theme.typography.body.size};
+  font-weight: 600;
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transitions.default};
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(1.5)};
+
+  &:hover {
+    transform: translateY(-2px);
+    background: ${({ theme }) => theme.colors.textSecondary};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
 `;
 
 const FloatingBadge = styled.span`
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    background: #e74c3c;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    border: 2px solid #fff;
-    animation: pulse 2s infinite;
-    
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-    }
+  background: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.bgSurface};
+  font-size: ${({ theme }) => theme.typography.caption.size};
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: ${({ theme }) => theme.radii.full};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: ${({ theme }) => `${theme.spacing(6)} 0`};
+  color: ${({ theme }) => theme.colors.textMuted};
+  
+  p {
+    margin-top: ${({ theme }) => theme.spacing(1)};
+    font-size: ${({ theme }) => theme.typography.body.size};
+  }
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL
+// 🚀 COMPONENTE PRINCIPAL
 // ============================================================
-const ClientLayout = () => {
-    const { tenant, loading: tenantLoading } = useTenant();
-    const { totalItems } = useCart();
-    const [config, setConfig] = useState(null);
-    const [products, setProducts] = useState([]);
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [activeCategory, setActiveCategory] = useState('');
-    const [isCartOpen, setIsCartOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isOpen, setIsOpen] = useState(false);
-    const [storeStatus, setStoreStatus] = useState(null);
-    const [operatingHours, setOperatingHours] = useState([]);
+const ClientLayoutContent = () => {
+  const { tenant, loading: tenantLoading } = useTenant();
+  const { totalItems } = useCart();
+  const [config, setConfig] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [storeStatus, setStoreStatus] = useState(null);
+  const [operatingHours, setOperatingHours] = useState([]);
 
-    // Forçar referência aos componentes (evita tree-shaking)
-    const _forceComponents = [OrdersHistory, TrackOrder];
+  const _forceComponents = [OrdersHistory, TrackOrder];
 
-    // ============================================================
-    //  SE NÃO TIVER TENANT, MOSTRAR PÁGINA DE BOAS-VINDAS
-    // ============================================================
-    if (!tenant && !tenantLoading) {
-        return (
-            <div style={{
-                maxWidth: 480,
-                margin: '0 auto',
-                padding: '60px 20px',
-                textAlign: 'center',
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center'
-            }}>
-                <div style={{ fontSize: 64, marginBottom: 20 }}>🏠</div>
-                <h1 style={{ color: '#2d3436', fontSize: 28, marginBottom: 12 }}>Smart Delivery</h1>
-                <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
-                    Sistema de delivery para restaurantes
-                </p>
-                <div style={{
-                    background: '#f8f9fa',
-                    padding: '20px',
-                    borderRadius: '12px',
-                    width: '100%',
-                    maxWidth: 380
-                }}>
-                    <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
-                        Para acessar um restaurante, use o link correto:
-                    </p>
-                    <code style={{
-                        display: 'block',
-                        background: '#fff',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        wordBreak: 'break-all',
-                        color: '#e67e22'
-                    }}>
-                        https://smart-delivery-saas.onrender.com/?tenant=seu_subdominio
-                    </code>
-                    <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
-                        Ou use o painel administrativo:
-                    </p>
-                    <code style={{
-                        display: 'block',
-                        background: '#fff',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        wordBreak: 'break-all',
-                        color: '#e67e22'
-                    }}>
-                        https://smart-delivery-saas.onrender.com/admin?tenant=seu_subdominio
-                    </code>
-                    <p style={{
-                        color: '#888',
-                        fontSize: '12px',
-                        marginTop: 16,
-                        fontStyle: 'italic'
-                    }}>
-                        💡 Substitua "seu_subdominio" pelo subdomínio cadastrado
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    // ============================================================
-    //  CARREGAR DADOS
-    // ============================================================
-    useEffect(() => {
-        if (!tenant) return;
-
-        const loadData = async () => {
-            try {
-                setIsLoading(true);
-                const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
-                    api.get('/config'),
-                    api.get('/products?active_only=true'),
-                    api.get('/categories'),
-                    api.get('/store/status'),
-                    api.get('/operating-hours')
-                ]);
-
-                const productsData = productsRes.data.data || [];
-                const categoriesData = categoriesRes.data.data || [];
-
-                setConfig(configRes.data.data);
-                setProducts(productsData);
-                setStoreStatus(statusRes.data.data);
-                setOperatingHours(hoursRes.data.data || []);
-
-                // Verificar status da loja
-                if (statusRes.data.success) {
-                    setIsOpen(statusRes.data.data.is_open);
-                }
-
-                const sortedCategories = categoriesData
-                    .filter(cat => productsData.some(p => p.category === cat.name && p.active))
-                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-                    .map(cat => cat.name);
-
-                setCategories(sortedCategories);
-                if (sortedCategories.length > 0) {
-                    setActiveCategory(sortedCategories[0]);
-                }
-                setFilteredProducts(productsData);
-            } catch (error) {
-                console.error('Erro ao carregar dados:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadData();
-    }, [tenant]);
-
-    // ============================================================
-    //  ATUALIZAR STATUS DA LOJA A CADA 60 SEGUNDOS
-    // ============================================================
-    useEffect(() => {
-        if (!tenant) return;
-
-        const checkStatus = async () => {
-            try {
-                const response = await api.get('/store/status');
-                if (response.data.success) {
-                    setIsOpen(response.data.data.is_open);
-                    setStoreStatus(response.data.data);
-                }
-            } catch (error) {
-                console.error('Erro ao verificar status:', error);
-            }
-        };
-
-        checkStatus();
-        const interval = setInterval(checkStatus, 60000);
-
-        return () => clearInterval(interval);
-    }, [tenant]);
-
-    // ============================================================
-    //  FILTRAR PRODUTOS POR CATEGORIA
-    // ============================================================
-    useEffect(() => {
-        if (activeCategory) {
-            setFilteredProducts(products.filter(p => p.category === activeCategory));
-        } else {
-            setFilteredProducts(products);
-        }
-    }, [activeCategory, products]);
-
-    const scrollToCategory = (category) => {
-        setActiveCategory(category);
-        const element = document.getElementById(`category-${category}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-
-    // ============================================================
-    //  OBTER HORÁRIO DO DIA ATUAL
-    // ============================================================
-    const getTodayHours = () => {
-        const today = new Date().getDay();
-        const todayHours = operatingHours.find(h => h.day_of_week === today);
-        return todayHours;
-    };
-
-    const todayHours = getTodayHours();
-
-    if (tenantLoading || (isLoading && !config)) {
-        return <div className="loader">Carregando...</div>;
-    }
-
-    const hasBanner = !!config?.banner_image;
-    const storeName = config?.store_name || 'Carregando...';
-    const logoImage = config?.logo_image;
-
+  if (!tenant && !tenantLoading) {
     return (
-        <>
-            <AppContainer>
-                <BannerWrapper>
-                    {hasBanner ? (
-                        <BannerImage $image={config.banner_image} />
-                    ) : (
-                        <BannerPlaceholder>
-                            {storeName !== 'Carregando...' ? storeName : 'Smart Delivery'}
-                        </BannerPlaceholder>
-                    )}
-                </BannerWrapper>
-
-                <StoreInfoCard>
-                    <StoreHeader>
-                        <StoreName>
-                            {logoImage ? (
-                                <LogoImage src={logoImage} alt="Logo" />
-                            ) : (
-                                <LogoPlaceholder>🍔</LogoPlaceholder>
-                            )}
-                            {storeName}
-                        </StoreName>
-                    </StoreHeader>
-
-                    <StoreMeta>
-                        <MetaRow>
-                            <Badge status={isOpen ? 'open' : 'closed'}>
-                                {isOpen ? '🟢 Aberto' : '🔴 Fechado'}
-                            </Badge>
-                            {!isOpen && (
-                                <span style={{ fontSize: '12px', color: '#e67e22' }}>
-                                    📅 Agende seu pedido para o próximo horário disponível
-                                </span>
-                            )}
-                            {storeStatus?.reason && (
-                                <span style={{ fontSize: '12px', color: '#888' }}>
-                                    {storeStatus.reason}
-                                </span>
-                            )}
-                        </MetaRow>
-
-                        {todayHours && (
-                            <StoreHoursInfo>
-                                {todayHours.is_open ? (
-                                    <>
-                                        🕐 Aberto das <span className="highlight">
-                                            {todayHours.open_time?.substring(0, 5)}
-                                        </span> às <span className="highlight">
-                                            {todayHours.close_time?.substring(0, 5)}
-                                        </span>
-                                        {todayHours.break_start && todayHours.break_end && (
-                                            <span style={{ fontSize: '12px', color: '#aaa', display: 'block', marginTop: '2px' }}>
-                                                ⏸️ Intervalo: {todayHours.break_start?.substring(0, 5)} - {todayHours.break_end?.substring(0, 5)}
-                                            </span>
-                                        )}
-                                    </>
-                                ) : (
-                                    <span style={{ color: '#e74c3c' }}>🔴 Fechado hoje</span>
-                                )}
-                            </StoreHoursInfo>
-                        )}
-
-                        {config?.store_address && (
-                            <MetaRow>
-                                <span className="address">📍 {config.store_address}</span>
-                            </MetaRow>
-                        )}
-                    </StoreMeta>
-
-                    <OrdersLinkWrapper>
-                        <OrdersLink to={`/verify-orders?tenant=${tenant}`}>
-                            <span className="icon">📋</span>
-                            Meus Pedidos
-                        </OrdersLink>
-                    </OrdersLinkWrapper>
-                </StoreInfoCard>
-
-                {categories.length > 0 && (
-                    <CategoryTabsWrapper>
-                        <CategoryTabsContainer>
-                            {categories.map(cat => (
-                                <CategoryTab
-                                    key={cat}
-                                    active={activeCategory === cat}
-                                    onClick={() => scrollToCategory(cat)}
-                                >
-                                    {cat}
-                                </CategoryTab>
-                            ))}
-                        </CategoryTabsContainer>
-                    </CategoryTabsWrapper>
-                )}
-
-                <MenuHeader>
-                    <MenuTitle>🍽️ Cardápio</MenuTitle>
-                    {filteredProducts.length > 0 && (
-                        <MenuCount>{filteredProducts.length} itens</MenuCount>
-                    )}
-                </MenuHeader>
-
-                {filteredProducts.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#b2bec3' }}>
-                        <div style={{ fontSize: 48, marginBottom: 16 }}>🍽️</div>
-                        <p>Nenhum produto disponível nesta categoria.</p>
-                    </div>
-                ) : (
-                    <ProductGrid>
-                        {filteredProducts.map(product => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                    </ProductGrid>
-                )}
-            </AppContainer>
-
-            <FloatingCart onClick={() => setIsCartOpen(true)}>
-                <span className="cart-icon">🛒</span>
-                {totalItems > 0 && (
-                    <FloatingBadge>{totalItems}</FloatingBadge>
-                )}
-            </FloatingCart>
-
-            <CartDrawer
-                isOpen={isCartOpen}
-                onClose={() => setIsCartOpen(false)}
-            />
-        </>
+      <EmptyState style={{ maxWidth: 480, margin: '60px auto' }}>
+        <StoreName style={{ justifyContent: 'center', marginBottom: 12 }}>Smart Delivery</StoreName>
+        <p>Informe um subdomínio válido para continuar.</p>
+      </EmptyState>
     );
+  }
+
+  useEffect(() => {
+    if (!tenant) return;
+
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
+          api.get('/config'),
+          api.get('/products?active_only=true'),
+          api.get('/categories'),
+          api.get('/store/status'),
+          api.get('/operating-hours')
+        ]);
+
+        const productsData = productsRes.data.data || [];
+        const categoriesData = categoriesRes.data.data || [];
+
+        setConfig(configRes.data.data);
+        setProducts(productsData);
+        setStoreStatus(statusRes.data.data);
+        setOperatingHours(hoursRes.data.data || []);
+
+        if (statusRes.data.success) {
+          setIsOpen(statusRes.data.data.is_open);
+        }
+
+        const sortedCategories = categoriesData
+          .filter(cat => productsData.some(p => p.category === cat.name && p.active))
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          .map(cat => cat.name);
+
+        setCategories(sortedCategories);
+        if (sortedCategories.length > 0) {
+          setActiveCategory(sortedCategories[0]);
+        }
+        setFilteredProducts(productsData);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [tenant]);
+
+  useEffect(() => {
+    if (!tenant) return;
+
+    const checkStatus = async () => {
+      try {
+        const response = await api.get('/store/status');
+        if (response.data.success) {
+          setIsOpen(response.data.data.is_open);
+          setStoreStatus(response.data.data);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+      }
+    };
+
+    const interval = setInterval(checkStatus, 60000);
+    return () => clearInterval(interval);
+  }, [tenant]);
+
+  useEffect(() => {
+    if (activeCategory) {
+      setFilteredProducts(products.filter(p => p.category === activeCategory));
+    } else {
+      setFilteredProducts(products);
+    }
+  }, [activeCategory, products]);
+
+  const scrollToCategory = (category) => {
+    setActiveCategory(category);
+    const element = document.getElementById(`category-${category}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const getTodayHours = () => {
+    const today = new Date().getDay();
+    return operatingHours.find(h => h.day_of_week === today);
+  };
+
+  const todayHours = getTodayHours();
+
+  if (tenantLoading || (isLoading && !config)) {
+    return <EmptyState><p>Carregando cardápio...</p></EmptyState>;
+  }
+
+  const hasBanner = !!config?.banner_image;
+  const storeName = config?.store_name || 'Restaurante';
+  const logoImage = config?.logo_image;
+
+  return (
+    <>
+      <AppContainer>
+        <BannerWrapper>
+          {hasBanner ? (
+            <BannerImage $image={config.banner_image} />
+          ) : (
+            <BannerPlaceholder>{storeName}</BannerPlaceholder>
+          )}
+        </BannerWrapper>
+
+        <StoreInfoCard>
+          <StoreHeader>
+            {logoImage ? (
+              <LogoImage src={logoImage} alt={storeName} />
+            ) : (
+              <LogoPlaceholder>🍽️</LogoPlaceholder>
+            )}
+            <StoreName>{storeName}</StoreName>
+          </StoreHeader>
+
+          <StoreMeta>
+            <MetaRow>
+              <Badge status={isOpen ? 'open' : 'closed'}>
+                {isOpen ? 'Aberto agora' : 'Fechado'}
+              </Badge>
+              {storeStatus?.reason && (
+                <span className="address">• {storeStatus.reason}</span>
+              )}
+            </MetaRow>
+
+            {todayHours && (
+              <StoreHoursInfo>
+                {todayHours.is_open ? (
+                  <>
+                    Horário hoje: <span className="highlight">
+                      {todayHours.open_time?.substring(0, 5)} - {todayHours.close_time?.substring(0, 5)}
+                    </span>
+                  </>
+                ) : (
+                  <span>Fechado hoje</span>
+                )}
+              </StoreHoursInfo>
+            )}
+
+            {config?.store_address && (
+              <MetaRow>
+                <span className="address">{config.store_address}</span>
+              </MetaRow>
+            )}
+          </StoreMeta>
+
+          <OrdersLinkWrapper>
+            <OrdersLink to={`/verify-orders?tenant=${tenant}`}>
+              Meus Pedidos
+            </OrdersLink>
+          </OrdersLinkWrapper>
+        </StoreInfoCard>
+
+        {categories.length > 0 && (
+          <CategoryTabsWrapper>
+            <CategoryTabsContainer>
+              {categories.map(cat => (
+                <CategoryTab
+                  key={cat}
+                  $active={activeCategory === cat}
+                  onClick={() => scrollToCategory(cat)}
+                >
+                  {cat}
+                </CategoryTab>
+              ))}
+            </CategoryTabsContainer>
+          </CategoryTabsWrapper>
+        )}
+
+        <MenuHeader>
+          <MenuTitle>Cardápio</MenuTitle>
+          {filteredProducts.length > 0 && (
+            <MenuCount>{filteredProducts.length} itens</MenuCount>
+          )}
+        </MenuHeader>
+
+        {filteredProducts.length === 0 ? (
+          <EmptyState>
+            <p>Nenhum item disponível nesta categoria.</p>
+          </EmptyState>
+        ) : (
+          <ProductGrid>
+            {filteredProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </ProductGrid>
+        )}
+      </AppContainer>
+
+      <FloatingCart onClick={() => setIsCartOpen(true)} aria-label="Ver Carrinho">
+        <span>Carrinho</span>
+        {totalItems > 0 && <FloatingBadge>{totalItems}</FloatingBadge>}
+      </FloatingCart>
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+      />
+    </>
+  );
 };
 
-export default ClientLayout;
+export default function ClientLayout() {
+  return (
+    <ThemeProvider theme={theme}>
+      <GlobalStyles />
+      <ClientLayoutContent />
+    </ThemeProvider>
+  );
+}
