@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { tokens } from '../../styles/tokens';
 import {
     OrdersContainer,
     TableWrapper,
@@ -14,42 +15,45 @@ import {
 } from './AdminLayout.styled';
 
 // ============================================================
-//  FILTRO DE STATUS
+//  STYLED COMPONENTS
 // ============================================================
 const StatusFilter = styled.select`
-    padding: 8px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
-    background: #fff;
-    color: #2d3436;
+    padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+    border: 1.5px solid ${tokens.colors.border};
+    border-radius: ${tokens.radius.md};
+    font-size: ${tokens.typography.fontSize.sm};
+    background: ${tokens.colors.surface};
+    color: ${tokens.colors.text};
     cursor: pointer;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease-in-out;
     min-width: 160px;
+    font-family: ${tokens.typography.fontFamily};
 
-    &:focus {
-        border-color: #e67e22;
+    &:hover {
+        border-color: ${tokens.colors.borderHover};
     }
 
-    @media (max-width: 768px) {
+    &:focus {
+        border-color: ${tokens.colors.accent};
+        box-shadow: 0 0 0 3px ${tokens.colors.accentLight};
+    }
+
+    @media (max-width: ${tokens.breakpoints.md}) {
         width: 100%;
         min-width: unset;
     }
 `;
 
-// ============================================================
-//  HEADER COM FILTRO
-// ============================================================
 const OrdersHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: ${tokens.spacing.md};
     flex-wrap: wrap;
-    gap: 12px;
+    gap: ${tokens.spacing.sm};
 
-    @media (max-width: 768px) {
+    @media (max-width: ${tokens.breakpoints.md}) {
         flex-direction: column;
         align-items: stretch;
     }
@@ -57,24 +61,121 @@ const OrdersHeader = styled.div`
 
 const HeaderTitle = styled.h3`
     margin: 0;
-    font-size: 18px;
-    color: #2d3436;
+    font-size: ${tokens.typography.fontSize.lg};
+    font-weight: ${tokens.typography.fontWeight.semibold};
+    color: ${tokens.colors.text};
+    letter-spacing: -0.02em;
 
-    @media (max-width: 768px) {
-        font-size: 16px;
+    @media (max-width: ${tokens.breakpoints.md}) {
+        font-size: ${tokens.typography.fontSize.base};
     }
 `;
 
 const FilterGroup = styled.div`
     display: flex;
-    gap: 12px;
+    gap: ${tokens.spacing.sm};
     align-items: center;
     flex-wrap: wrap;
 
-    @media (max-width: 768px) {
+    @media (max-width: ${tokens.breakpoints.md}) {
         width: 100%;
         flex-direction: column;
     }
+`;
+
+const OrderNumber = styled.span`
+    color: ${tokens.colors.accent};
+    cursor: pointer;
+    font-weight: ${tokens.typography.fontWeight.semibold};
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+
+    &:hover {
+        color: ${tokens.colors.accentHover};
+    }
+`;
+
+const ScheduledBadge = styled.span`
+    background: ${tokens.colors.accent};
+    color: ${tokens.colors.surface};
+    padding: 2px 8px;
+    border-radius: ${tokens.radius.full};
+    font-size: ${tokens.typography.fontSize.xs};
+    margin-left: ${tokens.spacing.xs};
+    display: inline-block;
+`;
+
+const ScheduledTime = styled.div`
+    font-size: ${tokens.typography.fontSize.xs};
+    color: ${tokens.colors.accent};
+    margin-top: 2px;
+`;
+
+const EmptyState = styled.p`
+    color: ${tokens.colors.textMuted};
+    padding: ${tokens.spacing.xl} 0;
+    text-align: center;
+    font-size: ${tokens.typography.fontSize.sm};
+`;
+
+const StatusBadge = styled(Badge)`
+    font-weight: ${tokens.typography.fontWeight.medium};
+    padding: 4px 12px;
+    border-radius: ${tokens.radius.full};
+    font-size: ${tokens.typography.fontSize.xs};
+
+    ${props => {
+        switch(props.$status) {
+            case 'pending':
+                return `
+                    background: ${tokens.colors.warningLight};
+                    color: ${tokens.colors.warning};
+                `;
+            case 'confirmed':
+                return `
+                    background: ${tokens.colors.successLight};
+                    color: ${tokens.colors.success};
+                `;
+            case 'preparing':
+                return `
+                    background: ${tokens.colors.accentLight};
+                    color: ${tokens.colors.accent};
+                `;
+            case 'delivered':
+                return `
+                    background: ${tokens.colors.successLight};
+                    color: ${tokens.colors.success};
+                `;
+            case 'cancelled':
+                return `
+                    background: ${tokens.colors.errorLight};
+                    color: ${tokens.colors.error};
+                `;
+            case 'scheduled':
+                return `
+                    background: ${tokens.colors.accentLight};
+                    color: ${tokens.colors.accent};
+                `;
+            default:
+                return `
+                    background: ${tokens.colors.background};
+                    color: ${tokens.colors.textSecondary};
+                `;
+        }
+    }}
+`;
+
+const TotalValue = styled.strong`
+    color: ${tokens.colors.text};
+    font-weight: ${tokens.typography.fontWeight.semibold};
+`;
+
+const NewOrdersBadge = styled.span`
+    font-size: ${tokens.typography.fontSize.sm};
+    color: ${tokens.colors.error};
+    margin-left: ${tokens.spacing.sm};
+    font-weight: ${tokens.typography.fontWeight.normal};
 `;
 
 const Orders = ({
@@ -149,20 +250,19 @@ const Orders = ({
         return statusLabels[status] || status;
     };
 
+    // Formatar valor
+    const formatMoney = (value) => {
+        const num = parseFloat(value);
+        return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
+    };
+
     return (
         <OrdersContainer>
             <OrdersHeader>
                 <HeaderTitle>
                     📋 Pedidos Recebidos
                     {unreadOrders > 0 && (
-                        <span style={{ 
-                            fontSize: '14px', 
-                            color: '#e74c3c', 
-                            marginLeft: '12px',
-                            fontWeight: 'normal'
-                        }}>
-                            ({unreadOrders} novos)
-                        </span>
+                        <NewOrdersBadge>({unreadOrders} novos)</NewOrdersBadge>
                     )}
                 </HeaderTitle>
 
@@ -181,11 +281,11 @@ const Orders = ({
             </OrdersHeader>
 
             {filteredOrders.length === 0 ? (
-                <p style={{ color: '#888', padding: '20px 0' }}>
-                    {allOrders.length === 0 
-                        ? 'Nenhum pedido recebido.' 
+                <EmptyState>
+                    {allOrders.length === 0
+                        ? 'Nenhum pedido recebido.'
                         : 'Nenhum pedido encontrado com o filtro selecionado.'}
-                </p>
+                </EmptyState>
             ) : (
                 <>
                     {/* TABELA DESKTOP */}
@@ -209,45 +309,24 @@ const Orders = ({
                                     return (
                                         <tr key={o.id}>
                                             <td>
-                                                <span 
-                                                    style={{ 
-                                                        color: '#e67e22', 
-                                                        cursor: 'pointer', 
-                                                        fontWeight: '600',
-                                                        textDecoration: 'underline',
-                                                        textDecorationStyle: 'dotted'
-                                                    }}
+                                                <OrderNumber
                                                     onClick={() => onOpenTracking(o.id, o.access_token)}
                                                     title="Clique para ver detalhes do pedido"
                                                 >
                                                     #{o.order_number || o.id}
-                                                </span>
+                                                </OrderNumber>
                                                 {o.is_scheduled && (
-                                                    <span style={{
-                                                        background: '#e67e22',
-                                                        color: '#fff',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '12px',
-                                                        fontSize: '10px',
-                                                        marginLeft: '6px',
-                                                        display: 'inline-block'
-                                                    }}>
-                                                        📅
-                                                    </span>
+                                                    <ScheduledBadge>📅</ScheduledBadge>
                                                 )}
                                                 {o.is_scheduled && o.scheduled_time && (
-                                                    <div style={{
-                                                        fontSize: '10px',
-                                                        color: '#e67e22',
-                                                        marginTop: '2px'
-                                                    }}>
+                                                    <ScheduledTime>
                                                         {new Date(o.scheduled_time).toLocaleString('pt-BR', {
                                                             day: '2-digit',
                                                             month: '2-digit',
                                                             hour: '2-digit',
                                                             minute: '2-digit'
                                                         })}
-                                                    </div>
+                                                    </ScheduledTime>
                                                 )}
                                             </td>
                                             <td>{o.customer_name || 'Cliente'}</td>
@@ -256,24 +335,24 @@ const Orders = ({
                                                     <div key={idx}>{i.qty}x {i.name}</div>
                                                 ))}
                                             </td>
-                                            <td><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></td>
+                                            <td><TotalValue>R$ {formatMoney(o.total)}</TotalValue></td>
                                             <td>
-                                                <Badge $status={getStatusForBadge(statusClass)}>
+                                                <StatusBadge $status={getStatusForBadge(statusClass)}>
                                                     {getStatusLabel(statusClass)}
-                                                </Badge>
+                                                </StatusBadge>
                                             </td>
                                             <td>
                                                 <ActionContainer>
                                                     {statusClass === 'scheduled' && (
                                                         <>
-                                                            <ActionButton 
-                                                                $variant="confirm" 
+                                                            <ActionButton
+                                                                $variant="confirm"
                                                                 onClick={() => onUpdateStatus(o.id, 'confirmado')}
                                                             >
                                                                 ✅ Confirmar
                                                             </ActionButton>
-                                                            <ActionButton 
-                                                                $variant="cancel" 
+                                                            <ActionButton
+                                                                $variant="cancel"
                                                                 onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                             >
                                                                 ❌ Cancelar
@@ -282,14 +361,14 @@ const Orders = ({
                                                     )}
                                                     {statusClass === 'pending' && (
                                                         <>
-                                                            <ActionButton 
-                                                                $variant="confirm" 
+                                                            <ActionButton
+                                                                $variant="confirm"
                                                                 onClick={() => onUpdateStatus(o.id, 'confirmado')}
                                                             >
                                                                 ✅ Confirmar
                                                             </ActionButton>
-                                                            <ActionButton 
-                                                                $variant="cancel" 
+                                                            <ActionButton
+                                                                $variant="cancel"
                                                                 onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                             >
                                                                 ❌ Cancelar
@@ -298,14 +377,14 @@ const Orders = ({
                                                     )}
                                                     {statusClass === 'confirmado' && (
                                                         <>
-                                                            <ActionButton 
-                                                                $variant="preparar" 
+                                                            <ActionButton
+                                                                $variant="preparar"
                                                                 onClick={() => onUpdateStatus(o.id, 'preparando')}
                                                             >
                                                                 👨‍🍳 Em preparo
                                                             </ActionButton>
-                                                            <ActionButton 
-                                                                $variant="cancel" 
+                                                            <ActionButton
+                                                                $variant="cancel"
                                                                 onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                             >
                                                                 ❌ Cancelar
@@ -313,22 +392,22 @@ const Orders = ({
                                                         </>
                                                     )}
                                                     {statusClass === 'preparando' && (
-                                                        <ActionButton 
-                                                            $variant="deliver" 
+                                                        <ActionButton
+                                                            $variant="deliver"
                                                             onClick={() => onUpdateStatus(o.id, 'entregue')}
                                                         >
                                                             📦 Entregue
                                                         </ActionButton>
                                                     )}
                                                     {statusClass === 'entregue' && (
-                                                        <Badge $status="delivered">
+                                                        <StatusBadge $status="delivered">
                                                             ✅ Finalizado
-                                                        </Badge>
+                                                        </StatusBadge>
                                                     )}
                                                     {statusClass === 'cancelado' && (
-                                                        <Badge $status="cancelled">
+                                                        <StatusBadge $status="cancelled">
                                                             ❌ Cancelado
-                                                        </Badge>
+                                                        </StatusBadge>
                                                     )}
                                                 </ActionContainer>
                                             </td>
@@ -350,38 +429,21 @@ const Orders = ({
                                     <MobileOrderRow>
                                         <span className="label">Pedido</span>
                                         <span className="value">
-                                            <span 
-                                                style={{ 
-                                                    color: '#e67e22', 
-                                                    cursor: 'pointer', 
-                                                    fontWeight: '600',
-                                                    textDecoration: 'underline',
-                                                    textDecorationStyle: 'dotted'
-                                                }}
+                                            <OrderNumber
                                                 onClick={() => onOpenTracking(o.id, o.access_token)}
                                                 title="Clique para ver detalhes do pedido"
                                             >
                                                 #{o.order_number || o.id}
-                                            </span>
+                                            </OrderNumber>
                                             {o.is_scheduled && (
-                                                <span style={{
-                                                    background: '#e67e22',
-                                                    color: '#fff',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '12px',
-                                                    fontSize: '10px',
-                                                    marginLeft: '6px',
-                                                    display: 'inline-block'
-                                                }}>
-                                                    📅
-                                                </span>
+                                                <ScheduledBadge>📅</ScheduledBadge>
                                             )}
                                         </span>
                                     </MobileOrderRow>
                                     {o.is_scheduled && o.scheduled_time && (
                                         <MobileOrderRow>
                                             <span className="label">Agendado</span>
-                                            <span className="value" style={{ fontSize: '12px', color: '#e67e22' }}>
+                                            <span className="value" style={{ fontSize: '12px', color: tokens.colors.accent }}>
                                                 {new Date(o.scheduled_time).toLocaleString('pt-BR', {
                                                     day: '2-digit',
                                                     month: '2-digit',
@@ -397,14 +459,14 @@ const Orders = ({
                                     </MobileOrderRow>
                                     <MobileOrderRow>
                                         <span className="label">Total</span>
-                                        <span className="value"><strong>R$ {parseFloat(o.total).toFixed(2)}</strong></span>
+                                        <span className="value"><TotalValue>R$ {formatMoney(o.total)}</TotalValue></span>
                                     </MobileOrderRow>
                                     <MobileOrderRow>
                                         <span className="label">Status</span>
                                         <span className="value">
-                                            <Badge $status={getStatusForBadge(statusClass)}>
+                                            <StatusBadge $status={getStatusForBadge(statusClass)}>
                                                 {getStatusLabel(statusClass)}
-                                            </Badge>
+                                            </StatusBadge>
                                         </span>
                                     </MobileOrderRow>
                                     <MobileOrderRow style={{ flexDirection: 'column', alignItems: 'stretch', borderBottom: 'none' }}>
@@ -414,7 +476,7 @@ const Orders = ({
                                                 <div className="item" key={idx}>
                                                     <span className="item-name">{item.name}</span>
                                                     <span className="item-qty">{item.qty}x</span>
-                                                    <span className="item-price">R$ {(item.price * item.qty).toFixed(2)}</span>
+                                                    <span className="item-price">R$ {formatMoney(item.price * item.qty)}</span>
                                                 </div>
                                             ))}
                                         </MobileItemsList>
@@ -422,15 +484,15 @@ const Orders = ({
                                     <MobileActions>
                                         {statusClass === 'scheduled' && (
                                             <>
-                                                <ActionButton 
-                                                    $variant="confirm" 
+                                                <ActionButton
+                                                    $variant="confirm"
                                                     onClick={() => onUpdateStatus(o.id, 'confirmado')}
                                                     style={{ flex: 1 }}
                                                 >
                                                     ✅ Confirmar
                                                 </ActionButton>
-                                                <ActionButton 
-                                                    $variant="cancel" 
+                                                <ActionButton
+                                                    $variant="cancel"
                                                     onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                     style={{ flex: 1 }}
                                                 >
@@ -440,15 +502,15 @@ const Orders = ({
                                         )}
                                         {statusClass === 'pending' && (
                                             <>
-                                                <ActionButton 
-                                                    $variant="confirm" 
+                                                <ActionButton
+                                                    $variant="confirm"
                                                     onClick={() => onUpdateStatus(o.id, 'confirmado')}
                                                     style={{ flex: 1 }}
                                                 >
                                                     ✅ Confirmar
                                                 </ActionButton>
-                                                <ActionButton 
-                                                    $variant="cancel" 
+                                                <ActionButton
+                                                    $variant="cancel"
                                                     onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                     style={{ flex: 1 }}
                                                 >
@@ -458,15 +520,15 @@ const Orders = ({
                                         )}
                                         {statusClass === 'confirmado' && (
                                             <>
-                                                <ActionButton 
-                                                    $variant="preparar" 
+                                                <ActionButton
+                                                    $variant="preparar"
                                                     onClick={() => onUpdateStatus(o.id, 'preparando')}
                                                     style={{ flex: 1 }}
                                                 >
                                                     👨‍🍳 Em preparo
                                                 </ActionButton>
-                                                <ActionButton 
-                                                    $variant="cancel" 
+                                                <ActionButton
+                                                    $variant="cancel"
                                                     onClick={() => onUpdateStatus(o.id, 'cancelado')}
                                                     style={{ flex: 1 }}
                                                 >
@@ -475,8 +537,8 @@ const Orders = ({
                                             </>
                                         )}
                                         {statusClass === 'preparando' && (
-                                            <ActionButton 
-                                                $variant="deliver" 
+                                            <ActionButton
+                                                $variant="deliver"
                                                 onClick={() => onUpdateStatus(o.id, 'entregue')}
                                                 style={{ flex: 1 }}
                                             >
@@ -484,14 +546,14 @@ const Orders = ({
                                             </ActionButton>
                                         )}
                                         {statusClass === 'entregue' && (
-                                            <Badge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                            <StatusBadge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ✅ Finalizado
-                                            </Badge>
+                                            </StatusBadge>
                                         )}
                                         {statusClass === 'cancelado' && (
-                                            <Badge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+                                            <StatusBadge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ❌ Cancelado
-                                            </Badge>
+                                            </StatusBadge>
                                         )}
                                     </MobileActions>
                                 </MobileOrderCard>
