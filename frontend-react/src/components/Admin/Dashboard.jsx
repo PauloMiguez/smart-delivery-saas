@@ -186,7 +186,6 @@ const Dashboard = ({
             </ChartsGrid>
 
             {/* Pedidos recentes */}
-            <SectionTitle>📋 Pedidos Recentes</SectionTitle>
             <RecentOrders orders={orders} />
         </DashboardContainer>
     );
