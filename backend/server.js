@@ -2017,23 +2017,34 @@ app.get('/api/stats/orders', async (req, res) => {
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
 
-        const today = new Date().toISOString().split('T')[0];
-        
-        // ✅ CORREÇÃO: Faturamento hoje = SOMA dos pedidos ENTREGUES do dia
+        // ✅ CORREÇÃO: Usar a data LOCAL do Brasil (UTC-3)
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStr = today.toISOString().split('T')[0];
+
+        console.log('📅 Data local (Brasil):', todayStr);
+
+        // ✅ CORREÇÃO: Filtrar pedidos entregues DO DIA LOCAL
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
+            // Converter created_at para data local
             const date = new Date(o.created_at);
-            return date.toISOString().split('T')[0] === today && 
-                   (o.status === 'entregue' || o.status === 'Entregue');
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            const dateStr = localDate.toISOString().split('T')[0];
+
+            const isToday = dateStr === todayStr;
+            const isDelivered = o.status === 'entregue' || o.status === 'Entregue';
+
+            return isToday && isDelivered;
         });
-        
+
         const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
         const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
 
         console.log('📊 Estatísticas calculadas:');
         console.log(`   Total: ${total}`);
         console.log(`   Pendentes: ${pending}`);
-        console.log(`   Faturamento hoje: R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
+        console.log(`   Faturamento hoje (${todayStr}): R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
         console.log(`   Ticket médio: R$ ${avgTicket.toFixed(2)}`);
 
         res.json({
@@ -2073,26 +2084,29 @@ app.get('/api/stats/dashboard', async (req, res) => {
 
         let startDate = new Date();
 
+        // ✅ CORREÇÃO: Usar data local (Brasil) para todos os períodos
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+
         switch (period) {
             case 'today':
-                startDate.setHours(0, 0, 0, 0);
+                startDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
                 break;
             case 'week':
-                const day = startDate.getDay();
-                startDate.setDate(startDate.getDate() - day);
-                startDate.setHours(0, 0, 0, 0);
+                const day = localDate.getDay();
+                startDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate() - day);
                 break;
             case 'month':
-                startDate.setDate(1);
-                startDate.setHours(0, 0, 0, 0);
+                startDate = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
                 break;
             case 'all':
                 startDate = new Date(0);
                 break;
             default:
-                startDate.setHours(0, 0, 0, 0);
+                startDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
         }
 
+        // Ajustar para UTC para consulta no banco
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
@@ -2105,7 +2119,7 @@ app.get('/api/stats/dashboard', async (req, res) => {
         );
 
         console.log(`📦 Pedidos encontrados: ${orders.length}`);
-
+        
         const salesMap = {};
         orders.forEach(order => {
             const date = new Date(order.created_at).toISOString().split('T')[0];
