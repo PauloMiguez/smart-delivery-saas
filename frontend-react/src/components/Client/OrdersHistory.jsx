@@ -148,27 +148,23 @@ const CustomerInfo = styled.div`
 `;
 
 // ============================================================
-//  FUNÇÃO DE FORMATAÇÃO DE DATA - CORRIGIDA
-//  ✅ Mesma lógica do printOrderPDF.jsx que já funciona
+//  FUNÇÕES DE FORMATAÇÃO DE DATA - CORRIGIDAS
 // ============================================================
 
 /**
  * Formata a data de criação do pedido (created_at)
- * Converte de UTC para UTC-3 (Brasil) subtraindo 3 horas
- * Esta é a mesma lógica que funciona no printOrderPDF.jsx
+ * Usa timeZone 'America/Sao_Paulo' para converter corretamente
+ * Não subtrai horas manualmente
  */
 const formatCreatedAt = (dateString) => {
     if (!dateString) return '-';
     try {
-        // Criar objeto Date a partir da string
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // ✅ Subtrair 3 horas para converter de UTC para UTC-3 (Brasil)
-        // Esta é a lógica que funciona no printOrderPDF.jsx
-        const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-        
-        return localDate.toLocaleString('pt-BR', {
+        // ✅ CORREÇÃO: Usar toLocaleString com timeZone
+        return date.toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -385,14 +381,6 @@ const OrdersHistory = () => {
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                     const hasToken = !!order.access_token;
-                    
-                    // ✅ DEBUG: Log para verificar a data recebida
-                    console.log(`📅 Pedido #${order.order_number}:`, {
-                        created_at: order.created_at,
-                        formatted: formatCreatedAt(order.created_at),
-                        is_scheduled: order.is_scheduled,
-                        scheduled_time: order.scheduled_time
-                    });
                     
                     return (
                         <OrderCard key={order.id}>
