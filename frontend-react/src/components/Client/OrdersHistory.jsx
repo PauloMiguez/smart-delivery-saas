@@ -153,8 +153,8 @@ const CustomerInfo = styled.div`
 
 /**
  * Formata a data de criação do pedido (created_at)
- * Esta é a data que deve aparecer no cabeçalho do pedido
- * Usa timeZone 'America/Sao_Paulo' para converter corretamente
+ * O backend já retorna no horário do Brasil (UTC-3)
+ * Apenas formata para exibição, SEM conversão de fuso
  */
 const formatCreatedAt = (dateString) => {
     if (!dateString) return '-';
@@ -162,8 +162,9 @@ const formatCreatedAt = (dateString) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
+        // ✅ CORREÇÃO: Apenas formatar, sem timeZone
+        // O backend já retorna no horário do Brasil
         return date.toLocaleString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -357,7 +358,7 @@ const OrdersHistory = () => {
                         <OrderCard key={order.id}>
                             <OrderHeader>
                                 <OrderNumber>#{order.order_number || order.id}</OrderNumber>
-                                {/* ✅ CORREÇÃO: Sempre mostrar a data de criação */}
+                                {/* ✅ CORREÇÃO: Data de criação sem conversão de fuso */}
                                 <OrderDate>
                                     {formatCreatedAt(order.created_at)}
                                 </OrderDate>
@@ -367,7 +368,7 @@ const OrdersHistory = () => {
                                 {statusLabels[order.status] || order.status}
                             </OrderStatus>
                             
-                            {/* ✅ Se for agendado, mostrar a data agendada como informação adicional */}
+                            {/* Se for agendado, mostrar a data agendada como informação adicional */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <div style={{ 
                                     fontSize: '12px', 
