@@ -366,7 +366,7 @@ const DeliverySettings = () => {
             };
 
             await api.put('/config', data);
-            showToast('✅ Configurações salvas com sucesso!', 'success');
+            showToast('Configurações salvas com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao salvar:', error);
             showToast('Erro ao salvar configurações', 'error');
@@ -393,9 +393,9 @@ const DeliverySettings = () => {
                     value={deliveryType}
                     onChange={(e) => setDeliveryType(e.target.value)}
                 >
-                    <option value="fixa">💰 Fixa</option>
-                    <option value="dinamica">📍 Dinâmica (por bairro)</option>
-                    <option value="manual">✋ Manual</option>
+                    <option value="fixa">Fixa</option>
+                    <option value="dinamica">Dinâmica (por bairro)</option>
+                    <option value="manual">Manual</option>
                 </Select>
             </FormGroup>
 
@@ -412,7 +412,7 @@ const DeliverySettings = () => {
                         placeholder="0.00"
                     />
                     <InfoBox>
-                        💡 Esta taxa será aplicada a todos os pedidos, independente do endereço.
+                        Esta taxa será aplicada a todos os pedidos, independente do endereço.
                     </InfoBox>
                 </FormGroup>
             )}
@@ -421,7 +421,7 @@ const DeliverySettings = () => {
                 <FormGroup>
                     <Label>Zonas de Entrega</Label>
                     <InfoBox>
-                        📍 Configure os bairros e os valores de entrega para cada um.
+                        Configure os bairros e os valores de entrega para cada um.
                         O sistema identificará o bairro pelo endereço do cliente.
                     </InfoBox>
 
@@ -462,7 +462,7 @@ const DeliverySettings = () => {
 
             {deliveryType === 'manual' && (
                 <InfoBox>
-                    ✋ A taxa de entrega será definida manualmente pelo restaurante
+                    A taxa de entrega será definida manualmente pelo restaurante
                     após o pedido ser enviado. O cliente verá a mensagem
                     "Taxa de entrega será informada após o pedido".
                 </InfoBox>
