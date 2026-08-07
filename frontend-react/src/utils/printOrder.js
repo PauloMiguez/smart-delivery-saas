@@ -4,40 +4,40 @@
 
 export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     // ============================================================
-    //  ✅ CORREÇÃO: formatDate com verificação correta
+    //  ✅ CORREÇÃO: formatDate com ajuste correto para created_at
     // ============================================================
     const formatDate = (dateString, isScheduled = false) => {
         if (!dateString) return '-';
         try {
-            // ✅ CORREÇÃO: Verificar se é uma data agendada (formato YYYY-MM-DDTHH:MM:SS)
-            // e NÃO tem Z (UTC) ou offset (+/-)
-            const isScheduledDate = isScheduled && 
-                                   typeof dateString === 'string' && 
-                                   dateString.includes('T') && 
-                                   !dateString.includes('Z') && 
-                                   !dateString.includes('+') &&
-                                   !dateString.includes('-', 10); // Não tem offset depois do T
-
-            if (isScheduledDate) {
-                // Data agendada: manter o horário de parede
-                const parts = dateString.split('T');
-                if (parts.length === 2) {
-                    const datePart = parts[0];
-                    const timePart = parts[1];
-                    const [y, m, d] = datePart.split('-');
-                    const [h, min] = timePart.split(':');
-                    if (y && m && d && h && min) {
-                        return `${d}/${m}/${y}, ${h}:${min}`;
+            // Se for uma data agendada, manter o horário de parede
+            if (isScheduled && typeof dateString === 'string') {
+                const isLocalFormat = dateString.includes('T') && 
+                                     !dateString.includes('Z') && 
+                                     !dateString.includes('+') &&
+                                     !dateString.includes('-', 10);
+                
+                if (isLocalFormat) {
+                    const parts = dateString.split('T');
+                    if (parts.length === 2) {
+                        const [datePart, timePart] = parts;
+                        const [y, m, d] = datePart.split('-');
+                        const [h, min] = timePart.split(':');
+                        if (y && m && d && h && min) {
+                            return `${d}/${m}/${y}, ${h}:${min}`;
+                        }
                     }
                 }
             }
 
-            // Para created_at e outras datas, usar timezone Brasil
+            // ✅ CORREÇÃO: Para created_at, subtrair 3 horas (UTC-3)
+            // O banco salva em UTC, precisamos ajustar para o horário do Brasil
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-
-            return date.toLocaleString('pt-BR', {
-                timeZone: 'America/Sao_Paulo',
+            
+            // Subtrair 3 horas para converter de UTC para UTC-3 (Brasil)
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            
+            return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
