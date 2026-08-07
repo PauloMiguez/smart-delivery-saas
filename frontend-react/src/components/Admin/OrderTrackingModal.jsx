@@ -367,11 +367,12 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
         const status = order?.delivery_status || 'calculated';
         const deliveryType = order?.delivery_type || 'fixa';
 
-        console.log('🔍 Debug taxa de entrega:', {
+        console.log('🔍 Debug taxa de entrega (modal):', {
             fee,
             status,
             deliveryType,
-            order_delivery_type: order?.delivery_type
+            order_delivery_type: order?.delivery_type,
+            order_complete: order
         });
 
         // ✅ Caso 1: Taxa pendente (bairro não cadastrado)

@@ -1250,7 +1250,7 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(discount || 0),
                 finalTotal,
                 payment_method,
-                delivery_type,  // 
+                deliveryType,  // ✅ USE deliveryType (da config), NÃO delivery_type do body
                 notes || null,
                 is_scheduled ? 1 : 0,
                 finalScheduledTime,

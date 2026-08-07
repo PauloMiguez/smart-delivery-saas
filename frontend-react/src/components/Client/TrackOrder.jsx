@@ -244,7 +244,8 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
         fee,
         status,
         type,
-        deliveryType_raw: deliveryType
+        deliveryType_raw: deliveryType,
+        order: order
     });
 
     // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
@@ -490,11 +491,11 @@ const TrackOrder = () => {
 
     // ✅ Verificar se é agendado (de forma robusta)
     const isScheduled = Number(order.is_scheduled) === 1;
-    const hasScheduledTime = order.scheduled_time && 
-                             order.scheduled_time !== '0' && 
-                             order.scheduled_time !== 'null' &&
-                             order.scheduled_time !== '' &&
-                             order.scheduled_time !== 0;
+    const hasScheduledTime = order.scheduled_time &&
+        order.scheduled_time !== '0' &&
+        order.scheduled_time !== 'null' &&
+        order.scheduled_time !== '' &&
+        order.scheduled_time !== 0;
 
     // ✅ Obter display da taxa de entrega (sem fallback "Grátis")
     const deliveryDisplay = getDeliveryFeeDisplay(
