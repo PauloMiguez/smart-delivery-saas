@@ -240,6 +240,13 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
     const status = deliveryStatus || 'calculated';
     const type = deliveryType || 'fixa';
 
+    console.log('🔍 Debug taxa de entrega (TrackOrder):', {
+        fee,
+        status,
+        type,
+        deliveryType_raw: deliveryType
+    });
+
     // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
     if (status === 'pending') {
         return {
@@ -248,8 +255,8 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
         };
     }
 
-    // ✅ Caso 2: Taxa manual
-    if (type === 'manual') {
+    // ✅ Caso 2: Taxa manual (verifica se type é 'manual')
+    if (type === 'manual' || deliveryType === 'manual') {
         return {
             text: 'Informada após o pedido',
             style: { color: '#f59e0b', fontWeight: '600' }

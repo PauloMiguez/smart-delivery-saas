@@ -121,7 +121,7 @@ const StatusBadge = styled.div`
     font-size: ${tokens.typography.fontSize.sm};
 
     ${props => {
-        switch(props.status) {
+        switch (props.status) {
             case 'pending':
                 return `
                     background: ${tokens.colors.warningLight};
@@ -235,7 +235,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
     const loadOrder = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             if (!token) {
                 setError('Token de acesso não encontrado.');
@@ -244,7 +244,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             }
 
             const response = await api.get(`/orders/${orderId}?token=${token}`);
-            
+
             if (response.data.success) {
                 setOrder(response.data.data);
                 console.log('✅ Pedido carregado no modal:', response.data.data.order_number);
@@ -362,14 +362,17 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
         }
     };
 
-    // ============================================================
-    //  ✅ CORREÇÃO: Exibir texto correto para taxa de entrega
-    //  REGRA: NUNCA usar "Grátis" como fallback
-    // ============================================================
     const getDeliveryFeeDisplay = () => {
         const fee = parseFloat(order?.delivery_fee) || 0;
         const status = order?.delivery_status || 'calculated';
         const deliveryType = order?.delivery_type || 'fixa';
+
+        console.log('🔍 Debug taxa de entrega:', {
+            fee,
+            status,
+            deliveryType,
+            order_delivery_type: order?.delivery_type
+        });
 
         // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
         if (status === 'pending') {
@@ -379,8 +382,8 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             };
         }
 
-        // ✅ Caso 2: Taxa manual
-        if (deliveryType === 'manual') {
+        // ✅ Caso 2: Taxa manual (verifica se delivery_type é 'manual')
+        if (deliveryType === 'manual' || order?.delivery_type === 'manual') {
             return {
                 text: 'Informada após o pedido',
                 style: { color: tokens.colors.warning, fontWeight: tokens.typography.fontWeight.medium }
@@ -400,10 +403,10 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const total = parseFloat(order?.total) || 0;
     const isScheduled = Number(order?.is_scheduled) === 1;
-    const hasScheduledTime = order?.scheduled_time && 
-                             order.scheduled_time !== '0' && 
-                             order.scheduled_time !== 'null' &&
-                             order.scheduled_time !== '';
+    const hasScheduledTime = order?.scheduled_time &&
+        order.scheduled_time !== '0' &&
+        order.scheduled_time !== 'null' &&
+        order.scheduled_time !== '';
 
     const deliveryDisplay = getDeliveryFeeDisplay();
 
@@ -434,7 +437,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                                 {getStatusEmoji(order.status)} {getStatusLabel(order.status)}
                             </StatusBadge>
                             {isScheduled && hasScheduledTime && (
-                                <span style={{ 
+                                <span style={{
                                     marginLeft: tokens.spacing.sm,
                                     fontSize: tokens.typography.fontSize.sm,
                                     color: tokens.colors.accent,
@@ -482,12 +485,12 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                                     </span>
                                 </DetailRow>
                             ))}
-                            
+
                             <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>Subtotal</span>
                                 <span>{formatMoney(subtotal)}</span>
                             </DetailRow>
-                            
+
                             {/* ✅ CORREÇÃO: Exibir taxa de entrega SEMPRE como valor ou "Informada após o pedido" */}
                             <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>🚚 Taxa de entrega</span>
@@ -495,7 +498,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                                     {deliveryDisplay.text}
                                 </span>
                             </DetailRow>
-                            
+
                             <DetailTotal>
                                 <span>Total</span>
                                 <span>{formatMoney(total)}</span>

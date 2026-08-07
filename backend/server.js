@@ -1250,14 +1250,14 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(discount || 0),
                 finalTotal,
                 payment_method,
-                delivery_type,
+                delivery_type,  // 
                 notes || null,
                 is_scheduled ? 1 : 0,
                 finalScheduledTime,
                 finalScheduledStatus,
                 finalStatus,
                 accessToken,
-                deliveryStatus  // ✅ 'calculated' ou 'pending'
+                deliveryStatus
             ]
         );
         console.log(`✅ Pedido criado: ${orderNumber} ${is_scheduled ? '(Agendado para ' + scheduled_time + ')' : ''}`);
