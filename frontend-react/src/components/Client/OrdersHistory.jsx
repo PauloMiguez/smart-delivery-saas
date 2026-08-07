@@ -148,18 +148,19 @@ const CustomerInfo = styled.div`
 `;
 
 // ============================================================
-//  FUNÇÃO DE FORMATAÇÃO DE DATA - SIMPLES E DIRETA
-//  ✅ Baseada na função do printOrderPDF.jsx que já funciona
+//  FUNÇÃO DE FORMATAÇÃO DE DATA - CORRIGIDA
+//  ✅ Mesma lógica do printOrderPDF.jsx que já funciona
 // ============================================================
 
 /**
  * Formata a data de criação do pedido (created_at)
- * Subtrai 3 horas para converter de UTC para UTC-3 (Brasil)
+ * Converte de UTC para UTC-3 (Brasil) subtraindo 3 horas
  * Esta é a mesma lógica que funciona no printOrderPDF.jsx
  */
 const formatCreatedAt = (dateString) => {
     if (!dateString) return '-';
     try {
+        // Criar objeto Date a partir da string
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
@@ -202,7 +203,15 @@ const formatScheduledTime = (dateString) => {
         }
         
         // Fallback
-        return formatCreatedAt(dateString);
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     } catch {
         return '-';
     }
@@ -376,6 +385,14 @@ const OrdersHistory = () => {
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                     const hasToken = !!order.access_token;
+                    
+                    // ✅ DEBUG: Log para verificar a data recebida
+                    console.log(`📅 Pedido #${order.order_number}:`, {
+                        created_at: order.created_at,
+                        formatted: formatCreatedAt(order.created_at),
+                        is_scheduled: order.is_scheduled,
+                        scheduled_time: order.scheduled_time
+                    });
                     
                     return (
                         <OrderCard key={order.id}>
