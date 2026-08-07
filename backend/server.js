@@ -2018,13 +2018,23 @@ app.get('/api/stats/orders', async (req, res) => {
         ).length;
 
         const today = new Date().toISOString().split('T')[0];
+        
+        // ✅ CORREÇÃO: Faturamento hoje = SOMA dos pedidos ENTREGUES do dia
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
             const date = new Date(o.created_at);
-            return date.toISOString().split('T')[0] === today;
+            return date.toISOString().split('T')[0] === today && 
+                   (o.status === 'entregue' || o.status === 'Entregue');
         });
+        
         const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
         const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
+
+        console.log('📊 Estatísticas calculadas:');
+        console.log(`   Total: ${total}`);
+        console.log(`   Pendentes: ${pending}`);
+        console.log(`   Faturamento hoje: R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
+        console.log(`   Ticket médio: R$ ${avgTicket.toFixed(2)}`);
 
         res.json({
             success: true,
