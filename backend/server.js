@@ -56,21 +56,21 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
     if (config.delivery_type === 'fixa') {
         return { fee: parseFloat(config.delivery_fee) || 0, found: true };
     }
-    
+
     // Se for manual, retorna 0 (será definido depois)
     if (config.delivery_type === 'manual') {
         return { fee: 0, found: false, message: 'Taxa informada após o pedido' };
     }
-    
+
     // Se for dinâmica, buscar por bairro
     if (config.delivery_type === 'dinamica') {
         try {
             const zones = JSON.parse(config.delivery_zones || '[]');
-            
+
             if (zones.length === 0) {
                 return { fee: 0, found: false, message: 'Nenhum bairro cadastrado' };
             }
-            
+
             // Extrair bairro do endereço
             const addressParts = endereco.split(',');
             let bairro = '';
@@ -83,19 +83,19 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
                     bairro = parts[1];
                 }
             }
-            
+
             console.log(`🔍 Buscando bairro: "${bairro}" em ${zones.length} zonas`);
-            
+
             // Buscar zona que corresponde ao bairro (case insensitive)
-            const zone = zones.find(z => 
+            const zone = zones.find(z =>
                 z.bairro && bairro.toLowerCase().includes(z.bairro.toLowerCase())
             );
-            
+
             if (zone) {
                 console.log(`✅ Bairro encontrado: ${zone.bairro} - Taxa: R$ ${zone.valor}`);
                 return { fee: parseFloat(zone.valor) || 0, found: true };
             }
-            
+
             // ❌ Bairro não encontrado - retornar 0 com mensagem
             console.log(`❌ Bairro "${bairro}" não encontrado na lista`);
             return { fee: 0, found: false, message: 'Bairro não cadastrado - taxa será informada após o pedido' };
@@ -104,7 +104,7 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
             return { fee: 0, found: false, message: 'Erro ao calcular taxa' };
         }
     }
-    
+
     return { fee: parseFloat(config.delivery_fee) || 0, found: true };
 }
 // ============================================================
@@ -1132,7 +1132,7 @@ app.post('/api/orders', async (req, res) => {
 
         // ✅ Se não encontrou o bairro, taxa = 0 (será definida manualmente depois)
         const finalDeliveryFee = (deliveryType === 'manual' || !deliveryFound) ? 0 : (delivery_fee || calculatedDeliveryFee);
-        const finalTotal = parseFloat(total) 
+        const finalTotal = parseFloat(total)
 
         console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType}, encontrado: ${deliveryFound})`);
 
@@ -1226,14 +1226,15 @@ app.post('/api/orders', async (req, res) => {
 
         const accessToken = crypto.randomBytes(32).toString('hex');
 
+
         const [result] = await pool.query(
             `INSERT INTO orders (
-                tenant_id, order_number, customer_name, customer_email,
-                customer_phone, customer_address, items, subtotal,
-                delivery_fee, discount, total, payment_method,
-                delivery_type, notes, is_scheduled, scheduled_time,
-                scheduled_status, status, access_token
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        tenant_id, order_number, customer_name, customer_email,
+        customer_phone, customer_address, items, subtotal,
+        delivery_fee, discount, total, payment_method,
+        delivery_type, notes, is_scheduled, scheduled_time,
+        scheduled_status, status, access_token, delivery_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 tenantId,
                 orderNumber,
@@ -1253,7 +1254,8 @@ app.post('/api/orders', async (req, res) => {
                 finalScheduledTime,
                 finalScheduledStatus,
                 finalStatus,
-                accessToken
+                accessToken,
+                deliveryFound ? 'calculated' : 'pending'  // ✅ NOVO: status da taxa
             ]
         );
 
@@ -1547,7 +1549,7 @@ app.get('/api/config', async (req, res) => {
 app.post('/api/calculate-delivery', async (req, res) => {
     try {
         const { address, tenant } = req.body;
-        
+
         if (!tenant) {
             return res.status(400).json({
                 success: false,
