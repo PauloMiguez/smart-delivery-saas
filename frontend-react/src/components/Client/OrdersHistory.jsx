@@ -153,8 +153,7 @@ const CustomerInfo = styled.div`
 
 /**
  * Formata a data de criação do pedido (created_at)
- * O backend já retorna no horário do Brasil (UTC-3)
- * Apenas formata para exibição, SEM conversão de fuso
+ * Converte de UTC para UTC-3 (Brasil) subtraindo 3 horas
  */
 const formatCreatedAt = (dateString) => {
     if (!dateString) return '-';
@@ -162,9 +161,10 @@ const formatCreatedAt = (dateString) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // ✅ CORREÇÃO: Apenas formatar, sem timeZone
-        // O backend já retorna no horário do Brasil
-        return date.toLocaleString('pt-BR', {
+        // ✅ CORREÇÃO: Subtrair 3 horas para converter UTC → UTC-3 (Brasil)
+        const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+        
+        return localDate.toLocaleString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -358,7 +358,7 @@ const OrdersHistory = () => {
                         <OrderCard key={order.id}>
                             <OrderHeader>
                                 <OrderNumber>#{order.order_number || order.id}</OrderNumber>
-                                {/* ✅ CORREÇÃO: Data de criação sem conversão de fuso */}
+                                {/* ✅ CORREÇÃO: Data de criação com UTC-3 */}
                                 <OrderDate>
                                     {formatCreatedAt(order.created_at)}
                                 </OrderDate>
