@@ -4,24 +4,25 @@
 
 export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     // Função para formatar data
-    const formatDate = (dateString) => {
+    const formatDate = (dateString, isScheduled = false) => {
         if (!dateString) return '-';
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
             
-            // ✅ CORREÇÃO: Verificar se é uma data agendada
-            // Se for, não ajustar o fuso (já está no formato local)
-            const isScheduled = dateString.includes('T') && !dateString.includes('Z');
-            
-            let localDate;
+            // ✅ CORREÇÃO: Se for data agendada, NÃO ajustar fuso
             if (isScheduled) {
-                // Data agendada: já está no formato local, não ajustar
-                localDate = date;
-            } else {
-                // created_at: está em UTC, subtrair 3 horas
-                localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+                return date.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
             }
+            
+            // created_at: está em UTC, subtrair 3 horas
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
             
             return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
@@ -84,7 +85,8 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     // ✅ CORREÇÃO: Obter data agendada sem ajuste de fuso
     const getScheduledDisplay = () => {
         if (!order.is_scheduled || !order.scheduled_time) return '';
-        return `📅 Agendado: ${formatDate(order.scheduled_time)}`;
+        // Passar true para indicar que é data agendada
+        return `📅 Agendado: ${formatDate(order.scheduled_time, true)}`;
     };
 
     // Construir HTML
@@ -254,7 +256,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 <div style="text-align: right;">
                     <div class="order-number">#${order.order_number}</div>
                     <div style="font-size: 13px; color: #60696b; margin-top: 4px;">
-                        ${formatDate(order.created_at)}
+                        ${formatDate(order.created_at, false)}
                     </div>
                 </div>
             </div>
