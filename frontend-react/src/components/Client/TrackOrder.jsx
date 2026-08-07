@@ -232,6 +232,37 @@ const formatMoney = (value) => {
     return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
 };
 
+// ============================================================
+//  ✅ CORREÇÃO: Exibir texto correto para taxa de entrega
+//  REGRA: NUNCA usar "Grátis" como fallback
+// ============================================================
+const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
+    const status = deliveryStatus || 'calculated';
+    const type = deliveryType || 'fixa';
+
+    // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
+    if (status === 'pending') {
+        return {
+            text: 'Informada após o pedido',
+            style: { color: '#f59e0b', fontWeight: '600' }
+        };
+    }
+
+    // ✅ Caso 2: Taxa manual
+    if (type === 'manual') {
+        return {
+            text: 'Informada após o pedido',
+            style: { color: '#f59e0b', fontWeight: '600' }
+        };
+    }
+
+    // ✅ Caso 3: Taxa calculada - exibir o valor SEMPRE (mesmo que seja 0)
+    return {
+        text: formatMoney(fee),
+        style: { color: '#e67e22', fontWeight: '600' }
+    };
+};
+
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
@@ -298,6 +329,8 @@ const TrackOrder = () => {
                 console.log('✅ Pedido carregado:', response.data.data.order_number);
                 console.log('📊 is_scheduled:', response.data.data.is_scheduled);
                 console.log('📊 scheduled_time:', response.data.data.scheduled_time);
+                console.log('📊 delivery_status:', response.data.data.delivery_status);
+                console.log('📊 delivery_type:', response.data.data.delivery_type);
             } else {
                 setError('Pedido não encontrado');
                 showToast('Pedido não encontrado', 'error');
@@ -456,6 +489,13 @@ const TrackOrder = () => {
                              order.scheduled_time !== '' &&
                              order.scheduled_time !== 0;
 
+    // ✅ Obter display da taxa de entrega (sem fallback "Grátis")
+    const deliveryDisplay = getDeliveryFeeDisplay(
+        deliveryFee,
+        order.delivery_status,
+        order.delivery_type
+    );
+
     console.log('🔍 Debug agendamento:', {
         isScheduled,
         hasScheduledTime,
@@ -541,7 +581,7 @@ const TrackOrder = () => {
                             <span>{formatMoney(subtotal)}</span>
                         </div>
 
-                        {/* ✅ TAXA DE ENTREGA */}
+                        {/* ✅ TAXA DE ENTREGA - SEM FALLBACK "Grátis" */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -551,8 +591,8 @@ const TrackOrder = () => {
                             borderBottom: '2px solid #f0f0f0'
                         }}>
                             <span>🚚 Taxa de entrega</span>
-                            <span style={{ color: '#e67e22', fontWeight: '600' }}>
-                                {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
+                            <span style={deliveryDisplay.style}>
+                                {deliveryDisplay.text}
                             </span>
                         </div>
 

@@ -1226,6 +1226,8 @@ app.post('/api/orders', async (req, res) => {
 
         const accessToken = crypto.randomBytes(32).toString('hex');
 
+        // Calcular delivery_status
+        const deliveryStatus = deliveryFound ? 'calculated' : 'pending';
 
         const [result] = await pool.query(
             `INSERT INTO orders (
@@ -1255,10 +1257,9 @@ app.post('/api/orders', async (req, res) => {
                 finalScheduledStatus,
                 finalStatus,
                 accessToken,
-                deliveryFound ? 'calculated' : 'pending'  // ✅ NOVO: status da taxa
+                deliveryStatus  // ✅ 'calculated' ou 'pending'
             ]
         );
-
         console.log(`✅ Pedido criado: ${orderNumber} ${is_scheduled ? '(Agendado para ' + scheduled_time + ')' : ''}`);
 
         const io = req.app.get('io');
