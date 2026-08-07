@@ -2007,13 +2007,9 @@ app.get('/api/stats/orders', async (req, res) => {
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
-        // ✅ CORREÇÃO: Usar TIMEZONE diretamente na query SQL
-        // Ajustar created_at para UTC-3 (Brasil)
+        // ✅ CORREÇÃO: Buscar todos os pedidos
         const [orders] = await pool.query(
-            `SELECT *, 
-             DATE_SUB(created_at, INTERVAL 3 HOUR) as created_at_local
-             FROM orders 
-             WHERE tenant_id = ?`,
+            'SELECT * FROM orders WHERE tenant_id = ?',
             [tenantId]
         );
 
@@ -2022,7 +2018,7 @@ app.get('/api/stats/orders', async (req, res) => {
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
 
-        // ✅ CORREÇÃO: Usar data local do Brasil (UTC-3)
+        // ✅ CORREÇÃO: Data local (UTC-3)
         const now = new Date();
         const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
         const todayStr = localDate.toISOString().split('T')[0];
@@ -2030,13 +2026,26 @@ app.get('/api/stats/orders', async (req, res) => {
         console.log('📅 Data local (Brasil):', todayStr);
         console.log('📅 Data UTC:', now.toISOString().split('T')[0]);
         
-        // ✅ CORREÇÃO: Filtrar pedidos entregues DO DIA LOCAL
+        // ✅ CORREÇÃO: Filtrar pedidos entregues do dia local
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
-            // Usar created_at_local já ajustado
-            const dateStr = o.created_at_local.toISOString().split('T')[0];
+            
+            // Converter created_at para local (UTC-3)
+            const createdAt = new Date(o.created_at);
+            const localCreated = new Date(createdAt.getTime() - (3 * 60 * 60 * 1000));
+            const dateStr = localCreated.toISOString().split('T')[0];
+            
             const isToday = dateStr === todayStr;
             const isDelivered = o.status === 'entregue' || o.status === 'Entregue';
+            
+            // ✅ LOG DETALHADO: Mostrar cada pedido
+            console.log(`   📦 Pedido #${o.order_number}:`);
+            console.log(`      Criado em (UTC): ${o.created_at}`);
+            console.log(`      Criado em (Local): ${localCreated.toISOString()}`);
+            console.log(`      Data (Local): ${dateStr}`);
+            console.log(`      Hoje? ${isToday}`);
+            console.log(`      Entregue? ${isDelivered}`);
+            console.log(`      Status: ${o.status}`);
             
             return isToday && isDelivered;
         });
@@ -2048,12 +2057,6 @@ app.get('/api/stats/orders', async (req, res) => {
         console.log(`   Total: ${total}`);
         console.log(`   Pendentes: ${pending}`);
         console.log(`   Faturamento hoje (${todayStr}): R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
-        if (todayOrders.length > 0) {
-            console.log(`   Pedidos entregues hoje:`);
-            todayOrders.forEach(o => {
-                console.log(`     - #${o.order_number} | ${o.created_at_local.toISOString()} | R$ ${parseFloat(o.total).toFixed(2)}`);
-            });
-        }
 
         res.json({
             success: true,
