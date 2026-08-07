@@ -2007,69 +2007,69 @@ app.get('/api/stats/orders', async (req, res) => {
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
-        // ✅ CORREÇÃO: Buscar todos os pedidos
-        const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE tenant_id = ?',
-            [tenantId]
-        );
-
-        const total = orders.length;
-        const pending = orders.filter(o =>
-            o.status === 'pending' || o.status === 'Pendente'
-        ).length;
-
-        // ✅ CORREÇÃO: Data local (UTC-3)
+        // ✅ CORREÇÃO DEFINITIVA: Usar query SQL com CONVERT_TZ
+        // O banco salva em UTC, precisamos converter para UTC-3 (Brasil)
         const now = new Date();
         const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
         const todayStr = localDate.toISOString().split('T')[0];
-        
-        console.log('📅 Data local (Brasil):', todayStr);
-        console.log('📅 Data UTC:', now.toISOString().split('T')[0]);
-        
-        // ✅ CORREÇÃO: Filtrar pedidos entregues do dia local
-        const todayOrders = orders.filter(o => {
-            if (!o.created_at) return false;
-            
-            // Converter created_at para local (UTC-3)
-            const createdAt = new Date(o.created_at);
-            const localCreated = new Date(createdAt.getTime() - (3 * 60 * 60 * 1000));
-            const dateStr = localCreated.toISOString().split('T')[0];
-            
-            const isToday = dateStr === todayStr;
-            const isDelivered = o.status === 'entregue' || o.status === 'Entregue';
-            
-            // ✅ LOG DETALHADO: Mostrar cada pedido
-            console.log(`   📦 Pedido #${o.order_number}:`);
-            console.log(`      Criado em (UTC): ${o.created_at}`);
-            console.log(`      Criado em (Local): ${localCreated.toISOString()}`);
-            console.log(`      Data (Local): ${dateStr}`);
-            console.log(`      Hoje? ${isToday}`);
-            console.log(`      Entregue? ${isDelivered}`);
-            console.log(`      Status: ${o.status}`);
-            
-            return isToday && isDelivered;
-        });
-        
-        const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
-        const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
 
-        console.log('📊 Estatísticas calculadas:');
-        console.log(`   Total: ${total}`);
-        console.log(`   Pendentes: ${pending}`);
-        console.log(`   Faturamento hoje (${todayStr}): R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
+        console.log(`📅 Data local (Brasil): ${todayStr}`);
+        console.log(`📅 Data UTC: ${now.toISOString().split('T')[0]}`);
+
+        // Query com CONVERT_TZ para ajustar o fuso horário
+        const [stats] = await pool.query(
+            `SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status IN ('pending', 'Pendente') THEN 1 ELSE 0 END) as pending,
+                SUM(CASE 
+                    WHEN status IN ('entregue', 'Entregue') 
+                    AND DATE(CONVERT_TZ(created_at, '+00:00', '-03:00')) = ? 
+                    THEN total 
+                    ELSE 0 
+                END) as todayRevenue,
+                AVG(total) as avgTicket
+             FROM orders 
+             WHERE tenant_id = ?`,
+            [todayStr, tenantId]
+        );
+
+        // Buscar pedidos recentes com data local para debug
+        const [recentOrders] = await pool.query(
+            `SELECT *, 
+             CONVERT_TZ(created_at, '+00:00', '-03:00') as created_at_local
+             FROM orders 
+             WHERE tenant_id = ? 
+             ORDER BY created_at DESC 
+             LIMIT 10`,
+            [tenantId]
+        );
+
+        console.log('📊 Pedidos recentes (com data local):');
+        recentOrders.forEach(o => {
+            const localCreated = o.created_at_local;
+            const dateStr = localCreated ? localCreated.toISOString().split('T')[0] : 'N/A';
+            console.log(`   #${o.order_number}: status=${o.status}, data_local=${dateStr}, total=R$ ${parseFloat(o.total).toFixed(2)}`);
+        });
+
+        const result = {
+            total: parseInt(stats[0].total) || 0,
+            pending: parseInt(stats[0].pending) || 0,
+            todayRevenue: parseFloat(stats[0].todayRevenue) || 0,
+            avgTicket: parseFloat(stats[0].avgTicket) || 0,
+            recentOrders: recentOrders.map(o => ({
+                ...o,
+                created_at_local: o.created_at_local,
+                items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
+            }))
+        };
+
+        console.log(`📊 Total: ${result.total}`);
+        console.log(`📊 Pendentes: ${result.pending}`);
+        console.log(`📊 Faturamento hoje (${todayStr}): R$ ${result.todayRevenue.toFixed(2)}`);
 
         res.json({
             success: true,
-            data: {
-                total,
-                pending,
-                todayRevenue,
-                avgTicket,
-                recentOrders: orders.slice(0, 10).map(o => ({
-                    ...o,
-                    items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
-                }))
-            }
+            data: result
         });
     } catch (error) {
         console.error('❌ Erro ao buscar estatísticas:', error);
