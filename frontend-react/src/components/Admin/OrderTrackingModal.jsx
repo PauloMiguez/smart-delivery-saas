@@ -306,7 +306,8 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             'confirmado': 'Confirmado',
             'preparando': 'Em preparo',
             'entregue': 'Entregue',
-            'cancelado': 'Cancelado'
+            'cancelado': 'Cancelado',
+            'scheduled': 'Agendado'  
         };
         return labels[status] || status;
     };
@@ -317,7 +318,8 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             'confirmado': '✅',
             'preparando': '👨‍🍳',
             'entregue': '📦',
-            'cancelado': '❌'
+            'cancelado': '❌',
+            'scheduled': '📅'
         };
         return emojis[status] || '📋';
     };
