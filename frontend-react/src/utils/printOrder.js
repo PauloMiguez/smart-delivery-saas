@@ -3,44 +3,52 @@
 // ============================================================
 
 export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
-    // Função para formatar data
-    
+    // ============================================================
+    //  ✅ CORREÇÃO: formatDate com verificação correta
+    // ============================================================
     const formatDate = (dateString, isScheduled = false) => {
-    if (!dateString) return '-';
-    try {
-        // Se for um horário agendado e vier como string ISO (sem Z ou offset),
-        // queremos manter o "horário de parede" exatamente como foi escrito.
-        if (isScheduled && typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('-') && dateString.includes('T')) {
-            const parts = dateString.split('T');
-            if (parts.length === 2) {
-                const [datePart, timePart] = parts;
-                const [y, m, d] = datePart.split('-');
-                const [h, min] = timePart.split(':');
-                if (y && m && d && h && min) {
-                    return `${d}/${m}/${y}, ${h}:${min}`;
+        if (!dateString) return '-';
+        try {
+            // ✅ CORREÇÃO: Verificar se é uma data agendada (formato YYYY-MM-DDTHH:MM:SS)
+            // e NÃO tem Z (UTC) ou offset (+/-)
+            const isScheduledDate = isScheduled && 
+                                   typeof dateString === 'string' && 
+                                   dateString.includes('T') && 
+                                   !dateString.includes('Z') && 
+                                   !dateString.includes('+') &&
+                                   !dateString.includes('-', 10); // Não tem offset depois do T
+
+            if (isScheduledDate) {
+                // Data agendada: manter o horário de parede
+                const parts = dateString.split('T');
+                if (parts.length === 2) {
+                    const datePart = parts[0];
+                    const timePart = parts[1];
+                    const [y, m, d] = datePart.split('-');
+                    const [h, min] = timePart.split(':');
+                    if (y && m && d && h && min) {
+                        return `${d}/${m}/${y}, ${h}:${min}`;
+                    }
                 }
             }
+
+            // Para created_at e outras datas, usar timezone Brasil
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '-';
+
+            return date.toLocaleString('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            console.error("Erro ao formatar data:", error);
+            return '-';
         }
-
-        // Para todos os outros casos (incluindo created_at), criamos o objeto Date
-        // e formatamos explicitamente para o fuso horário de São Paulo/Brasília.
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '-';
-
-        return date.toLocaleString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch (error) {
-        console.error("Erro ao formatar data:", error);
-        return '-';
-    }
-};
-
+    };
 
     // Formatar valor
     const formatMoney = (value) => {
@@ -88,7 +96,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     const deliveryFeeDisplay = getDeliveryFeeDisplay();
     const deliveryFeeColor = getDeliveryFeeColor();
 
-    // ✅ CORREÇÃO: Obter data agendada sem ajuste de fuso
+    // Obter data agendada
     const getScheduledDisplay = () => {
         if (!order.is_scheduled || !order.scheduled_time) return '';
         return `📅 Agendado: ${formatDate(order.scheduled_time, true)}`;
@@ -261,7 +269,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 <div style="text-align: right;">
                     <div class="order-number">#${order.order_number}</div>
                     <div style="font-size: 13px; color: #60696b; margin-top: 4px;">
-                        ${formatDate(order.created_at, false)}
+                        ${formatDate(order.created_at)}
                     </div>
                 </div>
             </div>
