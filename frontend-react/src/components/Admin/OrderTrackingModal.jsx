@@ -248,6 +248,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             if (response.data.success) {
                 setOrder(response.data.data);
                 console.log('✅ Pedido carregado no modal:', response.data.data.order_number);
+                console.log('📊 delivery_status:', response.data.data.delivery_status);
             } else {
                 setError('Pedido não encontrado');
             }
@@ -361,17 +362,48 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
         }
     };
 
+    // ============================================================
+    //  ✅ CORREÇÃO: Exibir texto correto para taxa de entrega
+    // ============================================================
+    const getDeliveryFeeDisplay = () => {
+        const fee = parseFloat(order?.delivery_fee) || 0;
+        const status = order?.delivery_status || 'calculated';
+
+        // Se o status for 'pending' (taxa pendente = bairro não cadastrado)
+        if (status === 'pending') {
+            return {
+                text: 'Informada após o pedido',
+                style: { color: tokens.colors.warning, fontWeight: tokens.typography.fontWeight.medium }
+            };
+        }
+
+        // Se a taxa for 0 e status for 'calculated' (taxa calculada como 0)
+        if (fee === 0 && status === 'calculated') {
+            return {
+                text: 'Grátis',
+                style: { color: tokens.colors.success, fontWeight: tokens.typography.fontWeight.medium }
+            };
+        }
+
+        // Taxa calculada normal
+        return {
+            text: formatMoney(fee),
+            style: { color: tokens.colors.accent, fontWeight: tokens.typography.fontWeight.semibold }
+        };
+    };
+
     if (!isOpen) return null;
 
     const items = order?.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : [];
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const deliveryFee = parseFloat(order?.delivery_fee) || 0;
     const total = parseFloat(order?.total) || 0;
     const isScheduled = Number(order?.is_scheduled) === 1;
     const hasScheduledTime = order?.scheduled_time && 
                              order.scheduled_time !== '0' && 
                              order.scheduled_time !== 'null' &&
                              order.scheduled_time !== '';
+
+    const deliveryDisplay = getDeliveryFeeDisplay();
 
     return (
         <ModalOverlay isOpen={isOpen} onClick={onClose}>
@@ -454,10 +486,11 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                                 <span>{formatMoney(subtotal)}</span>
                             </DetailRow>
                             
+                            {/* ✅ CORREÇÃO: Exibir taxa de entrega corretamente */}
                             <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>🚚 Taxa de entrega</span>
-                                <span style={{ color: tokens.colors.accent }}>
-                                    {deliveryFee > 0 ? formatMoney(deliveryFee) : 'Grátis'}
+                                <span style={deliveryDisplay.style}>
+                                    {deliveryDisplay.text}
                                 </span>
                             </DetailRow>
                             
@@ -467,7 +500,6 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                             </DetailTotal>
                         </div>
 
-                        {/* BOTÃO DE IMPRESSÃO */}
                         <ButtonGroup>
                             <PrintButton onClick={handlePrint}>
                                 🖨️ Imprimir / PDF
