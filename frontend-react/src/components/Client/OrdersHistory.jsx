@@ -153,8 +153,8 @@ const CustomerInfo = styled.div`
 
 /**
  * Formata a data de criação do pedido (created_at)
+ * Esta é a data que deve aparecer no cabeçalho do pedido
  * Usa timeZone 'America/Sao_Paulo' para converter corretamente
- * Não subtrai horas manualmente
  */
 const formatCreatedAt = (dateString) => {
     if (!dateString) return '-';
@@ -162,7 +162,6 @@ const formatCreatedAt = (dateString) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
         
-        // ✅ CORREÇÃO: Usar toLocaleString com timeZone
         return date.toLocaleString('pt-BR', {
             timeZone: 'America/Sao_Paulo',
             day: '2-digit',
@@ -198,38 +197,10 @@ const formatScheduledTime = (dateString) => {
             return `${day}/${month}/${year}, ${hour}:${minute}`;
         }
         
-        // Fallback
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '-';
-        return date.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return '-';
     } catch {
         return '-';
     }
-};
-
-/**
- * Formata a data para exibição no card
- */
-const formatOrderDate = (order) => {
-    if (!order) return '-';
-    
-    // Se for agendado, mostrar data agendada
-    if (order.is_scheduled && order.scheduled_time) {
-        return formatScheduledTime(order.scheduled_time);
-    }
-    
-    // Caso contrário, mostrar created_at com fuso corrigido
-    if (order.created_at) {
-        return formatCreatedAt(order.created_at);
-    }
-    
-    return '-';
 };
 
 // ============================================================
@@ -386,9 +357,9 @@ const OrdersHistory = () => {
                         <OrderCard key={order.id}>
                             <OrderHeader>
                                 <OrderNumber>#{order.order_number || order.id}</OrderNumber>
-                                {/* ✅ CORREÇÃO: Usando a função formatOrderDate */}
+                                {/* ✅ CORREÇÃO: Sempre mostrar a data de criação */}
                                 <OrderDate>
-                                    {formatOrderDate(order)}
+                                    {formatCreatedAt(order.created_at)}
                                 </OrderDate>
                             </OrderHeader>
                             
@@ -396,7 +367,7 @@ const OrdersHistory = () => {
                                 {statusLabels[order.status] || order.status}
                             </OrderStatus>
                             
-                            {/* Se for agendado, mostrar destaque com a data agendada */}
+                            {/* ✅ Se for agendado, mostrar a data agendada como informação adicional */}
                             {order.is_scheduled && order.scheduled_time && (
                                 <div style={{ 
                                     fontSize: '12px', 
