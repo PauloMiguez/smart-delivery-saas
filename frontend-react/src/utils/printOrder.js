@@ -3,17 +3,14 @@
 // ============================================================
 
 export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
-    // ============================================================
-    //  ✅ CORREÇÃO: Formatar data manualmente (sem new Date())
-    // ============================================================
+    // Função para formatar data
     const formatDate = (dateString, isScheduled = false) => {
         if (!dateString) return '-';
         try {
             if (isScheduled) {
-                // ✅ scheduled_time: string pura no formato YYYY-MM-DDTHH:MM:SS
-                // Extrair manualmente SEM usar new Date()
-                const clean = dateString.replace(' ', 'T');
-                const parts = clean.split('T');
+                // ✅ CORREÇÃO: Extrair manualmente sem converter para Date
+                // Formato esperado: YYYY-MM-DDTHH:MM:SS
+                const parts = dateString.split('T');
                 if (parts.length !== 2) return dateString;
                 
                 const datePart = parts[0];
@@ -33,22 +30,22 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 const minutes = timeComponents[1];
                 
                 return `${day}/${month}/${year}, ${hours}:${minutes}`;
-            } else {
-                // ✅ created_at: está em UTC, usar new Date() com ajuste
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return '-';
-                const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-                return localDate.toLocaleString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
             }
-        } catch (error) {
-            console.error('❌ Erro ao formatar data:', error);
-            return dateString || '-';
+            
+            // created_at: está em UTC, subtrair 3 horas
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '-';
+            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            
+            return localDate.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return '-';
         }
     };
 
@@ -98,7 +95,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     const deliveryFeeDisplay = getDeliveryFeeDisplay();
     const deliveryFeeColor = getDeliveryFeeColor();
 
-    // ✅ CORREÇÃO: Obter data agendada sem new Date()
+    // ✅ CORREÇÃO: Obter data agendada sem ajuste de fuso
     const getScheduledDisplay = () => {
         if (!order.is_scheduled || !order.scheduled_time) return '';
         return `📅 Agendado: ${formatDate(order.scheduled_time, true)}`;
