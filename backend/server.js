@@ -2007,8 +2007,13 @@ app.get('/api/stats/orders', async (req, res) => {
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
+        // ✅ CORREÇÃO: Usar TIMEZONE diretamente na query SQL
+        // Ajustar created_at para UTC-3 (Brasil)
         const [orders] = await pool.query(
-            'SELECT * FROM orders WHERE tenant_id = ?',
+            `SELECT *, 
+             DATE_SUB(created_at, INTERVAL 3 HOUR) as created_at_local
+             FROM orders 
+             WHERE tenant_id = ?`,
             [tenantId]
         );
 
@@ -2017,27 +2022,25 @@ app.get('/api/stats/orders', async (req, res) => {
             o.status === 'pending' || o.status === 'Pendente'
         ).length;
 
-        // ✅ CORREÇÃO: Usar a data LOCAL do Brasil (UTC-3)
+        // ✅ CORREÇÃO: Usar data local do Brasil (UTC-3)
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayStr = today.toISOString().split('T')[0];
-
+        const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+        const todayStr = localDate.toISOString().split('T')[0];
+        
         console.log('📅 Data local (Brasil):', todayStr);
-
+        console.log('📅 Data UTC:', now.toISOString().split('T')[0]);
+        
         // ✅ CORREÇÃO: Filtrar pedidos entregues DO DIA LOCAL
         const todayOrders = orders.filter(o => {
             if (!o.created_at) return false;
-            // Converter created_at para data local
-            const date = new Date(o.created_at);
-            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-            const dateStr = localDate.toISOString().split('T')[0];
-
+            // Usar created_at_local já ajustado
+            const dateStr = o.created_at_local.toISOString().split('T')[0];
             const isToday = dateStr === todayStr;
             const isDelivered = o.status === 'entregue' || o.status === 'Entregue';
-
+            
             return isToday && isDelivered;
         });
-
+        
         const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
         const avgTicket = total > 0 ? orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) / total : 0;
 
@@ -2045,7 +2048,12 @@ app.get('/api/stats/orders', async (req, res) => {
         console.log(`   Total: ${total}`);
         console.log(`   Pendentes: ${pending}`);
         console.log(`   Faturamento hoje (${todayStr}): R$ ${todayRevenue.toFixed(2)} (${todayOrders.length} pedidos entregues)`);
-        console.log(`   Ticket médio: R$ ${avgTicket.toFixed(2)}`);
+        if (todayOrders.length > 0) {
+            console.log(`   Pedidos entregues hoje:`);
+            todayOrders.forEach(o => {
+                console.log(`     - #${o.order_number} | ${o.created_at_local.toISOString()} | R$ ${parseFloat(o.total).toFixed(2)}`);
+            });
+        }
 
         res.json({
             success: true,
