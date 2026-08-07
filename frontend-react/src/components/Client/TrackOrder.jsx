@@ -181,35 +181,25 @@ const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
     try {
         if (isScheduled) {
-            // scheduled_time: string pura, extrair manualmente
             const clean = dateString.replace(' ', 'T');
             const parts = clean.split('T');
             if (parts.length !== 2) return dateString;
-
             const datePart = parts[0];
             const timePart = parts[1];
-
             const dateComponents = datePart.split('-');
             if (dateComponents.length !== 3) return dateString;
-
             const year = dateComponents[0];
             const month = dateComponents[1];
             const day = dateComponents[2];
-
             const timeComponents = timePart.split(':');
             if (timeComponents.length < 2) return dateString;
-
             const hours = timeComponents[0];
             const minutes = timeComponents[1];
-
             return `${day}/${month}/${year}, ${hours}:${minutes}`;
         } else {
-            // created_at: está em UTC, subtrair 3 horas
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-
             const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-
             return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -240,14 +230,6 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
     const status = deliveryStatus || 'calculated';
     const type = deliveryType || 'fixa';
 
-    console.log('🔍 Debug taxa de entrega (TrackOrder):', {
-        fee,
-        status,
-        type,
-        deliveryType_raw: deliveryType,
-        order: order
-    });
-
     // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
     if (status === 'pending') {
         return {
@@ -256,8 +238,8 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
         };
     }
 
-    // ✅ Caso 2: Taxa manual (verifica se type é 'manual')
-    if (type === 'manual' || deliveryType === 'manual') {
+    // ✅ Caso 2: Taxa manual
+    if (type === 'manual') {
         return {
             text: 'Informada após o pedido',
             style: { color: '#f59e0b', fontWeight: '600' }
@@ -491,11 +473,11 @@ const TrackOrder = () => {
 
     // ✅ Verificar se é agendado (de forma robusta)
     const isScheduled = Number(order.is_scheduled) === 1;
-    const hasScheduledTime = order.scheduled_time &&
-        order.scheduled_time !== '0' &&
-        order.scheduled_time !== 'null' &&
-        order.scheduled_time !== '' &&
-        order.scheduled_time !== 0;
+    const hasScheduledTime = order.scheduled_time && 
+                             order.scheduled_time !== '0' && 
+                             order.scheduled_time !== 'null' &&
+                             order.scheduled_time !== '' &&
+                             order.scheduled_time !== 0;
 
     // ✅ Obter display da taxa de entrega (sem fallback "Grátis")
     const deliveryDisplay = getDeliveryFeeDisplay(
