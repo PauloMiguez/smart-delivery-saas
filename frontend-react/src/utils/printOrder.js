@@ -9,7 +9,20 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
-            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            
+            // ✅ CORREÇÃO: Verificar se é uma data agendada
+            // Se for, não ajustar o fuso (já está no formato local)
+            const isScheduled = dateString.includes('T') && !dateString.includes('Z');
+            
+            let localDate;
+            if (isScheduled) {
+                // Data agendada: já está no formato local, não ajustar
+                localDate = date;
+            } else {
+                // created_at: está em UTC, subtrair 3 horas
+                localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            }
+            
             return localDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -28,35 +41,27 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
         return isNaN(num) ? 'R$ 0,00' : `R$ ${num.toFixed(2).replace('.', ',')}`;
     };
 
-    // ✅ CORREÇÃO: Função para exibir taxa de entrega corretamente
+    // Função para exibir taxa de entrega corretamente
     const getDeliveryFeeDisplay = () => {
         const fee = parseFloat(order.delivery_fee) || 0;
         const status = order.delivery_status || 'calculated';
         const type = order.delivery_type || 'fixa';
 
-        // Caso 1: Taxa pendente (bairro não cadastrado)
-        if (status === 'pending') {
+        if (status === 'pending' || type === 'manual') {
             return 'Informada após o pedido';
         }
-
-        // Caso 2: Taxa manual
-        if (type === 'manual') {
-            return 'Informada após o pedido';
-        }
-
-        // Caso 3: Taxa calculada - exibir o valor
         return formatMoney(fee);
     };
 
-    // ✅ CORREÇÃO: Cor da taxa de entrega
+    // Cor da taxa de entrega
     const getDeliveryFeeColor = () => {
         const status = order.delivery_status || 'calculated';
         const type = order.delivery_type || 'fixa';
         
         if (status === 'pending' || type === 'manual') {
-            return '#f59e0b'; // Amarelo/laranja para pendente
+            return '#f59e0b';
         }
-        return '#d9531e'; // Laranja principal para valores calculados
+        return '#d9531e';
     };
 
     // Status labels
@@ -75,6 +80,12 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     // Obter display da taxa
     const deliveryFeeDisplay = getDeliveryFeeDisplay();
     const deliveryFeeColor = getDeliveryFeeColor();
+
+    // ✅ CORREÇÃO: Obter data agendada sem ajuste de fuso
+    const getScheduledDisplay = () => {
+        if (!order.is_scheduled || !order.scheduled_time) return '';
+        return `📅 Agendado: ${formatDate(order.scheduled_time)}`;
+    };
 
     // Construir HTML
     const html = `
@@ -266,7 +277,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 </span>
                 ${order.is_scheduled && order.scheduled_time ? `
                     <span class="scheduled-badge" style="margin-left: 8px;">
-                        📅 Agendado: ${formatDate(order.scheduled_time)}
+                        ${getScheduledDisplay()}
                     </span>
                 ` : ''}
             </div>
@@ -322,7 +333,6 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                     <span class="total-value">${formatMoney(order.total)}</span>
                 </div>
                 
-                <!-- ✅ TAXA DE ENTREGA CORRIGIDA -->
                 <div class="delivery-row">
                     <span class="delivery-label">🚚 Taxa de entrega</span>
                     <span class="delivery-value">${deliveryFeeDisplay}</span>
@@ -344,7 +354,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 Este documento é uma cópia do pedido #${order.order_number}
             </div>
 
-            <!-- BOTÃO IMPRIMIR (visível apenas na tela) -->
+            <!-- BOTÃO IMPRIMIR -->
             <div class="no-print" style="text-align: center; margin-top: 24px;">
                 <button onclick="window.print()" style="
                     padding: 12px 40px;
@@ -389,7 +399,6 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     printWindow.document.close();
     printWindow.focus();
 
-    // Aguardar carregamento e abrir impressão
     printWindow.onload = function() {
         setTimeout(() => {
             printWindow.print();
