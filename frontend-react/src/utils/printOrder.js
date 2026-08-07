@@ -28,6 +28,37 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
         return isNaN(num) ? 'R$ 0,00' : `R$ ${num.toFixed(2).replace('.', ',')}`;
     };
 
+    // ✅ CORREÇÃO: Função para exibir taxa de entrega corretamente
+    const getDeliveryFeeDisplay = () => {
+        const fee = parseFloat(order.delivery_fee) || 0;
+        const status = order.delivery_status || 'calculated';
+        const type = order.delivery_type || 'fixa';
+
+        // Caso 1: Taxa pendente (bairro não cadastrado)
+        if (status === 'pending') {
+            return 'Informada após o pedido';
+        }
+
+        // Caso 2: Taxa manual
+        if (type === 'manual') {
+            return 'Informada após o pedido';
+        }
+
+        // Caso 3: Taxa calculada - exibir o valor
+        return formatMoney(fee);
+    };
+
+    // ✅ CORREÇÃO: Cor da taxa de entrega
+    const getDeliveryFeeColor = () => {
+        const status = order.delivery_status || 'calculated';
+        const type = order.delivery_type || 'fixa';
+        
+        if (status === 'pending' || type === 'manual') {
+            return '#f59e0b'; // Amarelo/laranja para pendente
+        }
+        return '#d9531e'; // Laranja principal para valores calculados
+    };
+
     // Status labels
     const statusLabels = {
         'pending': '🟡 Pendente',
@@ -40,6 +71,10 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
 
     // Parse items
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+
+    // Obter display da taxa
+    const deliveryFeeDisplay = getDeliveryFeeDisplay();
+    const deliveryFeeColor = getDeliveryFeeColor();
 
     // Construir HTML
     const html = `
@@ -158,6 +193,22 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 .total-row .total-value {
                     color: #d9531e;
                 }
+                .delivery-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 4px 0;
+                    font-size: 14px;
+                    color: #60696b;
+                    border-top: 1px solid #e8ebeb;
+                    margin-top: 4px;
+                }
+                .delivery-row .delivery-label {
+                    color: #60696b;
+                }
+                .delivery-row .delivery-value {
+                    font-weight: 600;
+                    color: ${deliveryFeeColor};
+                }
                 .footer {
                     margin-top: 40px;
                     padding-top: 16px;
@@ -270,12 +321,12 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                     <span class="total-label">TOTAL DO PEDIDO</span>
                     <span class="total-value">${formatMoney(order.total)}</span>
                 </div>
-                ${order.delivery_fee ? `
-                    <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; color: #60696b;">
-                        <span>Taxa de entrega</span>
-                        <span>${formatMoney(order.delivery_fee)}</span>
-                    </div>
-                ` : ''}
+                
+                <!-- ✅ TAXA DE ENTREGA CORRIGIDA -->
+                <div class="delivery-row">
+                    <span class="delivery-label">🚚 Taxa de entrega</span>
+                    <span class="delivery-value">${deliveryFeeDisplay}</span>
+                </div>
             </div>
 
             <!-- OBSERVAÇÕES -->
