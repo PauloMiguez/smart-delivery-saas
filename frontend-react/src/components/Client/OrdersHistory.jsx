@@ -143,6 +143,49 @@ const CustomerInfo = styled.div`
     color: #555;
 `;
 
+/**
+ * Formata a data de criação do pedido no fuso horário do Brasil.
+ *
+ * O problema do `new Date(str).toLocaleString(...)` é que datas ISO
+ * *sem* sufixo de fuso (ex.: "2026-08-07 15:30:00") são interpretadas
+ * como horário local do dispositivo do cliente — se o aparelho estiver
+ * em outro fuso, o horário exibido fica errado. Já datas com sufixo
+ * "Z" (UTC) precisam ser convertidas explicitamente para
+ * America/Sao_Paulo.
+ *
+ * Esta função trata os dois casos de forma determinística:
+ * 1. Se a string termina em "Z" ou contém offset ("+00:00", "-03:00"),
+ *    considera que é um horário absoluto e converte para America/Sao_Paulo.
+ * 2. Se a string é "solta" (sem offset), entende que já está no
+ *    horário local do Brasil e preserva a hora original.
+ */
+function formatarDataBrasileira(dataISO) {
+    if (!dataISO) return '';
+
+    const isAbsolute = /[Zz]|[+\-]\d{2}:\d{2}$/.test(dataISO);
+    const options = {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    };
+
+    if (!isAbsolute) {
+        // Data sem fuso informado: assume que já está no horário do Brasil.
+        // Preserva a hora original substituindo qualquer sufixo de fuso por
+        // um offset explícito de São Paulo e adiciona o timeZone.
+        const limpa = dataISO.replace(/[Zz]|[+\-]\d{2}:\d{2}$/, '');
+        return new Date(limpa + '-03:00').toLocaleString('pt-BR', options);
+    }
+
+    // Data absoluta (UTC ou com offset): converte normalmente e força
+    // o fuso de São Paulo na formatação.
+    return new Date(dataISO).toLocaleString('pt-BR', options);
+}
+
 const OrdersHistory = () => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -293,7 +336,7 @@ const OrdersHistory = () => {
                             <OrderHeader>
                                 <OrderNumber>#{order.order_number || order.id}</OrderNumber>
                                 <OrderDate>
-                                    {new Date(order.created_at).toLocaleString('pt-BR')}
+                                    {formatarDataBrasileira(order.created_at)}
                                 </OrderDate>
                             </OrderHeader>
                             <OrderStatus status={order.status}>
