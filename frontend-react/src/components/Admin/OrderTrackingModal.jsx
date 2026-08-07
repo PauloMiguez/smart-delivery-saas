@@ -364,12 +364,14 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
 
     // ============================================================
     //  ✅ CORREÇÃO: Exibir texto correto para taxa de entrega
+    //  REGRA: NUNCA usar "Grátis" como fallback
     // ============================================================
     const getDeliveryFeeDisplay = () => {
         const fee = parseFloat(order?.delivery_fee) || 0;
         const status = order?.delivery_status || 'calculated';
+        const deliveryType = order?.delivery_type || 'fixa';
 
-        // Se o status for 'pending' (taxa pendente = bairro não cadastrado)
+        // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
         if (status === 'pending') {
             return {
                 text: 'Informada após o pedido',
@@ -377,15 +379,15 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             };
         }
 
-        // Se a taxa for 0 e status for 'calculated' (taxa calculada como 0)
-        if (fee === 0 && status === 'calculated') {
+        // ✅ Caso 2: Taxa manual
+        if (deliveryType === 'manual') {
             return {
-                text: 'Grátis',
-                style: { color: tokens.colors.success, fontWeight: tokens.typography.fontWeight.medium }
+                text: 'Informada após o pedido',
+                style: { color: tokens.colors.warning, fontWeight: tokens.typography.fontWeight.medium }
             };
         }
 
-        // Taxa calculada normal
+        // ✅ Caso 3: Taxa calculada - exibir o valor SEMPRE (mesmo que seja 0)
         return {
             text: formatMoney(fee),
             style: { color: tokens.colors.accent, fontWeight: tokens.typography.fontWeight.semibold }
@@ -486,7 +488,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                                 <span>{formatMoney(subtotal)}</span>
                             </DetailRow>
                             
-                            {/* ✅ CORREÇÃO: Exibir taxa de entrega corretamente */}
+                            {/* ✅ CORREÇÃO: Exibir taxa de entrega SEMPRE como valor ou "Informada após o pedido" */}
                             <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>🚚 Taxa de entrega</span>
                                 <span style={deliveryDisplay.style}>
