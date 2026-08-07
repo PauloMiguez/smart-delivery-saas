@@ -6,6 +6,10 @@ import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import { Container, Button, Card } from '../Shared/Container';
 
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
+
 const HistoryContainer = styled(Container)`
     padding-top: 16px;
     padding-bottom: 40px;
@@ -143,48 +147,89 @@ const CustomerInfo = styled.div`
     color: #555;
 `;
 
+// ============================================================
+//  FUNÇÃO DE FORMATAÇÃO DE DATA - SIMPLES E DIRETA
+//  ✅ Baseada na função do printOrderPDF.jsx que já funciona
+// ============================================================
+
 /**
- * Formata a data de criação do pedido no fuso horário do Brasil.
- *
- * O problema do `new Date(str).toLocaleString(...)` é que datas ISO
- * *sem* sufixo de fuso (ex.: "2026-08-07 15:30:00") são interpretadas
- * como horário local do dispositivo do cliente — se o aparelho estiver
- * em outro fuso, o horário exibido fica errado. Já datas com sufixo
- * "Z" (UTC) precisam ser convertidas explicitamente para
- * America/Sao_Paulo.
- *
- * Esta função trata os dois casos de forma determinística:
- * 1. Se a string termina em "Z" ou contém offset ("+00:00", "-03:00"),
- *    considera que é um horário absoluto e converte para America/Sao_Paulo.
- * 2. Se a string é "solta" (sem offset), entende que já está no
- *    horário local do Brasil e preserva a hora original.
+ * Formata a data de criação do pedido (created_at)
+ * Subtrai 3 horas para converter de UTC para UTC-3 (Brasil)
+ * Esta é a mesma lógica que funciona no printOrderPDF.jsx
  */
-function formatarDataBrasileira(dataISO) {
-    if (!dataISO) return '';
-
-    const isAbsolute = /[Zz]|[+\-]\d{2}:\d{2}$/.test(dataISO);
-    const options = {
-        timeZone: 'America/Sao_Paulo',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    };
-
-    if (!isAbsolute) {
-        // Data sem fuso informado: assume que já está no horário do Brasil.
-        // Preserva a hora original substituindo qualquer sufixo de fuso por
-        // um offset explícito de São Paulo e adiciona o timeZone.
-        const limpa = dataISO.replace(/[Zz]|[+\-]\d{2}:\d{2}$/, '');
-        return new Date(limpa + '-03:00').toLocaleString('pt-BR', options);
+const formatCreatedAt = (dateString) => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        
+        // ✅ Subtrair 3 horas para converter de UTC para UTC-3 (Brasil)
+        // Esta é a lógica que funciona no printOrderPDF.jsx
+        const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+        
+        return localDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return '-';
     }
+};
 
-    // Data absoluta (UTC ou com offset): converte normalmente e força
-    // o fuso de São Paulo na formatação.
-    return new Date(dataISO).toLocaleString('pt-BR', options);
-}
+/**
+ * Formata a data agendada (scheduled_time)
+ * Mantém o horário exato, sem conversão
+ */
+const formatScheduledTime = (dateString) => {
+    if (!dateString) return '-';
+    try {
+        // Tenta extrair do formato ISO (YYYY-MM-DDTHH:MM:SS)
+        const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+        if (isoMatch) {
+            const [, year, month, day, hour, minute] = isoMatch;
+            return `${day}/${month}/${year}, ${hour}:${minute}`;
+        }
+        
+        // Tenta extrair do formato MySQL (YYYY-MM-DD HH:MM:SS)
+        const mysqlMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+        if (mysqlMatch) {
+            const [, year, month, day, hour, minute] = mysqlMatch;
+            return `${day}/${month}/${year}, ${hour}:${minute}`;
+        }
+        
+        // Fallback
+        return formatCreatedAt(dateString);
+    } catch {
+        return '-';
+    }
+};
+
+/**
+ * Formata a data para exibição no card
+ */
+const formatOrderDate = (order) => {
+    if (!order) return '-';
+    
+    // Se for agendado, mostrar data agendada
+    if (order.is_scheduled && order.scheduled_time) {
+        return formatScheduledTime(order.scheduled_time);
+    }
+    
+    // Caso contrário, mostrar created_at com fuso corrigido
+    if (order.created_at) {
+        return formatCreatedAt(order.created_at);
+    }
+    
+    return '-';
+};
+
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 
 const OrdersHistory = () => {
     const { tenant } = useTenant();
@@ -197,12 +242,12 @@ const OrdersHistory = () => {
     const [customerPhone, setCustomerPhone] = useState('');
 
     const statusLabels = {
-        'pending': 'Pendente',
-        'confirmado': 'Confirmado',
-        'preparando': 'Em preparo',
-        'entregue': 'Entregue',
-        'cancelado': 'Cancelado',
-        'scheduled': 'Agendado'
+        'pending': '🟡 Pendente',
+        'confirmado': '🟢 Confirmado',
+        'preparando': '🟠 Em preparo',
+        'entregue': '✅ Entregue',
+        'cancelado': '❌ Cancelado',
+        'scheduled': '📅 Agendado'
     };
 
     useEffect(() => {
@@ -331,17 +376,33 @@ const OrdersHistory = () => {
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                     const hasToken = !!order.access_token;
+                    
                     return (
                         <OrderCard key={order.id}>
                             <OrderHeader>
                                 <OrderNumber>#{order.order_number || order.id}</OrderNumber>
+                                {/* ✅ CORREÇÃO: Usando a função formatOrderDate */}
                                 <OrderDate>
-                                    {formatarDataBrasileira(order.created_at)}
+                                    {formatOrderDate(order)}
                                 </OrderDate>
                             </OrderHeader>
+                            
                             <OrderStatus status={order.status}>
                                 {statusLabels[order.status] || order.status}
                             </OrderStatus>
+                            
+                            {/* Se for agendado, mostrar destaque com a data agendada */}
+                            {order.is_scheduled && order.scheduled_time && (
+                                <div style={{ 
+                                    fontSize: '12px', 
+                                    color: '#e67e22',
+                                    marginTop: '4px',
+                                    fontWeight: '600'
+                                }}>
+                                    📅 Agendado para: {formatScheduledTime(order.scheduled_time)}
+                                </div>
+                            )}
+                            
                             <OrderItems>
                                 {items.slice(0, 3).map((item, idx) => (
                                     <span key={idx}>
@@ -351,11 +412,10 @@ const OrdersHistory = () => {
                                 ))}
                                 {items.length > 3 && ` +${items.length - 3} outros`}
                             </OrderItems>
+                            
                             <OrderTotal>Total: R$ {parseFloat(order.total).toFixed(2)}</OrderTotal>
+                            
                             {hasToken ? (
-                                // ============================================================
-                                //  CORREÇÃO: Adicionar parâmetro from=orders
-                                // ============================================================
                                 <TrackLink to={`/track/${order.id}?token=${order.access_token}&from=orders`}>
                                     🔍 Acompanhar pedido
                                 </TrackLink>
