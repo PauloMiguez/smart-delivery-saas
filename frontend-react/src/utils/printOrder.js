@@ -4,50 +4,43 @@
 
 export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
     // Função para formatar data
+    
     const formatDate = (dateString, isScheduled = false) => {
-        if (!dateString) return '-';
-        try {
-            if (isScheduled) {
-                // ✅ CORREÇÃO: Extrair manualmente sem converter para Date
-                // Formato esperado: YYYY-MM-DDTHH:MM:SS
-                const parts = dateString.split('T');
-                if (parts.length !== 2) return dateString;
-                
-                const datePart = parts[0];
-                const timePart = parts[1];
-                
-                const dateComponents = datePart.split('-');
-                if (dateComponents.length !== 3) return dateString;
-                
-                const year = dateComponents[0];
-                const month = dateComponents[1];
-                const day = dateComponents[2];
-                
-                const timeComponents = timePart.split(':');
-                if (timeComponents.length < 2) return dateString;
-                
-                const hours = timeComponents[0];
-                const minutes = timeComponents[1];
-                
-                return `${day}/${month}/${year}, ${hours}:${minutes}`;
+    if (!dateString) return '-';
+    try {
+        // Se for um horário agendado e vier como string ISO (sem Z ou offset),
+        // queremos manter o "horário de parede" exatamente como foi escrito.
+        if (isScheduled && typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('-') && dateString.includes('T')) {
+            const parts = dateString.split('T');
+            if (parts.length === 2) {
+                const [datePart, timePart] = parts;
+                const [y, m, d] = datePart.split('-');
+                const [h, min] = timePart.split(':');
+                if (y && m && d && h && min) {
+                    return `${d}/${m}/${y}, ${h}:${min}`;
+                }
             }
-            
-            // created_at: está em UTC, subtrair 3 horas
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return '-';
-            const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-            
-            return localDate.toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch {
-            return '-';
         }
-    };
+
+        // Para todos os outros casos (incluindo created_at), criamos o objeto Date
+        // e formatamos explicitamente para o fuso horário de São Paulo/Brasília.
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+
+        return date.toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error("Erro ao formatar data:", error);
+        return '-';
+    }
+};
+
 
     // Formatar valor
     const formatMoney = (value) => {
