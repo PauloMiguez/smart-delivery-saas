@@ -27,10 +27,11 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ CRUD de produtos com upload de imagens (Cloudinary)
 - ✅ CRUD de categorias com ordenação
 - ✅ Gerenciamento de pedidos com atualização de status
-- ✅ Modal de acompanhamento do pedido com detalhes
-- ✅ Configurações da loja (nome, horário, taxa de entrega, endereço)
+- ✅ Modal de acompanhamento do pedido com detalhes e impressão PDF
+- ✅ Configurações da loja (nome, horário, endereço)
 - ✅ Upload de banner e logo via Cloudinary
 - ✅ Horários de funcionamento configuráveis por dia da semana
+- ✅ Taxa de entrega configurável (Fixa/Dinâmica/Manual)
 - ✅ Notificações em tempo real com WebSocket
 - ✅ Layout responsivo com cards mobile
 
@@ -48,6 +49,13 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ Notificações em tempo real via WebSocket
 - ✅ Link único seguro para acompanhamento (token + validação)
 - ✅ Histórico de pedidos por cliente
+
+### 🚚 Taxa de Entrega
+- ✅ **Fixa:** Valor único para todos os pedidos
+- ✅ **Dinâmica:** Valor por bairro configurável
+- ✅ **Manual:** Definida após o pedido
+- ✅ Cálculo automático baseado no endereço do cliente
+- ✅ Exibição "Informada após o pedido" para taxas pendentes
 
 ---
 
@@ -94,7 +102,7 @@ smart-delivery-saas/
 │   │   │   └── Shared/    # Componentes reutilizáveis
 │   │   ├── contexts/      # Context API (Tenant, Cart, Toast, Modal)
 │   │   ├── services/      # API, axios, socket
-│   │   ├── styles/        # Tema global, styled components
+│   │   ├── styles/        # Tema global, tokens, styled components
 │   │   └── App.jsx
 │   ├── package.json
 │   └── vite.config.js
@@ -210,6 +218,7 @@ npm run dev
 | GET | `/api/operating-hours` | Buscar horários de funcionamento |
 | PUT | `/api/operating-hours` | Atualizar horários de funcionamento |
 | GET | `/api/orders/available-slots` | Verificar horários disponíveis |
+| POST | `/api/calculate-delivery` | Calcular taxa de entrega |
 | POST | `/api/upload/banner` | Upload do banner |
 | POST | `/api/upload/logo` | Upload do logo |
 | POST | `/api/upload/product` | Upload de imagem de produto |
@@ -309,7 +318,7 @@ Este projeto está sob a licença MIT.
 📧 **Contato:** seu-email@dominio.com
 ```
 
-## 📦 **COMMIT E DEPLOY**
+## 📝 **COMMIT E DEPLOY**
 
 ```bash
 # 1. Substituir o README.md
@@ -330,4 +339,3 @@ git commit -m "docs: atualiza README com todas as funcionalidades do sistema
 
 git push origin main
 ```
-
