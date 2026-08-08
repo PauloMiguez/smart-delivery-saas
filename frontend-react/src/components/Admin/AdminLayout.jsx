@@ -210,9 +210,20 @@ const AdminLayout = () => {
         setDashboardLoading(true);
         try {
             console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
-            const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
-            if (response.data.success) {
-                const data = response.data.data;
+
+            // ✅ CORREÇÃO: Buscar stats e dashboard em paralelo
+            const [statsResponse, dashboardResponse] = await Promise.all([
+                api.get('/stats/orders'),
+                api.get(`/stats/dashboard?period=${selectedPeriod}`)
+            ]);
+
+            // ✅ Atualizar stats com os dados filtrados
+            if (statsResponse.data.success) {
+                setStats(statsResponse.data.data);
+            }
+
+            if (dashboardResponse.data.success) {
+                const data = dashboardResponse.data.data;
                 setSalesData(data.salesData || []);
                 setStatusData(data.statusData || []);
                 setTopProducts(data.topProducts || []);
@@ -227,11 +238,19 @@ const AdminLayout = () => {
         }
     }, [isAuthenticated, tenant, showToast]);
 
+    // ✅ Efeito para carregar dados quando o período muda
     useEffect(() => {
         if (activeTab === 'dashboard' && authChecked && isAuthenticated && tenant) {
             loadDashboardData(period);
         }
     }, [activeTab, tenant, period, loadDashboardData, authChecked, isAuthenticated]);
+
+    // ✅ Efeito para recarregar quando o usuário muda de tab
+    useEffect(() => {
+        if (activeTab === 'dashboard' && authChecked && isAuthenticated && tenant) {
+            loadDashboardData(period);
+        }
+    }, [activeTab, authChecked, isAuthenticated, tenant]);
 
     // 4. WebSocket
     useEffect(() => {

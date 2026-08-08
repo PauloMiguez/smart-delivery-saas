@@ -110,39 +110,69 @@ export const PageHeader = styled.div`
     }
 `;
 
+// ✅ CORREÇÃO: StatsGrid com grid responsivo e sem overflow
 export const StatsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
     width: 100%;
 
+    @media (max-width: 768px) {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
     @media (max-width: 480px) {
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        gap: 10px;
     }
 `;
 
+// ✅ CORREÇÃO: StatCard com melhor responsividade
 export const StatCard = styled.div`
     background: ${props => props.theme.colors.card};
-    padding: 16px;
+    padding: 16px 20px;
     border-radius: 12px;
     box-shadow: ${props => props.theme.shadows.sm};
     border: 1px solid ${props => props.theme.colors.border};
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+        box-shadow: ${props => props.theme.shadows.md};
+        transform: translateY(-2px);
+    }
 
     .number {
-        font-size: 24px;
+        font-size: 28px;
         font-weight: 700;
         color: ${props => props.theme.colors.primary};
         margin-bottom: 4px;
         word-break: break-word;
+        line-height: 1.2;
     }
 
     .label {
-        font-size: 13px;
+        font-size: 14px;
         color: ${props => props.theme.colors.textLight};
         word-break: break-word;
+        font-weight: 500;
+    }
+
+    @media (max-width: 480px) {
+        padding: 12px 14px;
+
+        .number {
+            font-size: 22px;
+        }
+
+        .label {
+            font-size: 12px;
+        }
     }
 `;
 
@@ -331,7 +361,7 @@ export const Overlay = styled.div`
 `;
 
 // ============================================================
-//  COMPONENTES PARA RESPONSIVIDADE (CORRIGIDOS)
+//  COMPONENTES PARA RESPONSIVIDADE
 // ============================================================
 export const ProductsContainer = styled.div`
     width: 100%;
