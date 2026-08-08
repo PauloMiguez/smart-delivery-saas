@@ -12,3 +12,5 @@ frontend-react/node_modules/
 frontend-react/.env.env
 .env.*
 security-report-*.txt
+.context/
+.context/*
