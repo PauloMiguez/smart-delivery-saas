@@ -122,6 +122,7 @@ const AdminLayout = () => {
     // ============================================================
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
+    const [dashboardStats, setDashboardStats] = useState(null);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -204,31 +205,30 @@ const AdminLayout = () => {
         }
     }, [authChecked, isAuthenticated, tenant, loadData]);
 
-    // 3. Dashboard data
+    // 3. Dashboard data - CORRIGIDO
     const loadDashboardData = useCallback(async (selectedPeriod) => {
         if (!isAuthenticated || !tenant) return;
         setDashboardLoading(true);
         try {
             console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
-
-            // ✅ CORREÇÃO: Buscar stats e dashboard em paralelo
-            const [statsResponse, dashboardResponse] = await Promise.all([
-                api.get('/stats/orders'),
-                api.get(`/stats/dashboard?period=${selectedPeriod}`)
-            ]);
-
-            // ✅ Atualizar stats com os dados filtrados
-            if (statsResponse.data.success) {
-                setStats(statsResponse.data.data);
-            }
-
+            
+            const dashboardResponse = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
+            
             if (dashboardResponse.data.success) {
                 const data = dashboardResponse.data.data;
+                
+                setDashboardStats({
+                    total: data.total || 0,
+                    todayRevenue: data.revenue || 0,
+                    avgTicket: data.avgTicket || 0,
+                    pending: data.pending || 0
+                });
+                
                 setSalesData(data.salesData || []);
                 setStatusData(data.statusData || []);
                 setTopProducts(data.topProducts || []);
                 setLastUpdate(new Date().toLocaleString('pt-BR'));
-                console.log('✅ Dados do dashboard carregados!');
+                console.log('✅ Dados do dashboard carregados!', data);
             }
         } catch (error) {
             console.error('❌ Erro ao carregar dados do dashboard:', error);
@@ -552,6 +552,7 @@ const AdminLayout = () => {
                             lastUpdate={lastUpdate}
                             loading={dashboardLoading}
                             stats={stats}
+                            dashboardStats={dashboardStats}
                             salesData={salesData}
                             statusData={statusData}
                             topProducts={topProducts}
