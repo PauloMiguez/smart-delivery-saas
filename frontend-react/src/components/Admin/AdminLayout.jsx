@@ -205,25 +205,49 @@ const AdminLayout = () => {
         }
     }, [authChecked, isAuthenticated, tenant, loadData]);
 
-    // 3. Dashboard data - CORRIGIDO
+    // 3. Dashboard data 
+
     const loadDashboardData = useCallback(async (selectedPeriod) => {
         if (!isAuthenticated || !tenant) return;
         setDashboardLoading(true);
         try {
             console.log('📊 Carregando dados do dashboard para período:', selectedPeriod);
-            
-            const dashboardResponse = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
-            
-            if (dashboardResponse.data.success) {
-                const data = dashboardResponse.data.data;
-                
+
+            // ✅ Buscar dados do dashboard com o período
+            const response = await api.get(`/stats/dashboard?period=${selectedPeriod}`);
+
+            console.log('📥 Resposta do dashboard:', response.data);
+
+            if (response.data.success) {
+                const data = response.data.data;
+
+                // Calcular total de pedidos (soma de todos os dias)
+                const totalOrders = data.salesData?.reduce((sum, day) => sum + (day.orders || 0), 0) || 0;
+
+                // Calcular faturamento total (soma de todos os dias)
+                const totalRevenue = data.salesData?.reduce((sum, day) => sum + (day.total || 0), 0) || 0;
+
+                // Calcular ticket médio
+                const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+                // Contar pedidos pendentes (do statusData)
+                const pendingOrders = data.statusData?.find(s => s.name === '🟡 Pendente' || s.name === 'Pendente')?.value || 0;
+
+                // ✅ Atualizar dashboardStats com os dados calculados
                 setDashboardStats({
-                    total: data.total || 0,
-                    todayRevenue: data.revenue || 0,
-                    avgTicket: data.avgTicket || 0,
-                    pending: data.pending || 0
+                    total: totalOrders,
+                    todayRevenue: totalRevenue,
+                    avgTicket: avgTicket,
+                    pending: pendingOrders
                 });
-                
+
+                console.log('📊 DashboardStats calculados:', {
+                    totalOrders,
+                    totalRevenue,
+                    avgTicket,
+                    pendingOrders
+                });
+
                 setSalesData(data.salesData || []);
                 setStatusData(data.statusData || []);
                 setTopProducts(data.topProducts || []);
@@ -552,7 +576,7 @@ const AdminLayout = () => {
                             lastUpdate={lastUpdate}
                             loading={dashboardLoading}
                             stats={stats}
-                            dashboardStats={dashboardStats}
+                            dashboardStats={dashboardStats}  
                             salesData={salesData}
                             statusData={statusData}
                             topProducts={topProducts}
