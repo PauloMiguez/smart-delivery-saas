@@ -2080,6 +2080,10 @@ app.get('/api/stats/orders', async (req, res) => {
     }
 });
 
+// ============================================================
+//  ENDPOINT /stats/dashboard 
+//  ✅ Considera apenas pedidos com status "entregue"
+// ============================================================
 app.get('/api/stats/dashboard', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -2093,12 +2097,11 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const { period = 'today' } = req.query;
         console.log(`📊 Dashboard - Período: ${period}, Tenant: ${tenantId}`);
 
-        let startDate = new Date();
-
-        // ✅ CORREÇÃO: Usar data local (Brasil) para todos os períodos
+        // ✅ Usar data local (Brasil) para todos os períodos
         const now = new Date();
         const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
 
+        let startDate;
         switch (period) {
             case 'today':
                 startDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
@@ -2117,20 +2120,22 @@ app.get('/api/stats/dashboard', async (req, res) => {
                 startDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
         }
 
-        // Ajustar para UTC para consulta no banco
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
+        // ✅ BUSCAR APENAS PEDIDOS ENTREGUES
         const [orders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
                AND DATE(created_at) >= ? 
+               AND status IN ('entregue', 'Entregue', 'delivered')
              ORDER BY created_at DESC`,
             [tenantId, startDateStr]
         );
 
-        console.log(`📦 Pedidos encontrados: ${orders.length}`);
-        
+        console.log(`📦 Pedidos entregues encontrados: ${orders.length}`);
+
+        // ✅ Calcular vendas diárias (apenas entregues)
         const salesMap = {};
         orders.forEach(order => {
             const date = new Date(order.created_at).toISOString().split('T')[0];
@@ -2150,8 +2155,17 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesData.push({ date: today, total: 0, orders: 0 });
         }
 
+        // ✅ Status dos pedidos (todos os pedidos, não apenas entregues)
+        const [allOrders] = await pool.query(
+            `SELECT * FROM orders 
+             WHERE tenant_id = ? 
+               AND DATE(created_at) >= ? 
+             ORDER BY created_at DESC`,
+            [tenantId, startDateStr]
+        );
+
         const statusCount = {};
-        orders.forEach(order => {
+        allOrders.forEach(order => {
             const status = order.status || 'pending';
             statusCount[status] = (statusCount[status] || 0) + 1;
         });
@@ -2174,6 +2188,7 @@ app.get('/api/stats/dashboard', async (req, res) => {
             statusData.push({ name: '🟡 Pendente', value: 0 });
         }
 
+        // ✅ Top produtos (apenas de pedidos entregues)
         const productSales = {};
         orders.forEach(order => {
             let items = order.items;
@@ -2199,12 +2214,23 @@ app.get('/api/stats/dashboard', async (req, res) => {
             topProducts.push({ name: 'Nenhum produto vendido', quantity: 0 });
         }
 
+        // ✅ Calcular métricas adicionais para os cards
+        const totalOrders = salesData.reduce((sum, day) => sum + day.orders, 0);
+        const totalRevenue = salesData.reduce((sum, day) => sum + day.total, 0);
+        const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        const pendingOrders = statusData.find(s => s.name === '🟡 Pendente')?.value || 0;
+
         res.json({
             success: true,
             data: {
                 salesData,
                 statusData,
-                topProducts
+                topProducts,
+                // ✅ Métricas para os cards
+                total: totalOrders,
+                revenue: totalRevenue,
+                avgTicket: avgTicket,
+                pending: pendingOrders
             }
         });
 

@@ -207,6 +207,11 @@ const AdminLayout = () => {
 
     // 3. Dashboard data 
 
+    // ============================================================
+    //  FUNÇÃO PARA CARREGAR DADOS DO DASHBOARD - CORRIGIDA
+    //  ✅ Considera apenas pedidos com status "Entregue"
+    // ============================================================
+    
     const loadDashboardData = useCallback(async (selectedPeriod) => {
         if (!isAuthenticated || !tenant) return;
         setDashboardLoading(true);
@@ -221,17 +226,25 @@ const AdminLayout = () => {
             if (response.data.success) {
                 const data = response.data.data;
 
-                // Calcular total de pedidos (soma de todos os dias)
+                // ✅ Filtrar apenas dados de pedidos ENTREGUES
+                // Os dados vêm do backend já filtrados, mas vamos garantir
+
+                // ✅ Calcular total de pedidos ENTREGUES (soma de todos os dias)
+                // O salesData já deve conter apenas entregues
                 const totalOrders = data.salesData?.reduce((sum, day) => sum + (day.orders || 0), 0) || 0;
 
-                // Calcular faturamento total (soma de todos os dias)
+                // ✅ Calcular faturamento total APENAS de pedidos ENTREGUES
                 const totalRevenue = data.salesData?.reduce((sum, day) => sum + (day.total || 0), 0) || 0;
 
-                // Calcular ticket médio
+                // ✅ Calcular ticket médio APENAS de pedidos ENTREGUES
                 const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-                // Contar pedidos pendentes (do statusData)
-                const pendingOrders = data.statusData?.find(s => s.name === '🟡 Pendente' || s.name === 'Pendente')?.value || 0;
+                // ✅ Contar pedidos pendentes (todos os status, não apenas entregues)
+                const pendingOrders = data.statusData?.find(s =>
+                    s.name === '🟡 Pendente' ||
+                    s.name === 'Pendente' ||
+                    s.name.includes('Pendente')
+                )?.value || 0;
 
                 // ✅ Atualizar dashboardStats com os dados calculados
                 setDashboardStats({
@@ -241,7 +254,7 @@ const AdminLayout = () => {
                     pending: pendingOrders
                 });
 
-                console.log('📊 DashboardStats calculados:', {
+                console.log('📊 DashboardStats calculados (apenas entregues):', {
                     totalOrders,
                     totalRevenue,
                     avgTicket,
@@ -252,7 +265,7 @@ const AdminLayout = () => {
                 setStatusData(data.statusData || []);
                 setTopProducts(data.topProducts || []);
                 setLastUpdate(new Date().toLocaleString('pt-BR'));
-                console.log('✅ Dados do dashboard carregados!', data);
+                console.log('✅ Dados do dashboard carregados!');
             }
         } catch (error) {
             console.error('❌ Erro ao carregar dados do dashboard:', error);
@@ -262,7 +275,6 @@ const AdminLayout = () => {
         }
     }, [isAuthenticated, tenant, showToast]);
 
-    // ✅ Efeito para carregar dados quando o período muda
     useEffect(() => {
         if (activeTab === 'dashboard' && authChecked && isAuthenticated && tenant) {
             loadDashboardData(period);
@@ -576,7 +588,7 @@ const AdminLayout = () => {
                             lastUpdate={lastUpdate}
                             loading={dashboardLoading}
                             stats={stats}
-                            dashboardStats={dashboardStats}  
+                            dashboardStats={dashboardStats}
                             salesData={salesData}
                             statusData={statusData}
                             topProducts={topProducts}
