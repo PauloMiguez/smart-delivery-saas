@@ -133,6 +133,8 @@ const Dashboard = ({
         return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
     };
 
+    // ✅ CORREÇÃO: Os stats já vêm filtrados pelo período do backend
+    // Os cards usam os valores já filtrados de stats
     return (
         <DashboardContainer>
             {/* Filtros */}
@@ -144,7 +146,7 @@ const Dashboard = ({
                 loading={loading}
             />
 
-            {/* Cards de métricas */}
+            {/* Cards de métricas - ✅ Usam stats já filtrados */}
             <StatsGridStyled>
                 <StatCardStyled>
                     <div className="stat-icon">📦</div>
