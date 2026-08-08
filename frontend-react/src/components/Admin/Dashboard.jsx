@@ -107,14 +107,6 @@ const ChartsGrid = styled(DashboardChartsGrid)`
   }
 `;
 
-const SectionTitle = styled.h3`
-  font-size: ${tokens.typography.fontSize.lg};
-  font-weight: ${tokens.typography.fontWeight.semibold};
-  color: ${tokens.colors.text};
-  margin: ${tokens.spacing.lg} 0 ${tokens.spacing.md} 0;
-  letter-spacing: -0.02em;
-`;
-
 const Dashboard = ({
     period,
     onPeriodChange,
@@ -122,6 +114,7 @@ const Dashboard = ({
     lastUpdate,
     loading,
     stats,
+    dashboardStats,  
     salesData,
     statusData,
     topProducts,
@@ -133,8 +126,9 @@ const Dashboard = ({
         return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
     };
 
-    // ✅ CORREÇÃO: Os stats já vêm filtrados pelo período do backend
-    // Os cards usam os valores já filtrados de stats
+    // ✅ Usar dashboardStats se disponível, senão usar stats
+    const displayStats = dashboardStats || stats;
+
     return (
         <DashboardContainer>
             {/* Filtros */}
@@ -146,33 +140,33 @@ const Dashboard = ({
                 loading={loading}
             />
 
-            {/* Cards de métricas - ✅ Usam stats já filtrados */}
+            {/* Cards de métricas - ✅ Usam displayStats que é atualizado com filtros */}
             <StatsGridStyled>
                 <StatCardStyled>
                     <div className="stat-icon">📦</div>
                     <div>
-                        <div className="stat-value">{stats?.total || 0}</div>
+                        <div className="stat-value">{displayStats?.total || 0}</div>
                         <div className="stat-label">Total de Pedidos</div>
                     </div>
                 </StatCardStyled>
                 <StatCardStyled>
                     <div className="stat-icon">💰</div>
                     <div>
-                        <div className="stat-value">R$ {formatMoney(stats?.todayRevenue)}</div>
-                        <div className="stat-label">Faturamento Hoje</div>
+                        <div className="stat-value">R$ {formatMoney(displayStats?.todayRevenue)}</div>
+                        <div className="stat-label">Faturamento</div>
                     </div>
                 </StatCardStyled>
                 <StatCardStyled>
                     <div className="stat-icon">🎫</div>
                     <div>
-                        <div className="stat-value">R$ {formatMoney(stats?.avgTicket)}</div>
+                        <div className="stat-value">R$ {formatMoney(displayStats?.avgTicket)}</div>
                         <div className="stat-label">Ticket Médio</div>
                     </div>
                 </StatCardStyled>
                 <StatCardStyled>
                     <div className="stat-icon">⏳</div>
                     <div>
-                        <div className="stat-value">{stats?.pending || 0}</div>
+                        <div className="stat-value">{displayStats?.pending || 0}</div>
                         <div className="stat-label">Pedidos Pendentes</div>
                     </div>
                 </StatCardStyled>
