@@ -9,4 +9,6 @@ coverage/
 # React + Vite
 frontend-react/dist/
 frontend-react/node_modules/
-frontend-react/.env
+frontend-react/.env.env
+.env.*
+security-report-*.txt
