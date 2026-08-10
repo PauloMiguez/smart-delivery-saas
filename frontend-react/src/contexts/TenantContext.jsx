@@ -99,12 +99,10 @@ const fetchDomainMapping = async () => {
 const detectTenantByDomain = async (hostname) => {
     const mapping = await fetchDomainMapping();
     
-    // Verificar no mapeamento
     if (mapping[hostname]) {
         return mapping[hostname];
     }
     
-    // Verificar com www.
     if (hostname.startsWith('www.')) {
         const withoutWWW = hostname.replace('www.', '');
         if (mapping[withoutWWW]) {
@@ -112,7 +110,6 @@ const detectTenantByDomain = async (hostname) => {
         }
     }
     
-    // Verificar se é subdomínio (ex: fireburger.smartdelivery.com)
     const parts = hostname.split('.');
     if (parts.length >= 3) {
         const subdomain = parts[0];
@@ -122,6 +119,20 @@ const detectTenantByDomain = async (hostname) => {
     }
     
     return null;
+};
+
+// ============================================================
+//  FUNÇÃO PARA VERIFICAR SE É DOMÍNIO PERSONALIZADO
+// ============================================================
+const isCustomDomain = async () => {
+    const host = window.location.hostname;
+    const mapping = await fetchDomainMapping();
+    
+    // Verificar se o host está no mapeamento (com ou sem www)
+    if (mapping[host]) return true;
+    if (host.startsWith('www.') && mapping[host.replace('www.', '')]) return true;
+    
+    return false;
 };
 
 // ============================================================
@@ -148,24 +159,27 @@ export const getTenantId = async () => {
     
     // 3. Tenta detectar por domínio personalizado (via API)
     const host = window.location.hostname;
+    const isCustom = host !== 'smart-delivery-saas.onrender.com' && 
+                    host !== 'localhost' && 
+                    host !== '127.0.0.1';
+    
     const tenantFromDomain = await detectTenantByDomain(host);
-    if (tenantFromDomain) {
-        localStorage.setItem('tenant', tenantFromDomain);
+    if (tenantFromDomain && isCustom) {
         sessionStorage.setItem('tenant', tenantFromDomain);
         return tenantFromDomain;
     }
     
-    // 4. Tenta do localStorage (persistente)
+    // 4. Tenta do sessionStorage
+    const stored = sessionStorage.getItem('tenant');
+    if (stored) {
+        return stored;
+    }
+    
+    // 5. Tenta do localStorage
     const localStored = localStorage.getItem('tenant');
     if (localStored) {
         sessionStorage.setItem('tenant', localStored);
         return localStored;
-    }
-    
-    // 5. Tenta do sessionStorage
-    const stored = sessionStorage.getItem('tenant');
-    if (stored) {
-        return stored;
     }
     
     return null;
@@ -202,8 +216,6 @@ export const TenantProvider = ({ children }) => {
             
             if (tenantId) {
                 setTenant(tenantId);
-                localStorage.setItem('tenant', tenantId);
-                sessionStorage.setItem('tenant', tenantId);
                 setStatus(formatTenantMessage(`Tenant carregado: ${tenantId}`, 'success'));
             } else {
                 const savedTenant = localStorage.getItem('tenant');
@@ -211,12 +223,6 @@ export const TenantProvider = ({ children }) => {
                     console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
                     setTenant(savedTenant);
                     setStatus(formatTenantMessage(`Tenant recuperado: ${savedTenant}`, 'info'));
-                    
-                    const url = new URL(window.location);
-                    if (!url.searchParams.has('tenant')) {
-                        url.searchParams.set('tenant', savedTenant);
-                        window.history.replaceState({}, '', url);
-                    }
                 } else {
                     localStorage.removeItem('tenant');
                     sessionStorage.removeItem('tenant');
@@ -234,21 +240,13 @@ export const TenantProvider = ({ children }) => {
     //  RECUPERAR TENANT QUANDO A ABA FOR REATIVADA
     // ============================================================
     useEffect(() => {
-        const handleVisibilityChange = () => {
+        const handleVisibilityChange = async () => {
             if (!document.hidden) {
-                const currentTenant = getTenantId();
+                const currentTenant = await getTenantId();
                 if (currentTenant && !tenant) {
                     console.log('🔄 [TenantContext] Recuperando tenant após reativação:', currentTenant);
                     setTenant(currentTenant);
                     setStatus(formatTenantMessage(`Tenant recuperado: ${currentTenant}`, 'info'));
-                }
-                
-                const params = new URLSearchParams(window.location.search);
-                const urlTenant = params.get('tenant');
-                if (!urlTenant && tenant) {
-                    const url = new URL(window.location);
-                    url.searchParams.set('tenant', tenant);
-                    window.history.replaceState({}, '', url);
                 }
             }
         };
@@ -258,17 +256,22 @@ export const TenantProvider = ({ children }) => {
     }, [tenant]);
 
     // ============================================================
-    //  RECUPERAR TENANT QUANDO A PÁGINA FOR CARREGADA
+    //  ADICIONAR TENANT NA URL - CORRIGIDO (NÃO ADICIONA PARA DOMÍNIOS PERSONALIZADOS)
     // ============================================================
     useEffect(() => {
-        const handleLoad = () => {
-            const params = new URLSearchParams(window.location.search);
-            const urlTenant = params.get('tenant');
+        const handleLoad = async () => {
+            const isCustom = await isCustomDomain();
             
-            if (!urlTenant && tenant) {
-                const url = new URL(window.location);
-                url.searchParams.set('tenant', tenant);
-                window.history.replaceState({}, '', url);
+            // Só adicionar tenant na URL se NÃO for domínio personalizado
+            if (!isCustom) {
+                const params = new URLSearchParams(window.location.search);
+                const urlTenant = params.get('tenant');
+                
+                if (!urlTenant && tenant) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('tenant', tenant);
+                    window.history.replaceState({}, '', url);
+                }
             }
         };
 
@@ -277,18 +280,22 @@ export const TenantProvider = ({ children }) => {
     }, [tenant]);
 
     // ============================================================
-    //  OUVIR MUDANÇAS NA URL (popstate)
+    //  OUVIR MUDANÇAS NA URL (popstate) - CORRIGIDO
     // ============================================================
     useEffect(() => {
-        const handlePopState = () => {
-            const params = new URLSearchParams(window.location.search);
-            const urlTenant = params.get('tenant');
-            if (urlTenant && urlTenant !== tenant) {
-                console.log('🔄 [TenantContext] Tenant mudou na URL:', urlTenant);
-                setTenant(urlTenant);
-                localStorage.setItem('tenant', urlTenant);
-                sessionStorage.setItem('tenant', urlTenant);
-                setStatus(formatTenantMessage(`Tenant alterado: ${urlTenant}`, 'info'));
+        const handlePopState = async () => {
+            const isCustom = await isCustomDomain();
+            
+            if (!isCustom) {
+                const params = new URLSearchParams(window.location.search);
+                const urlTenant = params.get('tenant');
+                if (urlTenant && urlTenant !== tenant) {
+                    console.log('🔄 [TenantContext] Tenant mudou na URL:', urlTenant);
+                    setTenant(urlTenant);
+                    localStorage.setItem('tenant', urlTenant);
+                    sessionStorage.setItem('tenant', urlTenant);
+                    setStatus(formatTenantMessage(`Tenant alterado: ${urlTenant}`, 'info'));
+                }
             }
         };
 
