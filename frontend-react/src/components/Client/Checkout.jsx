@@ -9,6 +9,20 @@ import { Container, Button, Card, Input } from '../Shared/Container';
 import AddressModal from './AddressModal';
 import DateTimePicker from './DateTimePicker';
 
+// ============================================================
+//  UTILITÁRIO: VERIFICAR SE É DOMÍNIO PERSONALIZADO
+// ============================================================
+const isCustomDomain = () => {
+    const host = window.location.hostname;
+    return host !== 'smart-delivery-saas.onrender.com' && 
+           host !== 'localhost' && 
+           host !== '127.0.0.1' &&
+           !host.includes('render.com');
+};
+
+// ============================================================
+//  STYLED COMPONENTS
+// ============================================================
 const CheckoutContainer = styled(Container)`
     padding-top: 16px;
     padding-bottom: 40px;
@@ -158,9 +172,6 @@ const PaymentTitle = styled.div`
     margin-bottom: 8px;
 `;
 
-// ============================================================
-//  SEÇÃO DE AGENDAMENTO
-// ============================================================
 const ScheduleSection = styled.div`
     padding: 16px;
     background: #fff;
@@ -287,7 +298,7 @@ const validateAddress = (address) => {
 };
 
 // ============================================================
-//  FUNÇÃO PARA ABRIR WHATSAPP - CORRIGIDA (COMPATÍVEL)
+//  FUNÇÃO PARA ABRIR WHATSAPP
 // ============================================================
 const openWhatsApp = (phoneNumber, message) => {
     const formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -327,17 +338,11 @@ const Checkout = () => {
         address: ''
     });
 
-    // ============================================================
-    //  STATE PARA AGENDAMENTO E STATUS DA LOJA
-    // ============================================================
     const [isScheduled, setIsScheduled] = useState(false);
     const [selectedSchedule, setSelectedSchedule] = useState(null);
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [isStoreOpen, setIsStoreOpen] = useState(true);
 
-    // ============================================================
-    //  STATE PARA TAXA DE ENTREGA
-    // ============================================================
     const [deliveryFee, setDeliveryFee] = useState(0);
     const [deliveryType, setDeliveryType] = useState('fixa');
     const [isManualDelivery, setIsManualDelivery] = useState(false);
@@ -383,7 +388,7 @@ const Checkout = () => {
     }, [tenant]);
 
     // ============================================================
-    //  CALCULAR TAXA DE ENTREGA DINÂMICA
+    //  CALCULAR TAXA DE ENTREGA
     // ============================================================
     const calculateDeliveryFee = useCallback(async (address) => {
         if (!address || address.trim().length < 5) {
@@ -419,7 +424,6 @@ const Checkout = () => {
 
                 setDeliveryFee(fee);
 
-                // ✅ Se não encontrou o bairro, tratar como manual
                 if (!found) {
                     setIsManualDelivery(true);
                     setDeliveryFee(0);
@@ -439,9 +443,6 @@ const Checkout = () => {
         }
     }, [tenant, config, deliveryType]);
 
-    // ============================================================
-    //  ATUALIZAR TAXA QUANDO ENDEREÇO MUDAR
-    // ============================================================
     useEffect(() => {
         if (formData.address && formData.address.trim().length >= 5) {
             calculateDeliveryFee(formData.address);
@@ -563,7 +564,21 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  SUBMIT
+    //  NAVEGAÇÃO - CORRIGIDA PARA DOMÍNIOS PERSONALIZADOS
+    // ============================================================
+    const navigateTo = (path) => {
+        const custom = isCustomDomain();
+        if (custom) {
+            // ✅ Domínio personalizado: não adiciona tenant
+            navigate(path);
+        } else {
+            // ✅ Domínio raiz: adiciona tenant
+            navigate(`${path}?tenant=${tenant}`);
+        }
+    };
+
+    // ============================================================
+    //  SUBMIT - CORRIGIDO
     // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -625,7 +640,10 @@ const Checkout = () => {
             const accessToken = response.data.data?.access_token;
             const orderId = response.data.data?.id;
 
-            const trackLink = `${window.location.origin}/track/${orderId}?token=${accessToken}`;
+            const custom = isCustomDomain();
+            const trackLink = custom
+                ? `${window.location.origin}/track/${orderId}?token=${accessToken}`
+                : `${window.location.origin}/track/${orderId}?token=${accessToken}&tenant=${tenant}`;
 
             // ============================================================
             //  WHATSAPP
@@ -673,7 +691,7 @@ const Checkout = () => {
             openWhatsApp(formattedPhone, message);
 
             clearCart();
-            navigate('/');
+            navigateTo('/');
             showToast(`Pedido #${orderNumber} enviado com sucesso!`, 'success');
 
         } catch (error) {
@@ -711,7 +729,7 @@ const Checkout = () => {
                     <p style={{ color: '#888', marginBottom: 20 }}>
                         Adicione itens ao carrinho antes de finalizar o pedido.
                     </p>
-                    <Button primary onClick={() => navigate('/')}>
+                    <Button primary onClick={() => navigateTo('/')}>
                         Voltar para o cardápio
                     </Button>
                 </div>
@@ -723,7 +741,7 @@ const Checkout = () => {
 
     return (
         <CheckoutContainer>
-            <BackButton onClick={() => navigate('/')}>
+            <BackButton onClick={() => navigateTo('/')}>
                 ← Voltar
             </BackButton>
 
@@ -785,7 +803,7 @@ const Checkout = () => {
                 </FormGroup>
 
                 {/* ============================================================
-                    RESUMO DO PEDIDO (DEPOIS DO ENDEREÇO)
+                    RESUMO DO PEDIDO
                     ============================================================ */}
                 <SummaryCard>
                     <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>📋 Resumo do pedido</h3>
@@ -814,7 +832,6 @@ const Checkout = () => {
                         <span>R$ {total.toFixed(2)}</span>
                     </TotalRow>
                     
-                    {/* Mensagem quando taxa manual ou bairro não encontrado */}
                     {isManualDelivery && (
                         <div style={{
                             fontSize: '12px',
