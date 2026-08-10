@@ -286,6 +286,9 @@ app.get('/api/domain-mapping', (req, res) => {
 //  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
+    // ============================================================
+    //  ROTAS PÚBLICAS (NÃO PRECISAM DE TENANT)
+    // ============================================================
     const publicRoutes = [
         '/api/health',
         '/api/auth/login',
@@ -295,29 +298,48 @@ app.use((req, res, next) => {
         '/api/domain-mapping'
     ];
 
-    const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
+    // ✅ CORREÇÃO: Verificar tanto req.path quanto req.originalUrl
+    const currentPath = req.path || req.originalUrl || '';
+    const isPublicRoute = publicRoutes.some(route => 
+        currentPath === route || 
+        currentPath.startsWith(route) ||
+        currentPath.includes(route)
+    );
 
-    if (publicRoutes.includes(req.path)) {
+    // ✅ LOG para debug
+    if (isPublicRoute) {
+        console.log('🔓 Rota pública:', currentPath);
         return next();
     }
 
+    // ============================================================
+    //  ROTA DE TRACKING (NÃO PRECISA DE TENANT)
+    // ============================================================
+    const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
     if (isTrackingRoute) {
         console.log('🔓 Rota de tracking liberada (sem tenant):', req.path);
         return next();
     }
 
+    // ============================================================
+    //  DETECÇÃO DE TENANT
+    // ============================================================
+
+    // 1. Query parameter (maior prioridade)
     if (req.query.tenant) {
         req.tenantId = req.query.tenant;
         console.log('🏷️ Tenant da query:', req.tenantId);
         return next();
     }
 
+    // 2. Header X-Tenant-ID
     if (req.headers['x-tenant-id']) {
         req.tenantId = req.headers['x-tenant-id'];
         console.log('🏷️ Tenant do header:', req.tenantId);
         return next();
     }
 
+    // 3. Domínio personalizado (via variável de ambiente)
     const host = req.get('host');
     if (host) {
         const hostClean = host.split(':')[0];
@@ -329,6 +351,7 @@ app.use((req, res, next) => {
             return next();
         }
 
+        // 4. Subdomínio (ex: fireburger.smartdelivery.com)
         const parts = host.split('.');
         if (parts.length >= 3) {
             const subdomain = parts[0];
@@ -340,15 +363,35 @@ app.use((req, res, next) => {
         }
     }
 
-    if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico)$/)) {
+    // 5. Arquivos estáticos (não precisam de tenant)
+    if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|svg|ico|webmanifest|woff|woff2|ttf|eot)$/)) {
         return next();
     }
 
+    // 6. Rota raiz (página de boas-vindas)
+    if (req.path === '/' || req.path === '') {
+        return next();
+    }
+
+    // ============================================================
+    //  BLOQUEAR REQUISIÇÕES SEM TENANT
+    // ============================================================
     if (req.path.startsWith('/api/')) {
+        console.log('❌ Requisição sem tenant:', req.path);
         return res.status(404).json({
             success: false,
             error: 'Tenant não encontrado. Use ?tenant=seu_subdominio ou header X-Tenant-ID.'
         });
+    }
+
+    // ============================================================
+    //  FALLBACK: Tentar extrair tenant da URL
+    // ============================================================
+    const tenantMatch = req.path.match(/^\/([^/]+)\//);
+    if (tenantMatch && tenantMatch[1] !== 'api' && tenantMatch[1] !== 'admin') {
+        req.tenantId = tenantMatch[1];
+        console.log('🏷️ Tenant do path:', req.tenantId);
+        return next();
     }
 
     next();
