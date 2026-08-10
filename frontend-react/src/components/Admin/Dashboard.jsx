@@ -114,7 +114,7 @@ const Dashboard = ({
     lastUpdate,
     loading,
     stats,
-    dashboardStats,  
+    dashboardStats,
     salesData,
     statusData,
     topProducts,
@@ -127,7 +127,16 @@ const Dashboard = ({
     };
 
     // ✅ Usar dashboardStats se disponível, senão usar stats
-    const displayStats = dashboardStats || stats;
+    // ✅ Se ambos existirem, usar dashboardStats para dados filtrados
+    const displayStats = dashboardStats || stats || { total: 0, todayRevenue: 0, avgTicket: 0, pending: 0 };
+
+    // ✅ Log para debug - ver o que está sendo exibido
+    console.log('📊 Dashboard renderizando com:', {
+        displayStats,
+        dashboardStats,
+        stats,
+        period
+    });
 
     return (
         <DashboardContainer>
@@ -140,7 +149,7 @@ const Dashboard = ({
                 loading={loading}
             />
 
-            {/* Cards de métricas - ✅ Usam displayStats que é atualizado com filtros */}
+            {/* Cards de métricas */}
             <StatsGridStyled>
                 <StatCardStyled>
                     <div className="stat-icon">📦</div>
