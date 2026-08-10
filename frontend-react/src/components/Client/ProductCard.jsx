@@ -103,7 +103,7 @@ const QtyControl = styled.div`
     cursor: pointer;
     font-size: ${tokens.typography.fontSize.lg};
     font-weight: ${tokens.typography.fontWeight.medium};
-    color: ${tokens.colors.text}; /* ✅ TEXTO ESCURO PARA VISIBILIDADE */
+    color: ${tokens.colors.text};
     transition: all 0.2s ease-in-out;
     display: flex;
     align-items: center;
@@ -186,18 +186,40 @@ const Footer = styled.div`
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const ProductCard = ({ product }) => {
-  const { addToCart, getItemQuantity } = useCart();
+  const { addToCart } = useCart();
   const { showToast } = useToast();
   const [qty, setQty] = useState(1);
 
+  // ============================================================
+  //  INCREMENTAR QUANTIDADE
+  // ============================================================
+  const increment = () => {
+    setQty(prev => prev + 1);
+  };
+
+  // ============================================================
+  //  DECREMENTAR QUANTIDADE
+  // ============================================================
+  const decrement = () => {
+    setQty(prev => Math.max(1, prev - 1));
+  };
+
+  // ============================================================
+  //  ADICIONAR AO CARRINHO
+  // ============================================================
   const handleAdd = () => {
     addToCart(product, qty);
     setQty(1);
     showToast(`${product.name} adicionado ao carrinho!`, 'success');
   };
 
-  const increment = () => setQty(prev => prev + 1);
-  const decrement = () => setQty(prev => Math.max(1, prev - 1));
+  // ============================================================
+  //  FORMATAR PREÇO
+  // ============================================================
+  const formatPrice = (value) => {
+    const num = parseFloat(value);
+    return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
+  };
 
   return (
     <Card>
@@ -214,7 +236,7 @@ const ProductCard = ({ product }) => {
         {product.description && (
           <ProductDesc>{product.description}</ProductDesc>
         )}
-        <ProductPrice>R$ {parseFloat(product.price).toFixed(2)}</ProductPrice>
+        <ProductPrice>R$ {formatPrice(product.price)}</ProductPrice>
         
         <Footer>
           <QtyControl>
@@ -222,6 +244,7 @@ const ProductCard = ({ product }) => {
               onClick={decrement}
               aria-label="Diminuir quantidade"
               type="button"
+              disabled={qty <= 1}
             >
               −
             </button>
