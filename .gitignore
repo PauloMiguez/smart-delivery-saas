@@ -14,3 +14,21 @@ frontend-react/.env.env
 security-report-*.txt
 .context/
 .context/*
+*.backup*
+*.bak
+security-report-*.txt
+cleanup-report-*.txt
+
+# Arquivos de backup
+*.backup*
+*.bak
+*.backup
+
+# Relatórios de segurança
+security-report-*.txt
+cleanup-report-*.txt
+check-*.txt
+
+# Arquivos temporários
+*.tmp
+*.temp
