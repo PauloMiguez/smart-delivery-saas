@@ -48,21 +48,15 @@ function createLocalDate(dateStr) {
 // ============================================================
 //  FUNÇÃO PARA CALCULAR TAXA DE ENTREGA DINÂMICA
 // ============================================================
-// ============================================================
-//  FUNÇÃO PARA CALCULAR TAXA DE ENTREGA DINÂMICA - CORRIGIDA
-// ============================================================
 function calcularTaxaEntrega(tenantId, endereco, config) {
-    // Se for fixa, retorna o valor fixo
     if (config.delivery_type === 'fixa') {
         return { fee: parseFloat(config.delivery_fee) || 0, found: true };
     }
 
-    // Se for manual, retorna 0 (será definido depois)
     if (config.delivery_type === 'manual') {
         return { fee: 0, found: false, message: 'Taxa informada após o pedido' };
     }
 
-    // Se for dinâmica, buscar por bairro
     if (config.delivery_type === 'dinamica') {
         try {
             const zones = JSON.parse(config.delivery_zones || '[]');
@@ -71,12 +65,10 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
                 return { fee: 0, found: false, message: 'Nenhum bairro cadastrado' };
             }
 
-            // Extrair bairro do endereço
             const addressParts = endereco.split(',');
             let bairro = '';
             if (addressParts.length >= 2) {
                 const parts = addressParts.map(p => p.trim());
-                // O bairro geralmente é o penúltimo elemento
                 if (parts.length >= 3) {
                     bairro = parts[parts.length - 2];
                 } else if (parts.length === 2) {
@@ -86,7 +78,6 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
 
             console.log(`🔍 Buscando bairro: "${bairro}" em ${zones.length} zonas`);
 
-            // Buscar zona que corresponde ao bairro (case insensitive)
             const zone = zones.find(z =>
                 z.bairro && bairro.toLowerCase().includes(z.bairro.toLowerCase())
             );
@@ -96,7 +87,6 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
                 return { fee: parseFloat(zone.valor) || 0, found: true };
             }
 
-            // ❌ Bairro não encontrado - retornar 0 com mensagem
             console.log(`❌ Bairro "${bairro}" não encontrado na lista`);
             return { fee: 0, found: false, message: 'Bairro não cadastrado - taxa será informada após o pedido' };
         } catch (error) {
@@ -107,6 +97,7 @@ function calcularTaxaEntrega(tenantId, endereco, config) {
 
     return { fee: parseFloat(config.delivery_fee) || 0, found: true };
 }
+
 // ============================================================
 //  FUNÇÃO PARA VERIFICAR SE A LOJA ESTÁ ABERTA AGORA
 // ============================================================
@@ -255,6 +246,43 @@ async function testDatabaseConnection() {
 }
 
 // ============================================================
+//  FUNÇÃO PARA OBTER MAPEAMENTO DE DOMÍNIOS
+// ============================================================
+function getDomainMapping() {
+    const tenantDomains = process.env.TENANT_DOMAINS || '';
+    const domainMap = {};
+    
+    tenantDomains.split(',').forEach(pair => {
+        const [domain, tenant] = pair.trim().split(':');
+        if (domain && tenant) {
+            domainMap[domain.trim()] = tenant.trim();
+            domainMap[`www.${domain.trim()}`] = tenant.trim();
+        }
+    });
+    
+    return domainMap;
+}
+
+// ============================================================
+//  ENDPOINT PARA MAPEAMENTO DE DOMÍNIOS
+// ============================================================
+app.get('/api/domain-mapping', (req, res) => {
+    try {
+        const domainMap = getDomainMapping();
+        res.json({
+            success: true,
+            data: domainMap
+        });
+    } catch (error) {
+        console.error('❌ Erro ao obter mapeamento de domínios:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar mapeamento de domínios'
+        });
+    }
+});
+
+// ============================================================
 //  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
@@ -263,7 +291,8 @@ app.use((req, res, next) => {
         '/api/auth/login',
         '/api/auth/register',
         '/api/test-db',
-        '/api/orders/available-slots'
+        '/api/orders/available-slots',
+        '/api/domain-mapping'
     ];
 
     const isTrackingRoute = req.path.includes('/api/orders/') && req.query.token;
@@ -291,6 +320,15 @@ app.use((req, res, next) => {
 
     const host = req.get('host');
     if (host) {
+        const hostClean = host.split(':')[0];
+        
+        const domainMap = getDomainMapping();
+        if (domainMap[hostClean]) {
+            req.tenantId = domainMap[hostClean];
+            console.log('🏷️ Tenant do domínio personalizado:', req.tenantId, '(', hostClean, ')');
+            return next();
+        }
+
         const parts = host.split('.');
         if (parts.length >= 3) {
             const subdomain = parts[0];
@@ -758,7 +796,7 @@ app.delete('/api/categories/:id', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-//  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS - CORRIGIDO
+//  1. ENDPOINT PARA VERIFICAR HORÁRIOS DISPONÍVEIS
 // ============================================================
 app.get('/api/orders/available-slots', async (req, res) => {
     const tenantId = req.query.tenant || req.tenantId;
@@ -788,7 +826,6 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`📅 Data selecionada: ${dateStr}, Dia da semana: ${dayOfWeek}`);
 
-        // ✅ CORREÇÃO: Verificar limite de 2 dias usando apenas datas (sem hora)
         const now = new Date();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -818,7 +855,6 @@ app.get('/api/orders/available-slots', async (req, res) => {
             });
         }
 
-        // Buscar horários de funcionamento
         const [operatingHours] = await pool.query(
             `SELECT * FROM operating_hours 
              WHERE tenant_id = ? AND day_of_week = ? AND is_open = 1`,
@@ -852,7 +888,6 @@ app.get('/api/orders/available-slots', async (req, res) => {
 
         console.log(`⏰ Horário de funcionamento: ${openTime} - ${closeTime}`);
 
-        // Gerar slots de 30 em 30 minutos
         const availableSlots = [];
 
         const [openHour, openMinute] = openTime.split(':').map(Number);
@@ -1103,9 +1138,6 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
-        // ============================================================
-        //  BUSCAR CONFIGURAÇÕES PARA CALCULAR TAXA DE ENTREGA
-        // ============================================================
         const [configRows] = await pool.query(
             'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
             [tenantId]
@@ -1130,15 +1162,11 @@ app.post('/api/orders', async (req, res) => {
             deliveryFound = result.found !== undefined ? result.found : true;
         }
 
-        // ✅ Se não encontrou o bairro, taxa = 0 (será definida manualmente depois)
         const finalDeliveryFee = (deliveryType === 'manual' || !deliveryFound) ? 0 : (delivery_fee || calculatedDeliveryFee);
         const finalTotal = parseFloat(total)
 
         console.log(`🚚 Taxa de entrega: ${finalDeliveryFee} (tipo: ${deliveryType}, encontrado: ${deliveryFound})`);
 
-        // ============================================================
-        //  VALIDAÇÃO DO AGENDAMENTO
-        // ============================================================
         let finalScheduledTime = null;
         let finalStatus = 'pending';
         let finalScheduledStatus = 'pending';
@@ -1225,8 +1253,6 @@ app.post('/api/orders', async (req, res) => {
         console.log(`📋 Número do pedido: ${orderNumber} (Sequencial: ${nextNumber})`);
 
         const accessToken = crypto.randomBytes(32).toString('hex');
-
-        // Calcular delivery_status
         const deliveryStatus = deliveryFound ? 'calculated' : 'pending';
 
         const [result] = await pool.query(
@@ -1250,7 +1276,7 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(discount || 0),
                 finalTotal,
                 payment_method,
-                deliveryType,  // ✅ USE deliveryType (da config), NÃO delivery_type do body
+                deliveryType,
                 notes || null,
                 is_scheduled ? 1 : 0,
                 finalScheduledTime,
@@ -1545,7 +1571,7 @@ app.get('/api/config', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT PARA CALCULAR TAXA DE ENTREGA - CORRIGIDO
+//  ENDPOINT PARA CALCULAR TAXA DE ENTREGA
 // ============================================================
 app.post('/api/calculate-delivery', async (req, res) => {
     try {
@@ -1565,7 +1591,6 @@ app.post('/api/calculate-delivery', async (req, res) => {
             });
         }
 
-        // Buscar configurações
         const [configRows] = await pool.query(
             'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
             [tenant]
@@ -1603,6 +1628,7 @@ app.post('/api/calculate-delivery', async (req, res) => {
         });
     }
 });
+
 // ============================================================
 //  ENDPOINT PARA VERIFICAR STATUS DA LOJA
 // ============================================================
@@ -1801,7 +1827,7 @@ app.get('/api/operating-hours', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT PARA ATUALIZAR HORÁRIOS - CORRIGIDO
+//  ENDPOINT PARA ATUALIZAR HORÁRIOS
 // ============================================================
 app.put('/api/operating-hours', verifyToken, async (req, res) => {
     try {
@@ -2007,8 +2033,6 @@ app.get('/api/stats/orders', async (req, res) => {
 
         console.log('📊 Buscando estatísticas para tenant:', tenantId);
 
-        // ✅ CORREÇÃO DEFINITIVA: Usar query SQL com CONVERT_TZ
-        // O banco salva em UTC, precisamos converter para UTC-3 (Brasil)
         const now = new Date();
         const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
         const todayStr = localDate.toISOString().split('T')[0];
@@ -2016,7 +2040,6 @@ app.get('/api/stats/orders', async (req, res) => {
         console.log(`📅 Data local (Brasil): ${todayStr}`);
         console.log(`📅 Data UTC: ${now.toISOString().split('T')[0]}`);
 
-        // Query com CONVERT_TZ para ajustar o fuso horário
         const [stats] = await pool.query(
             `SELECT 
                 COUNT(*) as total,
@@ -2033,7 +2056,6 @@ app.get('/api/stats/orders', async (req, res) => {
             [todayStr, tenantId]
         );
 
-        // Buscar pedidos recentes com data local para debug
         const [recentOrders] = await pool.query(
             `SELECT *, 
              CONVERT_TZ(created_at, '+00:00', '-03:00') as created_at_local
@@ -2082,7 +2104,6 @@ app.get('/api/stats/orders', async (req, res) => {
 
 // ============================================================
 //  ENDPOINT /stats/dashboard 
-//  ✅ Considera apenas pedidos com status "entregue"
 // ============================================================
 app.get('/api/stats/dashboard', async (req, res) => {
     try {
@@ -2097,7 +2118,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const { period = 'today' } = req.query;
         console.log(`📊 Dashboard - Período: ${period}, Tenant: ${tenantId}`);
 
-        // ✅ Usar data local (Brasil) para todos os períodos
         const now = new Date();
         const localDate = new Date(now.getTime() - (3 * 60 * 60 * 1000));
 
@@ -2123,7 +2143,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
-        // ✅ BUSCAR APENAS PEDIDOS ENTREGUES
         const [orders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
@@ -2135,7 +2154,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
 
         console.log(`📦 Pedidos entregues encontrados: ${orders.length}`);
 
-        // ✅ Calcular vendas diárias (apenas entregues)
         const salesMap = {};
         orders.forEach(order => {
             const date = new Date(order.created_at).toISOString().split('T')[0];
@@ -2155,7 +2173,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesData.push({ date: today, total: 0, orders: 0 });
         }
 
-        // ✅ Status dos pedidos (todos os pedidos, não apenas entregues)
         const [allOrders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
@@ -2188,7 +2205,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
             statusData.push({ name: '🟡 Pendente', value: 0 });
         }
 
-        // ✅ Top produtos (apenas de pedidos entregues)
         const productSales = {};
         orders.forEach(order => {
             let items = order.items;
@@ -2214,7 +2230,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
             topProducts.push({ name: 'Nenhum produto vendido', quantity: 0 });
         }
 
-        // ✅ Calcular métricas adicionais para os cards
         const totalOrders = salesData.reduce((sum, day) => sum + day.orders, 0);
         const totalRevenue = salesData.reduce((sum, day) => sum + day.total, 0);
         const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
@@ -2226,7 +2241,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
                 salesData,
                 statusData,
                 topProducts,
-                // ✅ Métricas para os cards
                 total: totalOrders,
                 revenue: totalRevenue,
                 avgTicket: avgTicket,

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { tokens } from '../styles/tokens';
+import { api } from '../services/api';
 
 // ============================================================
 //  STYLED COMPONENTS PARA MENSAGENS
@@ -55,26 +56,113 @@ export const useTenant = () => {
 export { TenantContext };
 
 // ============================================================
-//  FUNÇÃO PARA OBTER TENANT
+//  CACHE DO MAPEAMENTO DE DOMÍNIOS
 // ============================================================
-export const getTenantId = () => {
-    // 1. Tenta da URL
-    const params = new URLSearchParams(window.location.search);
-    const tenant = params.get('tenant');
-    if (tenant) {
-        localStorage.setItem('tenant', tenant);
-        sessionStorage.setItem('tenant', tenant);
-        return tenant;
+let domainMappingCache = null;
+let domainMappingPromise = null;
+
+// ============================================================
+//  FUNÇÃO PARA BUSCAR MAPEAMENTO DE DOMÍNIOS DO BACKEND
+// ============================================================
+const fetchDomainMapping = async () => {
+    if (domainMappingCache) {
+        return domainMappingCache;
+    }
+
+    if (domainMappingPromise) {
+        return domainMappingPromise;
+    }
+
+    domainMappingPromise = (async () => {
+        try {
+            const response = await api.get('/domain-mapping');
+            if (response.data.success) {
+                domainMappingCache = response.data.data;
+                console.log('📋 Mapeamento de domínios carregado:', domainMappingCache);
+                return domainMappingCache;
+            }
+            return {};
+        } catch (error) {
+            console.error('❌ Erro ao carregar mapeamento de domínios:', error);
+            return {};
+        } finally {
+            domainMappingPromise = null;
+        }
+    })();
+
+    return domainMappingPromise;
+};
+
+// ============================================================
+//  FUNÇÃO PARA DETECTAR TENANT PELO DOMÍNIO
+// ============================================================
+const detectTenantByDomain = async (hostname) => {
+    const mapping = await fetchDomainMapping();
+    
+    // Verificar no mapeamento
+    if (mapping[hostname]) {
+        return mapping[hostname];
     }
     
-    // 2. Tenta do localStorage (persistente)
+    // Verificar com www.
+    if (hostname.startsWith('www.')) {
+        const withoutWWW = hostname.replace('www.', '');
+        if (mapping[withoutWWW]) {
+            return mapping[withoutWWW];
+        }
+    }
+    
+    // Verificar se é subdomínio (ex: fireburger.smartdelivery.com)
+    const parts = hostname.split('.');
+    if (parts.length >= 3) {
+        const subdomain = parts[0];
+        if (subdomain && subdomain !== 'www' && subdomain !== 'smart-delivery-saas') {
+            return subdomain;
+        }
+    }
+    
+    return null;
+};
+
+// ============================================================
+//  FUNÇÃO PARA OBTER TENANT
+// ============================================================
+export const getTenantId = async () => {
+    // 1. Tenta da URL (query parameter)
+    const params = new URLSearchParams(window.location.search);
+    const tenantFromQuery = params.get('tenant');
+    if (tenantFromQuery) {
+        localStorage.setItem('tenant', tenantFromQuery);
+        sessionStorage.setItem('tenant', tenantFromQuery);
+        return tenantFromQuery;
+    }
+    
+    // 2. Tenta do caminho da URL (ex: /tenant/fireburger)
+    const pathMatch = window.location.pathname.match(/^\/tenant\/([^/]+)/);
+    if (pathMatch) {
+        const tenantFromPath = pathMatch[1];
+        localStorage.setItem('tenant', tenantFromPath);
+        sessionStorage.setItem('tenant', tenantFromPath);
+        return tenantFromPath;
+    }
+    
+    // 3. Tenta detectar por domínio personalizado (via API)
+    const host = window.location.hostname;
+    const tenantFromDomain = await detectTenantByDomain(host);
+    if (tenantFromDomain) {
+        localStorage.setItem('tenant', tenantFromDomain);
+        sessionStorage.setItem('tenant', tenantFromDomain);
+        return tenantFromDomain;
+    }
+    
+    // 4. Tenta do localStorage (persistente)
     const localStored = localStorage.getItem('tenant');
     if (localStored) {
         sessionStorage.setItem('tenant', localStored);
         return localStored;
     }
     
-    // 3. Tenta do sessionStorage
+    // 5. Tenta do sessionStorage
     const stored = sessionStorage.getItem('tenant');
     if (stored) {
         return stored;
@@ -108,34 +196,38 @@ export const TenantProvider = ({ children }) => {
     //  CARREGAR TENANT INICIAL
     // ============================================================
     useEffect(() => {
-        const tenantId = getTenantId();
-        console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
-        
-        if (tenantId) {
-            setTenant(tenantId);
-            localStorage.setItem('tenant', tenantId);
-            sessionStorage.setItem('tenant', tenantId);
-            setStatus(formatTenantMessage(`Tenant carregado: ${tenantId}`, 'success'));
-        } else {
-            const savedTenant = localStorage.getItem('tenant');
-            if (savedTenant) {
-                console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
-                setTenant(savedTenant);
-                setStatus(formatTenantMessage(`Tenant recuperado: ${savedTenant}`, 'info'));
-                
-                const url = new URL(window.location);
-                if (!url.searchParams.has('tenant')) {
-                    url.searchParams.set('tenant', savedTenant);
-                    window.history.replaceState({}, '', url);
-                }
+        const loadTenant = async () => {
+            const tenantId = await getTenantId();
+            console.log('🔍 [TenantContext] getTenantId retornou:', tenantId);
+            
+            if (tenantId) {
+                setTenant(tenantId);
+                localStorage.setItem('tenant', tenantId);
+                sessionStorage.setItem('tenant', tenantId);
+                setStatus(formatTenantMessage(`Tenant carregado: ${tenantId}`, 'success'));
             } else {
-                localStorage.removeItem('tenant');
-                sessionStorage.removeItem('tenant');
-                setStatus(formatTenantMessage('Nenhum tenant encontrado', 'warning'));
-                console.log('🧹 [TenantContext] Limpando storage - sem tenant');
+                const savedTenant = localStorage.getItem('tenant');
+                if (savedTenant) {
+                    console.log('🔄 [TenantContext] Recuperando tenant do localStorage:', savedTenant);
+                    setTenant(savedTenant);
+                    setStatus(formatTenantMessage(`Tenant recuperado: ${savedTenant}`, 'info'));
+                    
+                    const url = new URL(window.location);
+                    if (!url.searchParams.has('tenant')) {
+                        url.searchParams.set('tenant', savedTenant);
+                        window.history.replaceState({}, '', url);
+                    }
+                } else {
+                    localStorage.removeItem('tenant');
+                    sessionStorage.removeItem('tenant');
+                    setStatus(formatTenantMessage('Nenhum tenant encontrado', 'warning'));
+                    console.log('🧹 [TenantContext] Limpando storage - sem tenant');
+                }
             }
-        }
-        setLoading(false);
+            setLoading(false);
+        };
+
+        loadTenant();
     }, []);
 
     // ============================================================
