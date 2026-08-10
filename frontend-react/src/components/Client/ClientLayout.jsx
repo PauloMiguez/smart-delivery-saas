@@ -17,7 +17,7 @@ import TrackOrder from './TrackOrder';
 // ============================================================
 const theme = {
   colors: {
-    primary: '#D9531E', // Terracotta/Warm Warm Red (Apetite, moderno)
+    primary: '#D9531E',
     primaryHover: '#C04313',
     primaryLight: '#FDF3EF',
     textMain: '#1F2421',
@@ -362,11 +362,11 @@ const FloatingBadge = styled.span`
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL
+//  COMPONENTE PRINCIPAL - CORRIGIDO
 // ============================================================
 const ClientLayout = () => {
     const { tenant, loading: tenantLoading } = useTenant();
-    const { totalItems, totalPrice } = useCart(); // ✅ USANDO totalPrice
+    const { totalItems, totalPrice } = useCart();
     const [config, setConfig] = useState(null);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -380,25 +380,29 @@ const ClientLayout = () => {
 
     const _forceComponents = [OrdersHistory, TrackOrder];
 
-    if (!tenant && !tenantLoading) {
-        return (
-            <ThemeProvider theme={theme}>
-                <AppContainer style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <EmptyStateContainer style={{ maxWidth: 400 }}>
-                        <h1 style={{ fontSize: 22, color: theme.colors.textMain, marginBottom: 8 }}>Smart Delivery</h1>
-                        <p style={{ fontSize: 14, margin: 0 }}>Para acessar um restaurante, informe o subdomínio correto na URL.</p>
-                    </EmptyStateContainer>
-                </AppContainer>
-            </ThemeProvider>
-        );
-    }
+    // ============================================================
+    //  ✅ CORREÇÃO: VERIFICAR TENANT ANTES DE CARREGAR DADOS
+    // ============================================================
 
+    // 1. Carregar dados principais - SÓ QUANDO HOUVER TENANT
     useEffect(() => {
-        if (!tenant) return;
+        // ✅ SÓ CARREGAR SE HOUVER TENANT E NÃO ESTIVER CARREGANDO O TENANT
+        if (tenantLoading) {
+            console.log('⏳ Aguardando carregamento do tenant...');
+            return;
+        }
+
+        if (!tenant) {
+            console.log('🏠 Nenhum tenant encontrado - Mostrando página de boas-vindas');
+            setIsLoading(false);
+            return;
+        }
 
         const loadData = async () => {
             try {
                 setIsLoading(true);
+                console.log('📊 Carregando dados para tenant:', tenant);
+                
                 const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
                     api.get('/config'),
                     api.get('/products?active_only=true'),
@@ -429,16 +433,19 @@ const ClientLayout = () => {
                     setActiveCategory(sortedCategories[0]);
                 }
                 setFilteredProducts(productsData);
+                
+                console.log('✅ Dados carregados com sucesso!');
             } catch (error) {
-                console.error('Erro ao carregar dados:', error);
+                console.error('❌ Erro ao carregar dados:', error);
             } finally {
                 setIsLoading(false);
             }
         };
 
         loadData();
-    }, [tenant]);
+    }, [tenant, tenantLoading]);
 
+    // 2. Verificar status da loja - SÓ QUANDO HOUVER TENANT
     useEffect(() => {
         if (!tenant) return;
 
@@ -450,7 +457,7 @@ const ClientLayout = () => {
                     setStoreStatus(response.data.data);
                 }
             } catch (error) {
-                console.error('Erro ao verificar status:', error);
+                console.error('❌ Erro ao verificar status:', error);
             }
         };
 
@@ -459,6 +466,7 @@ const ClientLayout = () => {
         return () => clearInterval(interval);
     }, [tenant]);
 
+    // 3. Filtrar produtos por categoria
     useEffect(() => {
         if (activeCategory) {
             setFilteredProducts(products.filter(p => p.category === activeCategory));
@@ -482,10 +490,47 @@ const ClientLayout = () => {
 
     const todayHours = getTodayHours();
 
-    if (tenantLoading || (isLoading && !config)) {
-        return <div style={{ padding: 40, textAlign: 'center', color: '#8C9699' }}>Carregando cardápio...</div>;
+    // ============================================================
+    //  ✅ CORREÇÃO: RENDERIZAÇÃO CONDICIONAL
+    // ============================================================
+
+    // ✅ SE NÃO HOUVER TENANT, MOSTRAR PÁGINA DE BOAS-VINDAS
+    if (!tenant && !tenantLoading) {
+        return (
+            <ThemeProvider theme={theme}>
+                <AppContainer style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+                    <EmptyStateContainer style={{ maxWidth: 400 }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+                        <h1 style={{ fontSize: 22, color: theme.colors.textMain, marginBottom: 8 }}>Smart Delivery</h1>
+                        <p style={{ fontSize: 14, margin: 0, color: theme.colors.textMuted }}>
+                            Para acessar um restaurante, informe o subdomínio correto na URL.
+                        </p>
+                        <div style={{ marginTop: 20, padding: 16, background: theme.colors.background, borderRadius: theme.radius.sm }}>
+                            <code style={{ fontSize: 13, color: theme.colors.primary }}>
+                                ?tenant=fireburger
+                            </code>
+                        </div>
+                    </EmptyStateContainer>
+                </AppContainer>
+            </ThemeProvider>
+        );
     }
 
+    // ✅ SE ESTIVER CARREGANDO, MOSTRAR LOADING
+    if (tenantLoading || (isLoading && !config)) {
+        return (
+            <ThemeProvider theme={theme}>
+                <AppContainer>
+                    <div style={{ padding: 40, textAlign: 'center', color: '#8C9699' }}>
+                        <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+                        <p>Carregando cardápio...</p>
+                    </div>
+                </AppContainer>
+            </ThemeProvider>
+        );
+    }
+
+    // ✅ SE HOUVER TENANT, MOSTRAR CONTEÚDO
     const hasBanner = !!config?.banner_image;
     const storeName = config?.store_name || 'Restaurante';
     const logoImage = config?.logo_image;
@@ -590,7 +635,6 @@ const ClientLayout = () => {
                     </ProductGrid>
                 )}
 
-                {/* ✅ CARRINHO FLUTUANTE COM SUBTOTAL */}
                 <FloatingCart onClick={() => setIsCartOpen(true)}>
                     <span>🛒</span>
                     {totalItems > 0 ? (
