@@ -84,21 +84,12 @@ const TotalRow = styled.div`
 const DiscountBadge = styled.div`
     background: #e8f5e9;
     color: #2e7d32;
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 4px;
-    border: 1px solid #a5d6a7;
-`;
-
-const DiscountInfo = styled.div`
     font-size: 12px;
-    color: #2e7d32;
-    margin-top: 2px;
+    font-weight: 500;
+    display: inline-block;
+    border: 1px solid #a5d6a7;
 `;
 
 const Form = styled.form`
@@ -421,18 +412,15 @@ const Checkout = () => {
     const calculateDiscount = useCallback((paymentMethod, subtotal) => {
         if (!config) return { discount: 0, percentage: 0, reason: '' };
 
-        // Verificar se desconto está habilitado
         if (config.discount_enabled !== 'true') {
             return { discount: 0, percentage: 0, reason: '' };
         }
 
-        // Verificar se o método de pagamento é elegível
         const eligibleMethods = config.discount_payment_methods || ['Dinheiro', 'Pix'];
         if (!eligibleMethods.includes(paymentMethod)) {
             return { discount: 0, percentage: 0, reason: '' };
         }
 
-        // Calcular desconto (dividir por 1 + percentual)
         const percentage = parseFloat(config.discount_percentage) || 4;
         const discountAmount = subtotal / (1 + (percentage / 100));
         const finalDiscount = subtotal - discountAmount;
@@ -751,7 +739,7 @@ const Checkout = () => {
                 : `🚚 *Taxa de entrega:* R$ ${deliveryFee.toFixed(2)}`;
 
             const discountText = isDiscountApplied && discount > 0
-                ? `  💚 *Desconto (${discountPercentage}%):* - R$ ${discount.toFixed(2)}\n`
+                ? `   *Desconto (${discountPercentage}%):* - R$ ${discount.toFixed(2)}\n`
                 : '';
 
             const message =
@@ -762,7 +750,7 @@ const Checkout = () => {
                 `📍 *Endereço:* ${formData.address}${scheduledText}\n\n` +
                 `🛒 *Itens:*\n` +
                 cart.map(i => `  • ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') +
-                `\n\n💰 *Resumo:*\n` +
+                `\n\n *Resumo:*\n` +
                 `  Subtotal: R$ ${subtotal.toFixed(2)}\n` +
                 `  ${deliveryFeeText}\n` +
                 `${discountText}` +
@@ -886,7 +874,7 @@ const Checkout = () => {
                 </FormGroup>
 
                 {/* ============================================================
-                    RESUMO DO PEDIDO COM DESCONTO
+                    RESUMO DO PEDIDO COM DESCONTO - SIMPLIFICADO
                     ============================================================ */}
                 <SummaryCard>
                     <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>📋 Resumo do pedido</h3>
@@ -902,18 +890,12 @@ const Checkout = () => {
                         <span>R$ {subtotal.toFixed(2)}</span>
                     </SummaryItem>
 
-                    {/* ✅ DESCONTO EXIBIDO QUANDO APLICADO */}
+                    {/* ✅ DESCONTO - UMA ÚNICA LINHA */}
                     {isDiscountApplied && discount > 0 && (
-                        <>
-                            <SummaryItem style={{ color: '#2e7d32', fontWeight: '600' }}>
-                                <span className="name">💚 {discountReason}</span>
-                                <span>- R$ {discount.toFixed(2)}</span>
-                            </SummaryItem>
-                            <DiscountBadge>
-                                <span>💚 Economia de {discountPercentage}%</span>
-                                <span>R$ {discount.toFixed(2)}</span>
-                            </DiscountBadge>
-                        </>
+                        <SummaryItem style={{ color: '#2e7d32', fontWeight: '500' }}>
+                            <span className="name">Desconto ({discountPercentage}% para pagamento em {paymentMethod})</span>
+                            <span>- R$ {discount.toFixed(2)}</span>
+                        </SummaryItem>
                     )}
 
                     <SummaryItem>
@@ -932,11 +914,25 @@ const Checkout = () => {
                         <span>R$ {finalTotal.toFixed(2)}</span>
                     </TotalRow>
 
+                    {/* ✅ BADGE DE DESCONTO - UMA ÚNICA VEZ */}
                     {isDiscountApplied && discount > 0 && (
-                        <DiscountInfo>
-                            💚 Total com desconto: R$ {finalTotal.toFixed(2)}
-                            {discount > 0 && ` (economia de R$ ${discount.toFixed(2)})`}
-                        </DiscountInfo>
+                        <div style={{
+                            marginTop: '10px',
+                            padding: '8px 12px',
+                            background: '#e8f5e9',
+                            borderRadius: '6px',
+                            border: '1px solid #a5d6a7',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <span style={{ fontSize: '13px', color: '#2e7d32', fontWeight: '500' }}>
+                                Economia de {discountPercentage}%
+                            </span>
+                            <span style={{ fontSize: '14px', color: '#2e7d32', fontWeight: '600' }}>
+                                R$ {discount.toFixed(2)}
+                            </span>
+                        </div>
                     )}
                     
                     {isManualDelivery && (
@@ -1060,7 +1056,7 @@ const Checkout = () => {
                             background: '#e8f5e9',
                             borderRadius: '6px'
                         }}>
-                            💚 Pagamento em {paymentMethod} garante {discountPercentage}% de desconto!
+                            Pagamento em {paymentMethod} garante {discountPercentage}% de desconto!
                         </div>
                     )}
                 </PaymentSection>
