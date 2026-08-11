@@ -106,6 +106,17 @@ const ScheduledBadge = styled.span`
     display: inline-block;
 `;
 
+const DiscountBadge = styled.span`
+    background: ${tokens.colors.successLight};
+    color: ${tokens.colors.success};
+    padding: 2px 8px;
+    border-radius: ${tokens.radius.full};
+    font-size: ${tokens.typography.fontSize.xs};
+    margin-left: ${tokens.spacing.xs};
+    display: inline-block;
+    font-weight: ${tokens.typography.fontWeight.medium};
+`;
+
 const ScheduledTime = styled.div`
     font-size: ${tokens.typography.fontSize.xs};
     color: ${tokens.colors.accent};
@@ -178,6 +189,36 @@ const NewOrdersBadge = styled.span`
     font-weight: ${tokens.typography.fontWeight.normal};
 `;
 
+const DiscountRow = styled.div`
+    font-size: ${tokens.typography.fontSize.xs};
+    color: ${tokens.colors.success};
+    margin-top: 2px;
+    font-weight: ${tokens.typography.fontWeight.medium};
+`;
+
+// ============================================================
+//  FUNÇÃO PARA FORMATAR DATA
+// ============================================================
+const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return '-';
+    }
+};
+
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const Orders = ({
     orders: allOrders,
     unreadOrders,
@@ -250,10 +291,32 @@ const Orders = ({
         return statusLabels[status] || status;
     };
 
-    // Formatar valor
+    // ============================================================
+    //  FORMATAR VALOR
+    // ============================================================
     const formatMoney = (value) => {
         const num = parseFloat(value);
         return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
+    };
+
+    // ============================================================
+    //  VERIFICAR SE TEM DESCONTO
+    // ============================================================
+    const hasDiscount = (order) => {
+        return order.discount > 0 || (order.discount_percentage > 0);
+    };
+
+    // ============================================================
+    //  OBTER TEXTO DO DESCONTO
+    // ============================================================
+    const getDiscountText = (order) => {
+        if (order.discount_reason) {
+            return order.discount_reason;
+        }
+        if (order.discount_percentage > 0) {
+            return `💚 ${order.discount_percentage}% de desconto`;
+        }
+        return '💚 Desconto';
     };
 
     return (
@@ -294,6 +357,7 @@ const Orders = ({
                             <thead>
                                 <tr>
                                     <th>Pedido</th>
+                                    <th>Data/Hora</th>
                                     <th>Cliente</th>
                                     <th>Itens</th>
                                     <th>Total</th>
@@ -305,6 +369,8 @@ const Orders = ({
                                 {filteredOrders.map(o => {
                                     const items = parseItems(o.items);
                                     const statusClass = o.status || 'pending';
+                                    const hasDisc = hasDiscount(o);
+                                    const discountText = getDiscountText(o);
 
                                     return (
                                         <tr key={o.id}>
@@ -318,16 +384,17 @@ const Orders = ({
                                                 {o.is_scheduled && (
                                                     <ScheduledBadge>📅</ScheduledBadge>
                                                 )}
+                                                {hasDisc && (
+                                                    <DiscountBadge>💚</DiscountBadge>
+                                                )}
                                                 {o.is_scheduled && o.scheduled_time && (
                                                     <ScheduledTime>
-                                                        {new Date(o.scheduled_time).toLocaleString('pt-BR', {
-                                                            day: '2-digit',
-                                                            month: '2-digit',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        })}
+                                                        {formatDate(o.scheduled_time)}
                                                     </ScheduledTime>
                                                 )}
+                                            </td>
+                                            <td>
+                                                {formatDate(o.created_at)}
                                             </td>
                                             <td>{o.customer_name || 'Cliente'}</td>
                                             <td>
@@ -335,7 +402,16 @@ const Orders = ({
                                                     <div key={idx}>{i.qty}x {i.name}</div>
                                                 ))}
                                             </td>
-                                            <td><TotalValue>R$ {formatMoney(o.total)}</TotalValue></td>
+                                            <td>
+                                                <div>
+                                                    <TotalValue>R$ {formatMoney(o.total)}</TotalValue>
+                                                    {hasDisc && (
+                                                        <DiscountRow>
+                                                            💚 {discountText}: -R$ {formatMoney(o.discount)}
+                                                        </DiscountRow>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td>
                                                 <StatusBadge $status={getStatusForBadge(statusClass)}>
                                                     {getStatusLabel(statusClass)}
@@ -423,6 +499,8 @@ const Orders = ({
                         {filteredOrders.map(o => {
                             const items = parseItems(o.items);
                             const statusClass = o.status || 'pending';
+                            const hasDisc = hasDiscount(o);
+                            const discountText = getDiscountText(o);
 
                             return (
                                 <MobileOrderCard key={o.id}>
@@ -438,29 +516,45 @@ const Orders = ({
                                             {o.is_scheduled && (
                                                 <ScheduledBadge>📅</ScheduledBadge>
                                             )}
+                                            {hasDisc && (
+                                                <DiscountBadge>💚</DiscountBadge>
+                                            )}
                                         </span>
                                     </MobileOrderRow>
+
+                                    <MobileOrderRow>
+                                        <span className="label">Data/Hora</span>
+                                        <span className="value" style={{ fontSize: '13px' }}>
+                                            {formatDate(o.created_at)}
+                                        </span>
+                                    </MobileOrderRow>
+
                                     {o.is_scheduled && o.scheduled_time && (
                                         <MobileOrderRow>
                                             <span className="label">Agendado</span>
                                             <span className="value" style={{ fontSize: '12px', color: tokens.colors.accent }}>
-                                                {new Date(o.scheduled_time).toLocaleString('pt-BR', {
-                                                    day: '2-digit',
-                                                    month: '2-digit',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
+                                                {formatDate(o.scheduled_time)}
                                             </span>
                                         </MobileOrderRow>
                                     )}
+
                                     <MobileOrderRow>
                                         <span className="label">Cliente</span>
                                         <span className="value">{o.customer_name || 'Cliente'}</span>
                                     </MobileOrderRow>
+
                                     <MobileOrderRow>
                                         <span className="label">Total</span>
-                                        <span className="value"><TotalValue>R$ {formatMoney(o.total)}</TotalValue></span>
+                                        <span className="value">
+                                            <TotalValue>R$ {formatMoney(o.total)}</TotalValue>
+                                            {hasDisc && (
+                                                <div style={{ fontSize: '11px', color: tokens.colors.success, marginTop: '2px' }}>
+                                                    💚 {discountText}: -R$ {formatMoney(o.discount)}
+                                                </div>
+                                            )}
+                                        </span>
                                     </MobileOrderRow>
+
                                     <MobileOrderRow>
                                         <span className="label">Status</span>
                                         <span className="value">
@@ -469,6 +563,7 @@ const Orders = ({
                                             </StatusBadge>
                                         </span>
                                     </MobileOrderRow>
+
                                     <MobileOrderRow style={{ flexDirection: 'column', alignItems: 'stretch', borderBottom: 'none' }}>
                                         <span className="label" style={{ marginBottom: '8px' }}>Itens</span>
                                         <MobileItemsList>
@@ -481,6 +576,7 @@ const Orders = ({
                                             ))}
                                         </MobileItemsList>
                                     </MobileOrderRow>
+
                                     <MobileActions>
                                         {statusClass === 'scheduled' && (
                                             <>

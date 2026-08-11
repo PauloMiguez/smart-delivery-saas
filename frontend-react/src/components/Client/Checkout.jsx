@@ -81,6 +81,26 @@ const TotalRow = styled.div`
     color: ${props => props.theme.colors.text};
 `;
 
+const DiscountBadge = styled.div`
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    border: 1px solid #a5d6a7;
+`;
+
+const DiscountInfo = styled.div`
+    font-size: 12px;
+    color: #2e7d32;
+    margin-top: 2px;
+`;
+
 const Form = styled.form`
     display: flex;
     flex-direction: column;
@@ -131,10 +151,10 @@ const ChipGroup = styled.div`
 
 const Chip = styled.button`
     padding: 10px 18px;
-    border: 2px solid ${props => props.selected ? '#e67e22' : '#dfe6e9'};
+    border: 2px solid ${props => props.selected ? '#2e7d32' : '#dfe6e9'};
     border-radius: 30px;
-    background: ${props => props.selected ? '#fef9e7' : '#fff'};
-    color: ${props => props.selected ? '#e67e22' : '#2d3436'};
+    background: ${props => props.selected ? '#e8f5e9' : '#fff'};
+    color: ${props => props.selected ? '#2e7d32' : '#2d3436'};
     font-size: 14px;
     font-weight: ${props => props.selected ? '600' : '500'};
     cursor: pointer;
@@ -148,8 +168,8 @@ const Chip = styled.button`
     }
     
     &:hover {
-        border-color: #e67e22;
-        background: ${props => props.selected ? '#fef9e7' : '#fef9e7'};
+        border-color: #2e7d32;
+        background: ${props => props.selected ? '#e8f5e9' : '#e8f5e9'};
     }
     
     &:active {
@@ -349,6 +369,14 @@ const Checkout = () => {
     const [deliveryMessage, setDeliveryMessage] = useState('');
 
     // ============================================================
+    //  STATE PARA DESCONTO
+    // ============================================================
+    const [discount, setDiscount] = useState(0);
+    const [discountPercentage, setDiscountPercentage] = useState(0);
+    const [discountReason, setDiscountReason] = useState('');
+    const [isDiscountApplied, setIsDiscountApplied] = useState(false);
+
+    // ============================================================
     //  CARREGAR CONFIGURAÇÕES
     // ============================================================
     useEffect(() => {
@@ -386,6 +414,53 @@ const Checkout = () => {
         if (savedPhone) setFormData(prev => ({ ...prev, phone: savedPhone }));
         if (savedAddress) setFormData(prev => ({ ...prev, address: savedAddress }));
     }, [tenant]);
+
+    // ============================================================
+    //  CALCULAR DESCONTO
+    // ============================================================
+    const calculateDiscount = useCallback((paymentMethod, subtotal) => {
+        if (!config) return { discount: 0, percentage: 0, reason: '' };
+
+        // Verificar se desconto está habilitado
+        if (config.discount_enabled !== 'true') {
+            return { discount: 0, percentage: 0, reason: '' };
+        }
+
+        // Verificar se o método de pagamento é elegível
+        const eligibleMethods = config.discount_payment_methods || ['Dinheiro', 'Pix'];
+        if (!eligibleMethods.includes(paymentMethod)) {
+            return { discount: 0, percentage: 0, reason: '' };
+        }
+
+        // Calcular desconto (dividir por 1 + percentual)
+        const percentage = parseFloat(config.discount_percentage) || 4;
+        const discountAmount = subtotal / (1 + (percentage / 100));
+        const finalDiscount = subtotal - discountAmount;
+
+        return {
+            discount: Math.round(finalDiscount * 100) / 100,
+            percentage: percentage,
+            reason: `Desconto de ${percentage}% para pagamento em ${paymentMethod}`
+        };
+    }, [config]);
+
+    // ============================================================
+    //  ATUALIZAR DESCONTO QUANDO MUDAR PAGAMENTO
+    // ============================================================
+    useEffect(() => {
+        if (config && subtotal > 0) {
+            const result = calculateDiscount(paymentMethod, subtotal);
+            setDiscount(result.discount);
+            setDiscountPercentage(result.percentage);
+            setDiscountReason(result.reason);
+            setIsDiscountApplied(result.discount > 0);
+        } else {
+            setDiscount(0);
+            setDiscountPercentage(0);
+            setDiscountReason('');
+            setIsDiscountApplied(false);
+        }
+    }, [paymentMethod, subtotal, config, calculateDiscount]);
 
     // ============================================================
     //  CALCULAR TAXA DE ENTREGA
@@ -569,16 +644,20 @@ const Checkout = () => {
     const navigateTo = (path) => {
         const custom = isCustomDomain();
         if (custom) {
-            // ✅ Domínio personalizado: não adiciona tenant
             navigate(path);
         } else {
-            // ✅ Domínio raiz: adiciona tenant
             navigate(`${path}?tenant=${tenant}`);
         }
     };
 
     // ============================================================
-    //  SUBMIT - CORRIGIDO
+    //  CALCULAR TOTAL COM DESCONTO
+    // ============================================================
+    const totalWithDiscount = subtotal - discount;
+    const finalTotal = totalWithDiscount + deliveryFee;
+
+    // ============================================================
+    //  SUBMIT - CORRIGIDO COM DESCONTO
     // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -594,8 +673,6 @@ const Checkout = () => {
         setLoading(true);
 
         try {
-            const total = subtotal + deliveryFee;
-
             const invalidItems = cart.filter(item => !item.name || !item.price || !item.qty);
             if (invalidItems.length > 0) {
                 showToast('Alguns itens do carrinho estão inválidos.', 'error');
@@ -619,7 +696,10 @@ const Checkout = () => {
                 })),
                 subtotal: subtotal,
                 delivery_fee: deliveryFee,
-                total: total,
+                discount: discount,
+                discount_percentage: discountPercentage,
+                discount_reason: discountReason,
+                total: finalTotal,
                 payment_method: paymentMethod,
                 delivery_type: 'delivery',
                 is_scheduled: isScheduled || !isStoreOpen ? true : false,
@@ -631,7 +711,7 @@ const Checkout = () => {
                 return;
             }
 
-            console.log('📦 Enviando pedido:', orderData);
+            console.log('📦 Enviando pedido com desconto:', orderData);
 
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
@@ -670,6 +750,10 @@ const Checkout = () => {
                 ? '📝 *Taxa de entrega:* Informada após o pedido'
                 : `🚚 *Taxa de entrega:* R$ ${deliveryFee.toFixed(2)}`;
 
+            const discountText = isDiscountApplied && discount > 0
+                ? `  💚 *Desconto (${discountPercentage}%):* - R$ ${discount.toFixed(2)}\n`
+                : '';
+
             const message =
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -681,8 +765,9 @@ const Checkout = () => {
                 `\n\n💰 *Resumo:*\n` +
                 `  Subtotal: R$ ${subtotal.toFixed(2)}\n` +
                 `  ${deliveryFeeText}\n` +
+                `${discountText}` +
                 `  ─────────────────────\n` +
-                `  *TOTAL: R$ ${total.toFixed(2)}*\n\n` +
+                `  *TOTAL: R$ ${finalTotal.toFixed(2)}*\n\n` +
                 `💳 *Pagamento:* ${paymentMethod}\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `🔗 *Acompanhe seu pedido:*\n` +
@@ -736,8 +821,6 @@ const Checkout = () => {
             </CheckoutContainer>
         );
     }
-
-    const total = subtotal + deliveryFee;
 
     return (
         <CheckoutContainer>
@@ -803,7 +886,7 @@ const Checkout = () => {
                 </FormGroup>
 
                 {/* ============================================================
-                    RESUMO DO PEDIDO
+                    RESUMO DO PEDIDO COM DESCONTO
                     ============================================================ */}
                 <SummaryCard>
                     <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>📋 Resumo do pedido</h3>
@@ -813,10 +896,26 @@ const Checkout = () => {
                             <span>R$ {(item.price * item.qty).toFixed(2)}</span>
                         </SummaryItem>
                     ))}
+                    
                     <SummaryItem>
                         <span className="name">Subtotal</span>
                         <span>R$ {subtotal.toFixed(2)}</span>
                     </SummaryItem>
+
+                    {/* ✅ DESCONTO EXIBIDO QUANDO APLICADO */}
+                    {isDiscountApplied && discount > 0 && (
+                        <>
+                            <SummaryItem style={{ color: '#2e7d32', fontWeight: '600' }}>
+                                <span className="name">💚 {discountReason}</span>
+                                <span>- R$ {discount.toFixed(2)}</span>
+                            </SummaryItem>
+                            <DiscountBadge>
+                                <span>💚 Economia de {discountPercentage}%</span>
+                                <span>R$ {discount.toFixed(2)}</span>
+                            </DiscountBadge>
+                        </>
+                    )}
+
                     <SummaryItem>
                         <span className="name">
                             {isManualDelivery ? '📝 Taxa de entrega (manual)' : '🚚 Taxa de entrega'}
@@ -827,10 +926,18 @@ const Checkout = () => {
                                 : `R$ ${deliveryFee.toFixed(2)}`}
                         </span>
                     </SummaryItem>
+
                     <TotalRow>
-                        <span>Total</span>
-                        <span>R$ {total.toFixed(2)}</span>
+                        <span>Total {isDiscountApplied && <span style={{ fontSize: '14px', color: '#2e7d32' }}>(com desconto)</span>}</span>
+                        <span>R$ {finalTotal.toFixed(2)}</span>
                     </TotalRow>
+
+                    {isDiscountApplied && discount > 0 && (
+                        <DiscountInfo>
+                            💚 Total com desconto: R$ {finalTotal.toFixed(2)}
+                            {discount > 0 && ` (economia de R$ ${discount.toFixed(2)})`}
+                        </DiscountInfo>
+                    )}
                     
                     {isManualDelivery && (
                         <div style={{
@@ -944,13 +1051,25 @@ const Checkout = () => {
                             <span className="chip-icon">💳</span> Débito
                         </Chip>
                     </ChipGroup>
+                    {isDiscountApplied && (
+                        <div style={{
+                            fontSize: '12px',
+                            color: '#2e7d32',
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            background: '#e8f5e9',
+                            borderRadius: '6px'
+                        }}>
+                            💚 Pagamento em {paymentMethod} garante {discountPercentage}% de desconto!
+                        </div>
+                    )}
                 </PaymentSection>
 
                 <SubmitButton
                     primary
                     disabled={loading || (!isStoreOpen && !selectedSchedule)}
                 >
-                    {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${total.toFixed(2)}`}
+                    {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${finalTotal.toFixed(2)}`}
                 </SubmitButton>
 
                 {!isStoreOpen && !selectedSchedule && !loading && (

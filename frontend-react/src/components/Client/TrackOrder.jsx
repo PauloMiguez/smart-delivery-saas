@@ -143,6 +143,27 @@ const DetailTotal = styled.div`
     color: #2d3436;
 `;
 
+const DiscountRow = styled.div`
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #2e7d32;
+    font-weight: 600;
+    border-bottom: 1px solid #e8f5e9;
+`;
+
+const DiscountBadge = styled.span`
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e8f5e9;
+    color: #2e7d32;
+    margin-left: 8px;
+`;
+
 const LoadingContainer = styled.div`
     text-align: center;
     padding: 60px 0;
@@ -175,7 +196,7 @@ const statusEmojis = {
 const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
 
 // ============================================================
-//  FUNÇÃO CORRIGIDA - created_at subtrai 3 horas
+//  FUNÇÃO PARA FORMATAR DATA
 // ============================================================
 const formatLocalDate = (dateString, isScheduled = false) => {
     if (!dateString) return '-';
@@ -223,14 +244,12 @@ const formatMoney = (value) => {
 };
 
 // ============================================================
-//  ✅ CORREÇÃO: Exibir texto correto para taxa de entrega
-//  REGRA: NUNCA usar "Grátis" como fallback
+//  FUNÇÃO PARA EXIBIR TAXA DE ENTREGA
 // ============================================================
 const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
     const status = deliveryStatus || 'calculated';
     const type = deliveryType || 'fixa';
 
-    // ✅ Caso 1: Taxa pendente (bairro não cadastrado)
     if (status === 'pending') {
         return {
             text: 'Informada após o pedido',
@@ -238,7 +257,6 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
         };
     }
 
-    // ✅ Caso 2: Taxa manual
     if (type === 'manual') {
         return {
             text: 'Informada após o pedido',
@@ -246,13 +264,15 @@ const getDeliveryFeeDisplay = (fee, deliveryStatus, deliveryType) => {
         };
     }
 
-    // ✅ Caso 3: Taxa calculada - exibir o valor SEMPRE (mesmo que seja 0)
     return {
         text: formatMoney(fee),
         style: { color: '#e67e22', fontWeight: '600' }
     };
 };
 
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const TrackOrder = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
@@ -321,6 +341,9 @@ const TrackOrder = () => {
                 console.log('📊 scheduled_time:', response.data.data.scheduled_time);
                 console.log('📊 delivery_status:', response.data.data.delivery_status);
                 console.log('📊 delivery_type:', response.data.data.delivery_type);
+                console.log('📊 discount:', response.data.data.discount);
+                console.log('📊 discount_percentage:', response.data.data.discount_percentage);
+                console.log('📊 discount_reason:', response.data.data.discount_reason);
             } else {
                 setError('Pedido não encontrado');
                 showToast('Pedido não encontrado', 'error');
@@ -468,6 +491,11 @@ const TrackOrder = () => {
     // ✅ Taxa de entrega (vem do pedido)
     const deliveryFee = parseFloat(order.delivery_fee) || 0;
 
+    // ✅ Desconto
+    const discount = parseFloat(order.discount) || 0;
+    const discountPercentage = parseFloat(order.discount_percentage) || 0;
+    const discountReason = order.discount_reason || '';
+
     // ✅ Total (já vem do pedido)
     const total = parseFloat(order.total) || 0;
 
@@ -479,12 +507,15 @@ const TrackOrder = () => {
                              order.scheduled_time !== '' &&
                              order.scheduled_time !== 0;
 
-    // ✅ Obter display da taxa de entrega (sem fallback "Grátis")
+    // ✅ Obter display da taxa de entrega
     const deliveryDisplay = getDeliveryFeeDisplay(
         deliveryFee,
         order.delivery_status,
         order.delivery_type
     );
+
+    // ✅ Verificar se tem desconto
+    const hasDiscount = discount > 0 || discountPercentage > 0;
 
     console.log('🔍 Debug agendamento:', {
         isScheduled,
@@ -506,9 +537,19 @@ const TrackOrder = () => {
             <OrderCard>
                 <OrderNumber>#{order.order_number}</OrderNumber>
 
-                <StatusBadge status={order.status}>
-                    {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
-                </StatusBadge>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <StatusBadge status={order.status}>
+                        {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
+                    </StatusBadge>
+                    {hasDiscount && (
+                        <DiscountBadge>💚 Desconto</DiscountBadge>
+                    )}
+                    {isScheduled && hasScheduledTime && (
+                        <DiscountBadge style={{ background: '#fef9e7', color: '#e67e22' }}>
+                            📅 Agendado
+                        </DiscountBadge>
+                    )}
+                </div>
 
                 <StatusTimeline>
                     {statusOrder.map((status) => {
@@ -571,7 +612,15 @@ const TrackOrder = () => {
                             <span>{formatMoney(subtotal)}</span>
                         </div>
 
-                        {/* ✅ TAXA DE ENTREGA - SEM FALLBACK "Grátis" */}
+                        {/* ✅ DESCONTO (se aplicável) */}
+                        {hasDiscount && (
+                            <DiscountRow>
+                                <span>💚 {discountReason || `${discountPercentage}% de desconto`}</span>
+                                <span>- {formatMoney(discount)}</span>
+                            </DiscountRow>
+                        )}
+
+                        {/* ✅ TAXA DE ENTREGA */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -588,9 +637,24 @@ const TrackOrder = () => {
 
                         {/* ✅ TOTAL */}
                         <DetailTotal>
-                            <span>Total</span>
+                            <span>Total {hasDiscount && <span style={{ fontSize: '12px', color: '#2e7d32' }}>(com desconto)</span>}</span>
                             <span>{formatMoney(total)}</span>
                         </DetailTotal>
+
+                        {/* ✅ INFORMAÇÃO DE DESCONTO ADICIONAL */}
+                        {hasDiscount && (
+                            <div style={{
+                                fontSize: '12px',
+                                color: '#2e7d32',
+                                marginTop: '4px',
+                                padding: '4px 8px',
+                                background: '#e8f5e9',
+                                borderRadius: '4px',
+                                textAlign: 'center'
+                            }}>
+                                💚 Economia de {formatMoney(discount)} com pagamento em {order.payment_method}
+                            </div>
+                        )}
                     </div>
 
                     <DetailRow>
@@ -598,7 +662,7 @@ const TrackOrder = () => {
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
 
-                    {/* ✅ CORREÇÃO: Só exibir se for realmente agendado */}
+                    {/* ✅ Só exibir se for realmente agendado */}
                     {isScheduled && hasScheduledTime && (
                         <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
                             <DetailLabel>📅 Agendado para</DetailLabel>
