@@ -1819,6 +1819,85 @@ app.put('/api/config', verifyToken, async (req, res) => {
 });
 
 // ============================================================
+//  ROTA PARA ALTERAR SENHA DO ADMIN
+// ============================================================
+app.put('/api/auth/change-password', verifyToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+
+        // Validar campos
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                error: 'Todos os campos são obrigatórios'
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                error: 'A nova senha deve ter no mínimo 6 caracteres'
+            });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                error: 'As senhas não coincidem'
+            });
+        }
+
+        // Buscar usuário
+        const [users] = await pool.query(
+            'SELECT id, password FROM users WHERE id = ?',
+            [userId]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Usuário não encontrado'
+            });
+        }
+
+        const user = users[0];
+
+        // Verificar senha atual
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword) {
+            return res.status(401).json({
+                success: false,
+                error: 'Senha atual incorreta'
+            });
+        }
+
+        // Gerar hash da nova senha
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+
+        // Atualizar senha
+        await pool.query(
+            'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',
+            [passwordHash, userId]
+        );
+
+        console.log('✅ Senha atualizada com sucesso para usuário:', userId);
+
+        res.json({
+            success: true,
+            message: 'Senha alterada com sucesso!'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao alterar senha:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao alterar senha: ' + error.message
+        });
+    }
+});
+
+// ============================================================
 //  ENDPOINT PARA BUSCAR HORÁRIOS - PÚBLICO (SEM AUTENTICAÇÃO)
 // ============================================================
 app.get('/api/operating-hours', async (req, res) => {

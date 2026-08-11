@@ -44,6 +44,7 @@ const ProductModal = lazy(() => import('./ProductModal'));
 const CategoryModal = lazy(() => import('./CategoryModal'));
 const OrderTrackingModal = lazy(() => import('./OrderTrackingModal'));
 const DeliverySettings = lazy(() => import('./DeliverySettings'));
+const ChangePassword = lazy(() => import('./ChangePassword'));
 
 // ============================================================
 //  COMPONENT LOADER
@@ -211,7 +212,7 @@ const AdminLayout = () => {
     //  FUNÇÃO PARA CARREGAR DADOS DO DASHBOARD - CORRIGIDA
     //  ✅ Considera apenas pedidos com status "Entregue"
     // ============================================================
-    
+
     const loadDashboardData = useCallback(async (selectedPeriod) => {
         if (!isAuthenticated || !tenant) return;
         setDashboardLoading(true);
@@ -571,7 +572,8 @@ const AdminLayout = () => {
         { id: 'orders', label: 'Pedidos', icon: '📋' },
         { id: 'hours', label: 'Horários', icon: '🕐' },
         { id: 'delivery', label: 'Taxa de Entrega', icon: '🚚' },
-        { id: 'config', label: 'Configurações', icon: '⚙️' }
+        { id: 'config', label: 'Configurações', icon: '⚙️' },
+        { id: 'security', label: 'Segurança', icon: '🔐' }
     ];
 
     const currentItems = getCurrentItems();
@@ -659,6 +661,12 @@ const AdminLayout = () => {
                 return (
                     <Suspense fallback={<ComponentLoader />}>
                         <DeliverySettings />
+                    </Suspense>
+                );
+            case 'security':
+                return (
+                    <Suspense fallback={<ComponentLoader />}>
+                        <ChangePassword />
                     </Suspense>
                 );
             case 'config':
