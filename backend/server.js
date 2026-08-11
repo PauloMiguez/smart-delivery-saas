@@ -2231,6 +2231,10 @@ app.get('/api/stats/orders', async (req, res) => {
 // ============================================================
 //  ENDPOINT /stats/dashboard 
 // ============================================================
+// ============================================================
+//  ENDPOINT /stats/dashboard - CORRIGIDO
+// ============================================================
+
 app.get('/api/stats/dashboard', async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -2269,16 +2273,17 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
+        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const [orders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
                AND DATE(created_at) >= ? 
                AND status IN ('entregue', 'Entregue', 'delivered')
              ORDER BY created_at DESC`,
-            [tenantId, startDateStr]
+            [tenantId, startDateStr]  // ✅ FILTRO POR TENANT
         );
 
-        console.log(`📦 Pedidos entregues encontrados: ${orders.length}`);
+        console.log(`📦 Pedidos entregues encontrados para ${tenantId}: ${orders.length}`);
 
         const salesMap = {};
         orders.forEach(order => {
@@ -2299,12 +2304,13 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesData.push({ date: today, total: 0, orders: 0 });
         }
 
+        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const [allOrders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
                AND DATE(created_at) >= ? 
              ORDER BY created_at DESC`,
-            [tenantId, startDateStr]
+            [tenantId, startDateStr]  // ✅ FILTRO POR TENANT
         );
 
         const statusCount = {};
@@ -2331,6 +2337,7 @@ app.get('/api/stats/dashboard', async (req, res) => {
             statusData.push({ name: '🟡 Pendente', value: 0 });
         }
 
+        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const productSales = {};
         orders.forEach(order => {
             let items = order.items;
