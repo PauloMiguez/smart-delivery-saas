@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 import styled from 'styled-components';
 import { tokens } from '../../styles/tokens';
@@ -100,6 +101,79 @@ const Input = styled.input`
     opacity: 0.6;
     cursor: not-allowed;
     background: ${tokens.colors.background};
+  }
+`;
+
+const CheckboxGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${tokens.spacing.sm};
+  margin: ${tokens.spacing.sm} 0;
+`;
+
+const Checkbox = styled.input`
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: ${tokens.colors.accent};
+`;
+
+const CheckboxLabel = styled.label`
+  font-size: ${tokens.typography.fontSize.sm};
+  color: ${tokens.colors.text};
+  cursor: pointer;
+  font-weight: ${tokens.typography.fontWeight.medium};
+`;
+
+const PaymentMethodGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${tokens.spacing.sm};
+  margin: ${tokens.spacing.sm} 0 ${tokens.spacing.md} 0;
+`;
+
+const PaymentMethodCheckbox = styled.label`
+  display: flex;
+  align-items: center;
+  gap: ${tokens.spacing.xs};
+  padding: 6px 12px;
+  border: 2px solid ${props => props.$checked ? tokens.colors.accent : tokens.colors.border};
+  border-radius: ${tokens.radius.md};
+  background: ${props => props.$checked ? tokens.colors.accentLight : tokens.colors.surface};
+  cursor: pointer;
+  font-size: ${tokens.typography.fontSize.sm};
+  transition: all 0.2s ease;
+  font-family: ${tokens.typography.fontFamily};
+
+  &:hover {
+    border-color: ${tokens.colors.accent};
+  }
+
+  input[type="checkbox"] {
+    display: none;
+  }
+`;
+
+const DiscountSummary = styled.div`
+  padding: 12px 16px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  border: 1px solid #a5d6a7;
+  margin-top: 8px;
+
+  ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+    
+    li {
+      font-size: 14px;
+      color: #2e7d32;
+      margin-bottom: 4px;
+    }
+  }
+
+  strong {
+    color: #1b5e20;
   }
 `;
 
@@ -217,6 +291,39 @@ const SaveButton = styled.button`
   }
 `;
 
+const ResetButton = styled.button`
+  padding: ${tokens.spacing.sm} ${tokens.spacing.md};
+  background: ${tokens.colors.error};
+  color: ${tokens.colors.surface};
+  border: none;
+  border-radius: ${tokens.radius.md};
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: ${tokens.typography.fontWeight.medium};
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-family: ${tokens.typography.fontFamily};
+
+  &:hover:not(:disabled) {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: ${tokens.spacing.sm};
+  margin-top: ${tokens.spacing.md};
+
+  @media (max-width: ${tokens.breakpoints.sm}) {
+    flex-direction: column;
+  }
+`;
+
 const Message = styled.div`
   padding: ${tokens.spacing.md};
   border-radius: ${tokens.radius.md};
@@ -242,27 +349,37 @@ const Message = styled.div`
 // ============================================================
 const Config = () => {
     const { tenant } = useTenant();
+    const { showToast } = useToast();
     const [config, setConfig] = useState({
         store_name: '',
         store_phone: '',
         delivery_fee: '3.00',
         store_address: '',
         banner_image: '',
-        logo_image: ''
+        logo_image: '',
+        // ✅ Campos de desconto
+        discount_enabled: 'false',
+        discount_payment_methods: ['Dinheiro', 'Pix'],
+        discount_percentage: '4.00'
     });
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
     const [bannerFile, setBannerFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [bannerPreview, setBannerPreview] = useState('');
     const [logoPreview, setLogoPreview] = useState('');
 
+    // ============================================================
+    //  CARREGAR CONFIGURAÇÕES
+    // ============================================================
     useEffect(() => {
         if (!tenant) return;
         loadConfig();
     }, [tenant]);
 
     const loadConfig = async () => {
+        setLoading(true);
         try {
             const response = await api.get('/config');
             const data = response.data.data;
@@ -272,22 +389,48 @@ const Config = () => {
                 delivery_fee: data.delivery_fee || '3.00',
                 store_address: data.store_address || '',
                 banner_image: data.banner_image || '',
-                logo_image: data.logo_image || ''
+                logo_image: data.logo_image || '',
+                // ✅ Carregar configurações de desconto
+                discount_enabled: data.discount_enabled || 'false',
+                discount_payment_methods: data.discount_payment_methods || ['Dinheiro', 'Pix'],
+                discount_percentage: data.discount_percentage || '4.00'
             });
             setBannerPreview(data.banner_image || '');
             setLogoPreview(data.logo_image || '');
         } catch (error) {
             console.error('Erro ao carregar configurações:', error);
             setMessage({ type: 'error', text: 'Erro ao carregar configurações.' });
+        } finally {
+            setLoading(false);
         }
     };
 
+    // ============================================================
+    //  HANDLERS
+    // ============================================================
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setConfig(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        const { name, value, type, checked } = e.target;
+        if (type === 'checkbox') {
+            setConfig(prev => ({
+                ...prev,
+                [name]: checked ? 'true' : 'false'
+            }));
+        } else {
+            setConfig(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
+    };
+
+    const handlePaymentMethodToggle = (method) => {
+        setConfig(prev => {
+            const current = prev.discount_payment_methods || [];
+            const updated = current.includes(method)
+                ? current.filter(m => m !== method)
+                : [...current, method];
+            return { ...prev, discount_payment_methods: updated };
+        });
     };
 
     const handleBannerChange = (e) => {
@@ -338,9 +481,39 @@ const Config = () => {
         setConfig(prev => ({ ...prev, logo_image: '' }));
     };
 
+    const handleResetDiscount = async () => {
+        if (!confirm('Tem certeza que deseja restaurar as configurações padrão de desconto?')) return;
+
+        setSaving(true);
+        try {
+            const payload = {
+                discount_enabled: 'false',
+                discount_payment_methods: JSON.stringify(['Dinheiro', 'Pix']),
+                discount_percentage: '4.00'
+            };
+
+            await api.put('/config', payload);
+            setConfig(prev => ({
+                ...prev,
+                discount_enabled: 'false',
+                discount_payment_methods: ['Dinheiro', 'Pix'],
+                discount_percentage: '4.00'
+            }));
+            showToast('Configurações de desconto restauradas com sucesso!', 'success');
+        } catch (error) {
+            console.error('Erro ao restaurar configurações:', error);
+            showToast('Erro ao restaurar configurações', 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // ============================================================
+    //  SUBMIT
+    // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setSaving(true);
         setMessage(null);
 
         try {
@@ -379,19 +552,41 @@ const Config = () => {
                 delivery_fee: config.delivery_fee,
                 store_address: config.store_address,
                 banner_image: bannerUrl,
-                logo_image: logoUrl
+                logo_image: logoUrl,
+                // ✅ Salvar configurações de desconto
+                discount_enabled: config.discount_enabled,
+                discount_payment_methods: JSON.stringify(config.discount_payment_methods),
+                discount_percentage: config.discount_percentage
             };
 
             await api.put('/config', data);
             setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
             loadConfig();
+            showToast('Configurações salvas com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao salvar configurações:', error);
             setMessage({ type: 'error', text: 'Erro ao salvar configurações.' });
+            showToast('Erro ao salvar configurações', 'error');
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
+
+    // ============================================================
+    //  LISTA DE MÉTODOS DE PAGAMENTO
+    // ============================================================
+    const paymentMethods = ['Dinheiro', 'Pix', 'Crédito', 'Débito'];
+
+    if (loading) {
+        return (
+            <ConfigContainer>
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                    <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
+                    <p>Carregando configurações...</p>
+                </div>
+            </ConfigContainer>
+        );
+    }
 
     return (
         <ConfigContainer>
@@ -404,6 +599,9 @@ const Config = () => {
             )}
 
             <form onSubmit={handleSubmit}>
+                {/* ============================================================
+                    SEÇÃO: INFORMAÇÕES BÁSICAS
+                    ============================================================ */}
                 <ConfigSection>
                     <h3>📋 Informações Básicas</h3>
 
@@ -435,6 +633,9 @@ const Config = () => {
                     </FormGroup>
                 </ConfigSection>
 
+                {/* ============================================================
+                    SEÇÃO: ENDEREÇO
+                    ============================================================ */}
                 <ConfigSection>
                     <h3>📍 Endereço</h3>
                     <FormGroup>
@@ -450,6 +651,104 @@ const Config = () => {
                     </FormGroup>
                 </ConfigSection>
 
+                {/* ============================================================
+                    SEÇÃO: DESCONTO POR FORMA DE PAGAMENTO
+                    ============================================================ */}
+                <ConfigSection>
+                    <h3>💰 Desconto por Forma de Pagamento</h3>
+                    
+                    <FormGroup>
+                        <CheckboxGroup>
+                            <Checkbox
+                                type="checkbox"
+                                id="discount_enabled"
+                                name="discount_enabled"
+                                checked={config.discount_enabled === 'true'}
+                                onChange={handleChange}
+                            />
+                            <CheckboxLabel htmlFor="discount_enabled">
+                                Habilitar desconto para formas de pagamento
+                            </CheckboxLabel>
+                        </CheckboxGroup>
+                    </FormGroup>
+
+                    <FormGroup>
+                        <label htmlFor="discount_percentage">Percentual de Desconto (%)</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Input
+                                id="discount_percentage"
+                                name="discount_percentage"
+                                type="number"
+                                value={config.discount_percentage}
+                                onChange={handleChange}
+                                placeholder="4.00"
+                                style={{ maxWidth: '120px' }}
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                disabled={config.discount_enabled === 'false'}
+                            />
+                            <span style={{ fontSize: 14, color: '#888' }}>%</span>
+                        </div>
+                        <small>
+                            Desconto aplicado sobre o subtotal. 
+                            Ex: 4% de desconto = subtotal / 1.04
+                        </small>
+                    </FormGroup>
+
+                    <FormGroup>
+                        <label>Métodos de Pagamento Elegíveis</label>
+                        <PaymentMethodGroup>
+                            {paymentMethods.map(method => (
+                                <PaymentMethodCheckbox
+                                    key={method}
+                                    $checked={config.discount_payment_methods?.includes(method)}
+                                    onClick={() => handlePaymentMethodToggle(method)}
+                                    style={{
+                                        opacity: config.discount_enabled === 'false' ? 0.5 : 1,
+                                        cursor: config.discount_enabled === 'false' ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={config.discount_payment_methods?.includes(method)}
+                                        onChange={() => {}}
+                                        disabled={config.discount_enabled === 'false'}
+                                    />
+                                    {method === 'Dinheiro' && '💰'}
+                                    {method === 'Pix' && '📲'}
+                                    {method === 'Crédito' && '💳'}
+                                    {method === 'Débito' && '💳'}
+                                    {method}
+                                </PaymentMethodCheckbox>
+                            ))}
+                        </PaymentMethodGroup>
+                        <small>
+                            Selecione as formas de pagamento que terão desconto.
+                        </small>
+                    </FormGroup>
+
+                    {config.discount_enabled === 'true' && (
+                        <DiscountSummary>
+                            <strong>📊 Resumo do Desconto</strong>
+                            <ul>
+                                <li>Desconto de <strong>{config.discount_percentage}%</strong></li>
+                                <li>Aplicável para: <strong>{config.discount_payment_methods?.join(', ') || 'Nenhum'}</strong></li>
+                                <li>Status: <strong>✅ Ativo</strong></li>
+                            </ul>
+                        </DiscountSummary>
+                    )}
+
+                    <ButtonGroup>
+                        <ResetButton type="button" onClick={handleResetDiscount} disabled={saving}>
+                            🔄 Restaurar Padrão
+                        </ResetButton>
+                    </ButtonGroup>
+                </ConfigSection>
+
+                {/* ============================================================
+                    SEÇÃO: IMAGENS
+                    ============================================================ */}
                 <ConfigSection>
                     <h3>🖼️ Imagens da Loja</h3>
 
@@ -504,8 +803,8 @@ const Config = () => {
                     </FormGroup>
                 </ConfigSection>
 
-                <SaveButton type="submit" disabled={loading}>
-                    {loading ? '💾 Salvando...' : '💾 Salvar Configurações'}
+                <SaveButton type="submit" disabled={saving}>
+                    {saving ? '💾 Salvando...' : '💾 Salvar Configurações'}
                 </SaveButton>
             </form>
         </ConfigContainer>
