@@ -501,11 +501,11 @@ const TrackOrder = () => {
 
     // ✅ Verificar se é agendado (de forma robusta)
     const isScheduled = Number(order.is_scheduled) === 1;
-    const hasScheduledTime = order.scheduled_time && 
-                             order.scheduled_time !== '0' && 
-                             order.scheduled_time !== 'null' &&
-                             order.scheduled_time !== '' &&
-                             order.scheduled_time !== 0;
+    const hasScheduledTime = order.scheduled_time &&
+        order.scheduled_time !== '0' &&
+        order.scheduled_time !== 'null' &&
+        order.scheduled_time !== '' &&
+        order.scheduled_time !== 0;
 
     // ✅ Obter display da taxa de entrega
     const deliveryDisplay = getDeliveryFeeDisplay(
@@ -542,12 +542,7 @@ const TrackOrder = () => {
                         {statusEmojis[order.status]} {statusLabels[order.status] || order.status}
                     </StatusBadge>
                     {hasDiscount && (
-                        <DiscountBadge>💚 Desconto</DiscountBadge>
-                    )}
-                    {isScheduled && hasScheduledTime && (
-                        <DiscountBadge style={{ background: '#fef9e7', color: '#e67e22' }}>
-                            📅 Agendado
-                        </DiscountBadge>
+                        <DiscountBadge>Desconto</DiscountBadge>
                     )}
                 </div>
 
