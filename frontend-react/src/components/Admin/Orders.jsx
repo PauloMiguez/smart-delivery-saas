@@ -117,6 +117,17 @@ const DiscountBadge = styled.span`
     font-weight: ${tokens.typography.fontWeight.medium};
 `;
 
+const DispatchedBadge = styled.span`
+    background: ${tokens.colors.accentLight};
+    color: ${tokens.colors.accent};
+    padding: 2px 8px;
+    border-radius: ${tokens.radius.full};
+    font-size: ${tokens.typography.fontSize.xs};
+    margin-left: ${tokens.spacing.xs};
+    display: inline-block;
+    font-weight: ${tokens.typography.fontWeight.medium};
+`;
+
 const ScheduledTime = styled.div`
     font-size: ${tokens.typography.fontSize.xs};
     color: ${tokens.colors.accent};
@@ -149,6 +160,11 @@ const StatusBadge = styled(Badge)`
                     color: ${tokens.colors.success};
                 `;
             case 'preparing':
+                return `
+                    background: ${tokens.colors.accentLight};
+                    color: ${tokens.colors.accent};
+                `;
+            case 'dispatched':
                 return `
                     background: ${tokens.colors.accentLight};
                     color: ${tokens.colors.accent};
@@ -253,12 +269,13 @@ const Orders = ({
     };
 
     // ============================================================
-    //  MAPEAMENTO DE STATUS
+    //  MAPEAMENTO DE STATUS - COMPLETO COM DESPACHADO
     // ============================================================
     const statusMap = {
         'pending': 'pending',
         'confirmado': 'confirmed',
         'preparando': 'preparing',
+        'despachado': 'dispatched',
         'entregue': 'delivered',
         'cancelado': 'cancelled',
         'scheduled': 'scheduled'
@@ -268,6 +285,7 @@ const Orders = ({
         'pending': '🟡 Pendente',
         'confirmado': '🟢 Confirmado',
         'preparando': '🟠 Em preparo',
+        'despachado': '🏍️ Despachado',
         'entregue': '✅ Entregue',
         'cancelado': '❌ Cancelado',
         'scheduled': '📅 Agendado'
@@ -279,6 +297,7 @@ const Orders = ({
         { value: 'pending', label: '🟡 Pendentes' },
         { value: 'confirmado', label: '🟢 Confirmados' },
         { value: 'preparando', label: '🟠 Em preparo' },
+        { value: 'despachado', label: '🏍️ Despachados' },
         { value: 'entregue', label: '✅ Entregues' },
         { value: 'cancelado', label: '❌ Cancelados' }
     ];
@@ -314,9 +333,108 @@ const Orders = ({
             return order.discount_reason;
         }
         if (order.discount_percentage > 0) {
-            return `💚 ${order.discount_percentage}% de desconto`;
+            return `💰 ${order.discount_percentage}% de desconto`;
         }
-        return '💚 Desconto';
+        return '💰 Desconto';
+    };
+
+    // ============================================================
+    //  RENDERIZAR AÇÕES POR STATUS - COMPLETO COM DESPACHADO
+    // ============================================================
+    const renderActions = (statusClass, order) => {
+        switch(statusClass) {
+            case 'scheduled':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="confirm"
+                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                        >
+                            ✅ Confirmar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'pending':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="confirm"
+                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                        >
+                            ✅ Confirmar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'confirmed':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="preparar"
+                            onClick={() => onUpdateStatus(order.id, 'preparando')}
+                        >
+                            👨‍🍳 Em preparo
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'preparing':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="despachar"
+                            onClick={() => onUpdateStatus(order.id, 'despachado')}
+                        >
+                            🏍️ Despachar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'dispatched':
+                return (
+                    <ActionButton
+                        $variant="deliver"
+                        onClick={() => onUpdateStatus(order.id, 'entregue')}
+                    >
+                        📦 Entregue
+                    </ActionButton>
+                );
+            case 'delivered':
+                return (
+                    <StatusBadge $status="delivered" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                        ✅ Finalizado
+                    </StatusBadge>
+                );
+            case 'cancelled':
+                return (
+                    <StatusBadge $status="cancelled" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                        ❌ Cancelado
+                    </StatusBadge>
+                );
+            default:
+                return null;
+        }
     };
 
     return (
@@ -371,6 +489,7 @@ const Orders = ({
                                     const statusClass = o.status || 'pending';
                                     const hasDisc = hasDiscount(o);
                                     const discountText = getDiscountText(o);
+                                    const isDispatched = statusClass === 'dispatched';
 
                                     return (
                                         <tr key={o.id}>
@@ -385,7 +504,10 @@ const Orders = ({
                                                     <ScheduledBadge>📅</ScheduledBadge>
                                                 )}
                                                 {hasDisc && (
-                                                    <DiscountBadge>💚</DiscountBadge>
+                                                    <DiscountBadge>💰</DiscountBadge>
+                                                )}
+                                                {isDispatched && (
+                                                    <DispatchedBadge>🏍️</DispatchedBadge>
                                                 )}
                                                 {o.is_scheduled && o.scheduled_time && (
                                                     <ScheduledTime>
@@ -407,7 +529,7 @@ const Orders = ({
                                                     <TotalValue>R$ {formatMoney(o.total)}</TotalValue>
                                                     {hasDisc && (
                                                         <DiscountRow>
-                                                            💚 {discountText}: -R$ {formatMoney(o.discount)}
+                                                            💰 {discountText}: -R$ {formatMoney(o.discount)}
                                                         </DiscountRow>
                                                     )}
                                                 </div>
@@ -419,72 +541,7 @@ const Orders = ({
                                             </td>
                                             <td>
                                                 <ActionContainer>
-                                                    {statusClass === 'scheduled' && (
-                                                        <>
-                                                            <ActionButton
-                                                                $variant="confirm"
-                                                                onClick={() => onUpdateStatus(o.id, 'confirmado')}
-                                                            >
-                                                                ✅ Confirmar
-                                                            </ActionButton>
-                                                            <ActionButton
-                                                                $variant="cancel"
-                                                                onClick={() => onUpdateStatus(o.id, 'cancelado')}
-                                                            >
-                                                                ❌ Cancelar
-                                                            </ActionButton>
-                                                        </>
-                                                    )}
-                                                    {statusClass === 'pending' && (
-                                                        <>
-                                                            <ActionButton
-                                                                $variant="confirm"
-                                                                onClick={() => onUpdateStatus(o.id, 'confirmado')}
-                                                            >
-                                                                ✅ Confirmar
-                                                            </ActionButton>
-                                                            <ActionButton
-                                                                $variant="cancel"
-                                                                onClick={() => onUpdateStatus(o.id, 'cancelado')}
-                                                            >
-                                                                ❌ Cancelar
-                                                            </ActionButton>
-                                                        </>
-                                                    )}
-                                                    {statusClass === 'confirmado' && (
-                                                        <>
-                                                            <ActionButton
-                                                                $variant="preparar"
-                                                                onClick={() => onUpdateStatus(o.id, 'preparando')}
-                                                            >
-                                                                👨‍🍳 Em preparo
-                                                            </ActionButton>
-                                                            <ActionButton
-                                                                $variant="cancel"
-                                                                onClick={() => onUpdateStatus(o.id, 'cancelado')}
-                                                            >
-                                                                ❌ Cancelar
-                                                            </ActionButton>
-                                                        </>
-                                                    )}
-                                                    {statusClass === 'preparando' && (
-                                                        <ActionButton
-                                                            $variant="deliver"
-                                                            onClick={() => onUpdateStatus(o.id, 'entregue')}
-                                                        >
-                                                            📦 Entregue
-                                                        </ActionButton>
-                                                    )}
-                                                    {statusClass === 'entregue' && (
-                                                        <StatusBadge $status="delivered">
-                                                            ✅ Finalizado
-                                                        </StatusBadge>
-                                                    )}
-                                                    {statusClass === 'cancelado' && (
-                                                        <StatusBadge $status="cancelled">
-                                                            ❌ Cancelado
-                                                        </StatusBadge>
-                                                    )}
+                                                    {renderActions(statusClass, o)}
                                                 </ActionContainer>
                                             </td>
                                         </tr>
@@ -501,6 +558,7 @@ const Orders = ({
                             const statusClass = o.status || 'pending';
                             const hasDisc = hasDiscount(o);
                             const discountText = getDiscountText(o);
+                            const isDispatched = statusClass === 'dispatched';
 
                             return (
                                 <MobileOrderCard key={o.id}>
@@ -517,7 +575,10 @@ const Orders = ({
                                                 <ScheduledBadge>📅</ScheduledBadge>
                                             )}
                                             {hasDisc && (
-                                                <DiscountBadge>💚</DiscountBadge>
+                                                <DiscountBadge>💰</DiscountBadge>
+                                            )}
+                                            {isDispatched && (
+                                                <DispatchedBadge>🏍️</DispatchedBadge>
                                             )}
                                         </span>
                                     </MobileOrderRow>
@@ -549,7 +610,7 @@ const Orders = ({
                                             <TotalValue>R$ {formatMoney(o.total)}</TotalValue>
                                             {hasDisc && (
                                                 <div style={{ fontSize: '11px', color: tokens.colors.success, marginTop: '2px' }}>
-                                                    💚 {discountText}: -R$ {formatMoney(o.discount)}
+                                                    💰 {discountText}: -R$ {formatMoney(o.discount)}
                                                 </div>
                                             )}
                                         </span>
@@ -614,7 +675,7 @@ const Orders = ({
                                                 </ActionButton>
                                             </>
                                         )}
-                                        {statusClass === 'confirmado' && (
+                                        {statusClass === 'confirmed' && (
                                             <>
                                                 <ActionButton
                                                     $variant="preparar"
@@ -632,7 +693,25 @@ const Orders = ({
                                                 </ActionButton>
                                             </>
                                         )}
-                                        {statusClass === 'preparando' && (
+                                        {statusClass === 'preparing' && (
+                                            <>
+                                                <ActionButton
+                                                    $variant="despachar"
+                                                    onClick={() => onUpdateStatus(o.id, 'despachado')}
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    🏍️ Despachar
+                                                </ActionButton>
+                                                <ActionButton
+                                                    $variant="cancel"
+                                                    onClick={() => onUpdateStatus(o.id, 'cancelado')}
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    ❌ Cancelar
+                                                </ActionButton>
+                                            </>
+                                        )}
+                                        {statusClass === 'dispatched' && (
                                             <ActionButton
                                                 $variant="deliver"
                                                 onClick={() => onUpdateStatus(o.id, 'entregue')}
@@ -641,12 +720,12 @@ const Orders = ({
                                                 📦 Entregue
                                             </ActionButton>
                                         )}
-                                        {statusClass === 'entregue' && (
+                                        {statusClass === 'delivered' && (
                                             <StatusBadge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ✅ Finalizado
                                             </StatusBadge>
                                         )}
-                                        {statusClass === 'cancelado' && (
+                                        {statusClass === 'cancelled' && (
                                             <StatusBadge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ❌ Cancelado
                                             </StatusBadge>

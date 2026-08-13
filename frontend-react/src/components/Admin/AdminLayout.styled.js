@@ -274,9 +274,24 @@ export const Badge = styled.span`
         color: #27ae60;
     `}
     
+    ${props => props.$status === 'preparing' && `
+        background: #fdebd0;
+        color: #e67e22;
+    `}
+    
+    ${props => props.$status === 'dispatched' && `
+        background: #d6eaf8;
+        color: #2e86c1;
+    `}
+    
     ${props => props.$status === 'delivered' && `
         background: #d5f5e3;
         color: #1a7a3a;
+    `}
+    
+    ${props => props.$status === 'scheduled' && `
+        background: #fef9e7;
+        color: #f39c12;
     `}
     
     ${props => props.$status === 'cancelled' && `
@@ -285,6 +300,9 @@ export const Badge = styled.span`
     `}
 `;
 
+// ============================================================
+//  ACTION BUTTON - COMPLETO COM DESPACHAR
+// ============================================================
 export const ActionButton = styled.button`
     padding: 4px 10px;
     border: none;
@@ -311,6 +329,18 @@ export const ActionButton = styled.button`
         background: #27ae60;
         color: #fff;
         &:hover { background: #1e8449; }
+    `}
+
+    ${props => props.$variant === 'preparar' && `
+        background: #e67e22;
+        color: #fff;
+        &:hover { background: #d35400; }
+    `}
+
+    ${props => props.$variant === 'despachar' && `
+        background: #2e86c1;
+        color: #fff;
+        &:hover { background: #1a5276; }
     `}
 
     ${props => props.$variant === 'deliver' && `
