@@ -339,111 +339,118 @@ const Orders = ({
     };
 
     // ============================================================
+    //  VERIFICAR SE É AGENDADO
+    // ============================================================
+    const isOrderScheduled = (order) => {
+        return Number(order.is_scheduled) === 1;
+    };
+
+    const hasOrderScheduledTime = (order) => {
+        return order.scheduled_time && 
+               order.scheduled_time !== '0' && 
+               order.scheduled_time !== 'null' &&
+               order.scheduled_time !== '' &&
+               order.scheduled_time !== 0;
+    };
+
+    // ============================================================
     //  RENDERIZAR AÇÕES POR STATUS - COMPLETO COM DESPACHADO
     // ============================================================
     const renderActions = (statusClass, order) => {
-    // Log para debug
-    console.log('🔍 Status recebido:', statusClass, 'Pedido:', order.order_number);
-
-    switch(statusClass) {
-        case 'scheduled':
-            return (
-                <>
+        switch(statusClass) {
+            case 'scheduled':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="confirm"
+                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                        >
+                            ✅ Confirmar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'pending':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="confirm"
+                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                        >
+                            ✅ Confirmar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'confirmado':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="preparar"
+                            onClick={() => onUpdateStatus(order.id, 'preparando')}
+                        >
+                            👨‍🍳 Em preparo
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'preparando':
+                return (
+                    <>
+                        <ActionButton
+                            $variant="despachar"
+                            onClick={() => onUpdateStatus(order.id, 'despachado')}
+                        >
+                            🏍️ Despachar
+                        </ActionButton>
+                        <ActionButton
+                            $variant="cancel"
+                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                        >
+                            ❌ Cancelar
+                        </ActionButton>
+                    </>
+                );
+            case 'despachado':
+                return (
                     <ActionButton
-                        $variant="confirm"
-                        onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                        $variant="deliver"
+                        onClick={() => onUpdateStatus(order.id, 'entregue')}
                     >
-                        ✅ Confirmar
+                        📦 Entregue
                     </ActionButton>
-                    <ActionButton
-                        $variant="cancel"
-                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                    >
-                        ❌ Cancelar
-                    </ActionButton>
-                </>
-            );
-        case 'pending':
-            return (
-                <>
-                    <ActionButton
-                        $variant="confirm"
-                        onClick={() => onUpdateStatus(order.id, 'confirmado')}
-                    >
-                        ✅ Confirmar
-                    </ActionButton>
-                    <ActionButton
-                        $variant="cancel"
-                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                    >
-                        ❌ Cancelar
-                    </ActionButton>
-                </>
-            );
-        case 'confirmado':
-            return (
-                <>
-                    <ActionButton
-                        $variant="preparar"
-                        onClick={() => onUpdateStatus(order.id, 'preparando')}
-                    >
-                        👨‍🍳 Em preparo
-                    </ActionButton>
-                    <ActionButton
-                        $variant="cancel"
-                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                    >
-                        ❌ Cancelar
-                    </ActionButton>
-                </>
-            );
-        case 'preparando':
-            return (
-                <>
-                    <ActionButton
-                        $variant="despachar"
-                        onClick={() => onUpdateStatus(order.id, 'despachado')}
-                    >
-                        🏍️ Despachar
-                    </ActionButton>
-                    <ActionButton
-                        $variant="cancel"
-                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                    >
-                        ❌ Cancelar
-                    </ActionButton>
-                </>
-            );
-        case 'despachado':
-            return (
-                <ActionButton
-                    $variant="deliver"
-                    onClick={() => onUpdateStatus(order.id, 'entregue')}
-                >
-                    📦 Entregue
-                </ActionButton>
-            );
-        case 'entregue':
-            return (
-                <StatusBadge $status="delivered" style={{ textAlign: 'center', padding: '8px 16px' }}>
-                    ✅ Finalizado
-                </StatusBadge>
-            );
-        case 'cancelado':
-            return (
-                <StatusBadge $status="cancelled" style={{ textAlign: 'center', padding: '8px 16px' }}>
-                    ❌ Cancelado
-                </StatusBadge>
-            );
-        default:
-            console.warn('⚠️ Status não reconhecido:', statusClass);
-            return (
-                <StatusBadge $status="pending" style={{ textAlign: 'center', padding: '8px 16px' }}>
-                    ⚠️ Status desconhecido
-                </StatusBadge>
-            );
-    }
-};
+                );
+            case 'entregue':
+                return (
+                    <StatusBadge $status="delivered" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                        ✅ Finalizado
+                    </StatusBadge>
+                );
+            case 'cancelado':
+                return (
+                    <StatusBadge $status="cancelled" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                        ❌ Cancelado
+                    </StatusBadge>
+                );
+            default:
+                return null;
+        }
+    };
 
     return (
         <OrdersContainer>
@@ -498,6 +505,10 @@ const Orders = ({
                                     const hasDisc = hasDiscount(o);
                                     const discountText = getDiscountText(o);
                                     const isDispatched = statusClass === 'dispatched';
+                                    
+                                    // ✅ CORREÇÃO: Verificar se é agendado corretamente
+                                    const isScheduled = isOrderScheduled(o);
+                                    const hasScheduledTime = hasOrderScheduledTime(o);
 
                                     return (
                                         <tr key={o.id}>
@@ -508,16 +519,22 @@ const Orders = ({
                                                 >
                                                     #{o.order_number || o.id}
                                                 </OrderNumber>
-                                                {o.is_scheduled && (
+                                                
+                                                {/* ✅ Só exibir se for agendado */}
+                                                {isScheduled && (
                                                     <ScheduledBadge>📅</ScheduledBadge>
                                                 )}
+                                                
                                                 {hasDisc && (
                                                     <DiscountBadge>💰</DiscountBadge>
                                                 )}
+                                                
                                                 {isDispatched && (
                                                     <DispatchedBadge>🏍️</DispatchedBadge>
                                                 )}
-                                                {o.is_scheduled && o.scheduled_time && (
+                                                
+                                                {/* ✅ Só exibir o horário agendado se realmente tiver */}
+                                                {isScheduled && hasScheduledTime && (
                                                     <ScheduledTime>
                                                         {formatDate(o.scheduled_time)}
                                                     </ScheduledTime>
@@ -567,6 +584,10 @@ const Orders = ({
                             const hasDisc = hasDiscount(o);
                             const discountText = getDiscountText(o);
                             const isDispatched = statusClass === 'dispatched';
+                            
+                            // ✅ CORREÇÃO: Verificar se é agendado corretamente
+                            const isScheduled = isOrderScheduled(o);
+                            const hasScheduledTime = hasOrderScheduledTime(o);
 
                             return (
                                 <MobileOrderCard key={o.id}>
@@ -579,12 +600,16 @@ const Orders = ({
                                             >
                                                 #{o.order_number || o.id}
                                             </OrderNumber>
-                                            {o.is_scheduled && (
+                                            
+                                            {/* ✅ Só exibir se for agendado */}
+                                            {isScheduled && (
                                                 <ScheduledBadge>📅</ScheduledBadge>
                                             )}
+                                            
                                             {hasDisc && (
                                                 <DiscountBadge>💰</DiscountBadge>
                                             )}
+                                            
                                             {isDispatched && (
                                                 <DispatchedBadge>🏍️</DispatchedBadge>
                                             )}
@@ -598,7 +623,8 @@ const Orders = ({
                                         </span>
                                     </MobileOrderRow>
 
-                                    {o.is_scheduled && o.scheduled_time && (
+                                    {/* ✅ Só exibir agendamento se for agendado */}
+                                    {isScheduled && hasScheduledTime && (
                                         <MobileOrderRow>
                                             <span className="label">Agendado</span>
                                             <span className="value" style={{ fontSize: '12px', color: tokens.colors.accent }}>
@@ -683,7 +709,7 @@ const Orders = ({
                                                 </ActionButton>
                                             </>
                                         )}
-                                        {statusClass === 'confirmed' && (
+                                        {statusClass === 'confirmado' && (
                                             <>
                                                 <ActionButton
                                                     $variant="preparar"
@@ -701,7 +727,7 @@ const Orders = ({
                                                 </ActionButton>
                                             </>
                                         )}
-                                        {statusClass === 'preparing' && (
+                                        {statusClass === 'preparando' && (
                                             <>
                                                 <ActionButton
                                                     $variant="despachar"
@@ -719,7 +745,7 @@ const Orders = ({
                                                 </ActionButton>
                                             </>
                                         )}
-                                        {statusClass === 'dispatched' && (
+                                        {statusClass === 'despachado' && (
                                             <ActionButton
                                                 $variant="deliver"
                                                 onClick={() => onUpdateStatus(o.id, 'entregue')}
@@ -728,12 +754,12 @@ const Orders = ({
                                                 📦 Entregue
                                             </ActionButton>
                                         )}
-                                        {statusClass === 'delivered' && (
+                                        {statusClass === 'entregue' && (
                                             <StatusBadge $status="delivered" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ✅ Finalizado
                                             </StatusBadge>
                                         )}
-                                        {statusClass === 'cancelled' && (
+                                        {statusClass === 'cancelado' && (
                                             <StatusBadge $status="cancelled" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
                                                 ❌ Cancelado
                                             </StatusBadge>
