@@ -51,6 +51,7 @@ const OrderNumber = styled.div`
     margin-bottom: 8px;
 `;
 
+// ✅ StatusBadge atualizado com "despachado"
 const StatusBadge = styled.div`
     display: inline-block;
     padding: 8px 16px;
@@ -62,8 +63,10 @@ const StatusBadge = styled.div`
             case 'pending': return '#fef9e7';
             case 'confirmado': return '#d5f5e3';
             case 'preparando': return '#fdebd0';
+            case 'despachado': return '#d6eaf8';
             case 'entregue': return '#d5f5e3';
             case 'cancelado': return '#fdedec';
+            case 'scheduled': return '#fef9e7';
             default: return '#f5f5f5';
         }
     }};
@@ -72,8 +75,10 @@ const StatusBadge = styled.div`
             case 'pending': return '#f39c12';
             case 'confirmado': return '#27ae60';
             case 'preparando': return '#e67e22';
+            case 'despachado': return '#2e86c1';
             case 'entregue': return '#27ae60';
             case 'cancelado': return '#e74c3c';
+            case 'scheduled': return '#f39c12';
             default: return '#888';
         }
     }};
@@ -176,24 +181,29 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
+// ✅ Status Labels atualizado com "Despachado"
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
     'preparando': 'Em preparação',
+    'despachado': 'Saiu para entrega',
     'entregue': 'Entregue',
     'cancelado': 'Cancelado',
     'scheduled': 'Agendado'
 };
 
+// ✅ Status Emojis atualizado com "Despachado"
 const statusEmojis = {
     'pending': '📋',
     'confirmado': '✅',
     'preparando': '👨‍🍳',
+    'despachado': '🏍️',
     'entregue': '📦',
     'cancelado': '❌'
 };
 
-const statusOrder = ['pending', 'confirmado', 'preparando', 'entregue'];
+// ✅ Status Order atualizado com "Despachado"
+const statusOrder = ['pending', 'confirmado', 'preparando', 'despachado', 'entregue'];
 
 // ============================================================
 //  FUNÇÃO PARA FORMATAR DATA
@@ -485,21 +495,13 @@ const TrackOrder = () => {
     const isCancelled = order.status === 'cancelado';
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
 
-    // ✅ Calcular subtotal (soma dos itens)
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-    // ✅ Taxa de entrega (vem do pedido)
     const deliveryFee = parseFloat(order.delivery_fee) || 0;
-
-    // ✅ Desconto
     const discount = parseFloat(order.discount) || 0;
     const discountPercentage = parseFloat(order.discount_percentage) || 0;
     const discountReason = order.discount_reason || '';
-
-    // ✅ Total (já vem do pedido)
     const total = parseFloat(order.total) || 0;
 
-    // ✅ Verificar se é agendado (de forma robusta)
     const isScheduled = Number(order.is_scheduled) === 1;
     const hasScheduledTime = order.scheduled_time &&
         order.scheduled_time !== '0' &&
@@ -507,14 +509,12 @@ const TrackOrder = () => {
         order.scheduled_time !== '' &&
         order.scheduled_time !== 0;
 
-    // ✅ Obter display da taxa de entrega
     const deliveryDisplay = getDeliveryFeeDisplay(
         deliveryFee,
         order.delivery_status,
         order.delivery_type
     );
 
-    // ✅ Verificar se tem desconto
     const hasDiscount = discount > 0 || discountPercentage > 0;
 
     console.log('🔍 Debug agendamento:', {
@@ -543,6 +543,11 @@ const TrackOrder = () => {
                     </StatusBadge>
                     {hasDiscount && (
                         <DiscountBadge>Desconto</DiscountBadge>
+                    )}
+                    {isScheduled && hasScheduledTime && (
+                        <DiscountBadge style={{ background: '#fef9e7', color: '#f39c12' }}>
+                            📅 Agendado
+                        </DiscountBadge>
                     )}
                 </div>
 
@@ -594,7 +599,6 @@ const TrackOrder = () => {
                             </div>
                         ))}
 
-                        {/* ✅ SUBTOTAL */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -607,15 +611,13 @@ const TrackOrder = () => {
                             <span>{formatMoney(subtotal)}</span>
                         </div>
 
-                        {/* ✅ DESCONTO (se aplicável) */}
                         {hasDiscount && (
                             <DiscountRow>
-                                <span>💚 {discountReason || `${discountPercentage}% de desconto`}</span>
+                                <span>💰 {discountReason || `${discountPercentage}% de desconto`}</span>
                                 <span>- {formatMoney(discount)}</span>
                             </DiscountRow>
                         )}
 
-                        {/* ✅ TAXA DE ENTREGA */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -630,13 +632,11 @@ const TrackOrder = () => {
                             </span>
                         </div>
 
-                        {/* ✅ TOTAL */}
                         <DetailTotal>
                             <span>Total {hasDiscount && <span style={{ fontSize: '12px', color: '#2e7d32' }}>(com desconto)</span>}</span>
                             <span>{formatMoney(total)}</span>
                         </DetailTotal>
 
-                        {/* ✅ INFORMAÇÃO DE DESCONTO ADICIONAL */}
                         {hasDiscount && (
                             <div style={{
                                 fontSize: '12px',
@@ -647,7 +647,7 @@ const TrackOrder = () => {
                                 borderRadius: '4px',
                                 textAlign: 'center'
                             }}>
-                                💚 Economia de {formatMoney(discount)} com pagamento em {order.payment_method}
+                                💰 Economia de {formatMoney(discount)} com pagamento em {order.payment_method}
                             </div>
                         )}
                     </div>
@@ -657,7 +657,6 @@ const TrackOrder = () => {
                         <span>{formatLocalDate(order.created_at, false)}</span>
                     </DetailRow>
 
-                    {/* ✅ Só exibir se for realmente agendado */}
                     {isScheduled && hasScheduledTime && (
                         <DetailRow style={{ backgroundColor: '#fef9e7', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
                             <DetailLabel>📅 Agendado para</DetailLabel>
