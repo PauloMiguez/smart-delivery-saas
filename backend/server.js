@@ -1479,6 +1479,8 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
 // ============================================================
 //  5. ROTA PUT /api/orders/:id/status - ATUALIZAR STATUS
 // ============================================================
+// backend/server.js
+
 app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -1489,13 +1491,16 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Status é obrigatório' });
         }
 
-        const validStatuses = ['pending', 'confirmado', 'preparando', 'entregue', 'cancelado'];
+        // ✅ CORREÇÃO: Adicionar 'despachado' à lista de status válidos
+        const validStatuses = ['pending', 'confirmado', 'preparando', 'despachado', 'entregue', 'cancelado'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
                 error: 'Status inválido. Use: ' + validStatuses.join(', ')
             });
         }
+
+        console.log(`📝 Atualizando pedido ${orderId} para status: ${status}`);
 
         const [result] = await pool.query(
             `UPDATE orders SET status = ?, updated_at = NOW()
@@ -1507,32 +1512,32 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
         }
 
+        // Buscar informações do pedido para notificação
+        const [orderInfo] = await pool.query(
+            'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
+            [orderId, tenantId]
+        );
+
+        // Enviar notificação via WebSocket
         const io = req.app.get('io');
-        if (io) {
-            const [orderInfo] = await pool.query(
-                'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
-                [orderId, tenantId]
-            );
+        if (io && orderInfo.length > 0) {
+            console.log(`🔔 Enviando notificação de atualização de status para tenant: ${tenantId}`);
+            console.log(`   Pedido: ${orderInfo[0].order_number} -> Status: ${status}`);
 
-            if (orderInfo.length > 0) {
-                console.log('🔔 Enviando notificação de atualização de status para tenant:', tenantId);
-                console.log('   Pedido:', orderInfo[0].order_number, 'Status:', status);
-
-                io.to(`tenant-${tenantId}`).emit('order-updated', {
-                    action: 'status_change',
-                    order: {
-                        id: orderId,
-                        orderNumber: orderInfo[0].order_number,
-                        status: status
-                    }
-                });
-            }
+            io.to(`tenant-${tenantId}`).emit('order-updated', {
+                action: 'status_change',
+                order: {
+                    id: orderId,
+                    orderNumber: orderInfo[0].order_number,
+                    status: status
+                }
+            });
         }
 
         res.json({ success: true, message: 'Status atualizado com sucesso' });
     } catch (error) {
-        console.error('Erro ao atualizar status:', error);
-        res.status(500).json({ success: false, error: 'Erro ao atualizar status' });
+        console.error('❌ Erro ao atualizar status:', error);
+        res.status(500).json({ success: false, error: 'Erro ao atualizar status: ' + error.message });
     }
 });
 

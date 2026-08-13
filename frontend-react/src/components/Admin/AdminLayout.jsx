@@ -554,10 +554,12 @@ const AdminLayout = () => {
     // === PEDIDOS ===
     const updateOrderStatus = async (orderId, status) => {
         try {
+            console.log('📝 Atualizando status do pedido:', orderId, 'para:', status);
             await api.put(`/orders/${orderId}/status`, { status });
             await loadData();
+            showToast(`Status do pedido atualizado para: ${status}`, 'success');
         } catch (error) {
-            console.error('Erro ao atualizar status:', error);
+            console.error('❌ Erro ao atualizar status:', error);
             showToast('Erro ao atualizar status do pedido.', 'error');
         }
     };

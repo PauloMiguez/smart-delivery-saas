@@ -342,100 +342,108 @@ const Orders = ({
     //  RENDERIZAR AÇÕES POR STATUS - COMPLETO COM DESPACHADO
     // ============================================================
     const renderActions = (statusClass, order) => {
-        switch(statusClass) {
-            case 'scheduled':
-                return (
-                    <>
-                        <ActionButton
-                            $variant="confirm"
-                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
-                        >
-                            ✅ Confirmar
-                        </ActionButton>
-                        <ActionButton
-                            $variant="cancel"
-                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                        >
-                            ❌ Cancelar
-                        </ActionButton>
-                    </>
-                );
-            case 'pending':
-                return (
-                    <>
-                        <ActionButton
-                            $variant="confirm"
-                            onClick={() => onUpdateStatus(order.id, 'confirmado')}
-                        >
-                            ✅ Confirmar
-                        </ActionButton>
-                        <ActionButton
-                            $variant="cancel"
-                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                        >
-                            ❌ Cancelar
-                        </ActionButton>
-                    </>
-                );
-            case 'confirmed':
-                return (
-                    <>
-                        <ActionButton
-                            $variant="preparar"
-                            onClick={() => onUpdateStatus(order.id, 'preparando')}
-                        >
-                            👨‍🍳 Em preparo
-                        </ActionButton>
-                        <ActionButton
-                            $variant="cancel"
-                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                        >
-                            ❌ Cancelar
-                        </ActionButton>
-                    </>
-                );
-            case 'preparing':
-                return (
-                    <>
-                        <ActionButton
-                            $variant="despachar"
-                            onClick={() => onUpdateStatus(order.id, 'despachado')}
-                        >
-                            🏍️ Despachar
-                        </ActionButton>
-                        <ActionButton
-                            $variant="cancel"
-                            onClick={() => onUpdateStatus(order.id, 'cancelado')}
-                        >
-                            ❌ Cancelar
-                        </ActionButton>
-                    </>
-                );
-            case 'dispatched':
-                return (
+    // Log para debug
+    console.log('🔍 Status recebido:', statusClass, 'Pedido:', order.order_number);
+
+    switch(statusClass) {
+        case 'scheduled':
+            return (
+                <>
                     <ActionButton
-                        $variant="deliver"
-                        onClick={() => onUpdateStatus(order.id, 'entregue')}
+                        $variant="confirm"
+                        onClick={() => onUpdateStatus(order.id, 'confirmado')}
                     >
-                        📦 Entregue
+                        ✅ Confirmar
                     </ActionButton>
-                );
-            case 'delivered':
-                return (
-                    <StatusBadge $status="delivered" style={{ textAlign: 'center', padding: '8px 16px' }}>
-                        ✅ Finalizado
-                    </StatusBadge>
-                );
-            case 'cancelled':
-                return (
-                    <StatusBadge $status="cancelled" style={{ textAlign: 'center', padding: '8px 16px' }}>
-                        ❌ Cancelado
-                    </StatusBadge>
-                );
-            default:
-                return null;
-        }
-    };
+                    <ActionButton
+                        $variant="cancel"
+                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                    >
+                        ❌ Cancelar
+                    </ActionButton>
+                </>
+            );
+        case 'pending':
+            return (
+                <>
+                    <ActionButton
+                        $variant="confirm"
+                        onClick={() => onUpdateStatus(order.id, 'confirmado')}
+                    >
+                        ✅ Confirmar
+                    </ActionButton>
+                    <ActionButton
+                        $variant="cancel"
+                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                    >
+                        ❌ Cancelar
+                    </ActionButton>
+                </>
+            );
+        case 'confirmado':
+            return (
+                <>
+                    <ActionButton
+                        $variant="preparar"
+                        onClick={() => onUpdateStatus(order.id, 'preparando')}
+                    >
+                        👨‍🍳 Em preparo
+                    </ActionButton>
+                    <ActionButton
+                        $variant="cancel"
+                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                    >
+                        ❌ Cancelar
+                    </ActionButton>
+                </>
+            );
+        case 'preparando':
+            return (
+                <>
+                    <ActionButton
+                        $variant="despachar"
+                        onClick={() => onUpdateStatus(order.id, 'despachado')}
+                    >
+                        🏍️ Despachar
+                    </ActionButton>
+                    <ActionButton
+                        $variant="cancel"
+                        onClick={() => onUpdateStatus(order.id, 'cancelado')}
+                    >
+                        ❌ Cancelar
+                    </ActionButton>
+                </>
+            );
+        case 'despachado':
+            return (
+                <ActionButton
+                    $variant="deliver"
+                    onClick={() => onUpdateStatus(order.id, 'entregue')}
+                >
+                    📦 Entregue
+                </ActionButton>
+            );
+        case 'entregue':
+            return (
+                <StatusBadge $status="delivered" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                    ✅ Finalizado
+                </StatusBadge>
+            );
+        case 'cancelado':
+            return (
+                <StatusBadge $status="cancelled" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                    ❌ Cancelado
+                </StatusBadge>
+            );
+        default:
+            console.warn('⚠️ Status não reconhecido:', statusClass);
+            return (
+                <StatusBadge $status="pending" style={{ textAlign: 'center', padding: '8px 16px' }}>
+                    ⚠️ Status desconhecido
+                </StatusBadge>
+            );
+    }
+};
 
     return (
         <OrdersContainer>
