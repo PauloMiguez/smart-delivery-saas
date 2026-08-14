@@ -13,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const socketIo = require('socket.io');
+const webpush = require('web-push');
 
 // ============================================================
 //  CONFIGURAR FUSO HORÁRIO PARA BRASIL (UTC-3)
@@ -204,6 +205,7 @@ const pool = mysql.createPool({
     ssl: {
         rejectUnauthorized: false
     },
+    enableCleartextPlugin: true,
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
@@ -251,7 +253,7 @@ async function testDatabaseConnection() {
 function getDomainMapping() {
     const tenantDomains = process.env.TENANT_DOMAINS || '';
     const domainMap = {};
-    
+
     tenantDomains.split(',').forEach(pair => {
         const [domain, tenant] = pair.trim().split(':');
         if (domain && tenant) {
@@ -259,7 +261,7 @@ function getDomainMapping() {
             domainMap[`www.${domain.trim()}`] = tenant.trim();
         }
     });
-    
+
     return domainMap;
 }
 
@@ -283,21 +285,123 @@ app.get('/api/domain-mapping', (req, res) => {
 });
 
 // ============================================================
+//  NOTIFICAÇÕES PUSH - ROTAS PÚBLICAS (ANTES DO MIDDLEWARE)
+// ============================================================
+
+// Configurar VAPID
+webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@smartdelivery.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+);
+
+// Rota para obter chave pública VAPID (PÚBLICA)
+app.get('/api/notifications/vapid-public-key', (req, res) => {
+    console.log('📱 🔥 ROTA VAPID CHAMADA!');
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    console.log('📱 Chave VAPID:', publicKey ? '✅ Existe' : '❌ NÃO EXISTE');
+    
+    if (!publicKey) {
+        console.error('❌ VAPID_PUBLIC_KEY não encontrada no .env');
+        return res.status(500).json({
+            success: false,
+            error: 'VAPID key não configurada'
+        });
+    }
+    res.json({
+        publicKey: publicKey
+    });
+});
+
+// Rota para inscrever o dispositivo (PÚBLICA)
+app.post('/api/notifications/subscribe', async (req, res) => {
+    try {
+        const { subscription, tenant } = req.body;
+
+        console.log('📱 📝 NOVA INSCRIÇÃO PUSH');
+        console.log('📱 Tenant:', tenant);
+        console.log('📱 Endpoint:', subscription?.endpoint?.substring(0, 50) + '...');
+
+        if (!subscription) {
+            return res.status(400).json({
+                success: false,
+                error: 'Subscription é obrigatório'
+            });
+        }
+
+        // Salvar no banco sem user_id (para clientes anônimos)
+        const [result] = await pool.query(
+            `INSERT INTO push_subscriptions 
+             (tenant_id, subscription, created_at, updated_at) 
+             VALUES (?, ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE subscription = ?, updated_at = NOW()`,
+            [tenant || 'fireburger', JSON.stringify(subscription), JSON.stringify(subscription)]
+        );
+
+        console.log('✅ Inscrição salva com sucesso!');
+
+        res.json({
+            success: true,
+            message: 'Inscrição push salva com sucesso'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao salvar inscrição push:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao salvar inscrição push: ' + error.message
+        });
+    }
+});
+
+// Rota para cancelar inscrição
+app.delete('/api/notifications/unsubscribe', async (req, res) => {
+    try {
+        const { endpoint } = req.body;
+        const tenant = req.query.tenant || 'fireburger';
+
+        await pool.query(
+            'DELETE FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
+            [tenant, `%${endpoint}%`]
+        );
+
+        res.json({
+            success: true,
+            message: 'Inscrição push removida'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao remover inscrição:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao remover inscrição push'
+        });
+    }
+});
+
+// ============================================================
 //  TENANT MIDDLEWARE
 // ============================================================
 app.use((req, res, next) => {
+    console.log('🔍 ==========================================');
+    console.log('🔍 [TENANT] Path:', req.path);
+    console.log('🔍 [TENANT] Query:', req.query);
+    console.log('🔍 [TENANT] Host:', req.get('host'));
+    console.log('🔍 [TENANT] Headers X-Tenant-ID:', req.headers['x-tenant-id']);
+    console.log('🔍 ==========================================');
+    
     const publicRoutes = [
         '/api/health',
         '/api/auth/login',
         '/api/auth/register',
         '/api/test-db',
         '/api/orders/available-slots',
-        '/api/domain-mapping'
+        '/api/domain-mapping',
+        '/api/notifications/vapid-public-key',
+        '/api/notifications/subscribe'
     ];
 
     const currentPath = req.path || req.originalUrl || '';
-    const isPublicRoute = publicRoutes.some(route => 
-        currentPath === route || 
+    const isPublicRoute = publicRoutes.some(route =>
+        currentPath === route ||
         currentPath.startsWith(route) ||
         currentPath.includes(route)
     );
@@ -328,7 +432,7 @@ app.use((req, res, next) => {
     const host = req.get('host');
     if (host) {
         const hostClean = host.split(':')[0];
-        
+
         const domainMap = getDomainMapping();
         if (domainMap[hostClean]) {
             req.tenantId = domainMap[hostClean];
@@ -1479,8 +1583,6 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
 // ============================================================
 //  5. ROTA PUT /api/orders/:id/status - ATUALIZAR STATUS
 // ============================================================
-// backend/server.js
-
 app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
@@ -1491,7 +1593,6 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Status é obrigatório' });
         }
 
-        // ✅ CORREÇÃO: Adicionar 'despachado' à lista de status válidos
         const validStatuses = ['pending', 'confirmado', 'preparando', 'despachado', 'entregue', 'cancelado'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
@@ -1514,24 +1615,40 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
 
         // Buscar informações do pedido para notificação
         const [orderInfo] = await pool.query(
-            'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
+            'SELECT order_number, access_token FROM orders WHERE id = ? AND tenant_id = ?',
             [orderId, tenantId]
         );
 
-        // Enviar notificação via WebSocket
-        const io = req.app.get('io');
-        if (io && orderInfo.length > 0) {
-            console.log(`🔔 Enviando notificação de atualização de status para tenant: ${tenantId}`);
-            console.log(`   Pedido: ${orderInfo[0].order_number} -> Status: ${status}`);
+        if (orderInfo.length > 0) {
+            const orderNumber = orderInfo[0].order_number;
+            const accessToken = orderInfo[0].access_token;
 
-            io.to(`tenant-${tenantId}`).emit('order-updated', {
-                action: 'status_change',
-                order: {
-                    id: orderId,
-                    orderNumber: orderInfo[0].order_number,
-                    status: status
-                }
-            });
+            // ✅ Enviar notificação push
+            if (['confirmado', 'preparando', 'despachado', 'entregue'].includes(status)) {
+                await sendPushNotifications(
+                    orderId,
+                    orderNumber,
+                    status,
+                    accessToken,
+                    tenantId
+                );
+            }
+
+            // Enviar WebSocket
+            const io = req.app.get('io');
+            if (io) {
+                console.log(`🔔 Enviando notificação de atualização de status para tenant: ${tenantId}`);
+                console.log(`   Pedido: ${orderNumber} -> Status: ${status}`);
+
+                io.to(`tenant-${tenantId}`).emit('order-updated', {
+                    action: 'status_change',
+                    order: {
+                        id: orderId,
+                        orderNumber: orderNumber,
+                        status: status
+                    }
+                });
+            }
         }
 
         res.json({ success: true, message: 'Status atualizado com sucesso' });
@@ -1831,7 +1948,6 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
         const userId = req.userId;
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
-        // Validar campos
         if (!currentPassword || !newPassword || !confirmPassword) {
             return res.status(400).json({
                 success: false,
@@ -1853,7 +1969,6 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
             });
         }
 
-        // Buscar usuário
         const [users] = await pool.query(
             'SELECT id, password FROM users WHERE id = ?',
             [userId]
@@ -1867,9 +1982,8 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
         }
 
         const user = users[0];
-
-        // Verificar senha atual
         const validPassword = await bcrypt.compare(currentPassword, user.password);
+
         if (!validPassword) {
             return res.status(401).json({
                 success: false,
@@ -1877,11 +1991,9 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
             });
         }
 
-        // Gerar hash da nova senha
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(newPassword, salt);
 
-        // Atualizar senha
         await pool.query(
             'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',
             [passwordHash, userId]
@@ -1953,7 +2065,10 @@ app.get('/api/operating-hours', async (req, res) => {
         res.json({ success: true, data: hours });
     } catch (error) {
         console.error('❌ Erro ao buscar horários:', error);
-        res.status(500).json({ success: false, error: 'Erro ao buscar horários: ' + error.message });
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar horários: ' + error.message
+        });
     }
 });
 
@@ -2234,9 +2349,6 @@ app.get('/api/stats/orders', async (req, res) => {
 });
 
 // ============================================================
-//  ENDPOINT /stats/dashboard 
-// ============================================================
-// ============================================================
 //  ENDPOINT /stats/dashboard - CORRIGIDO
 // ============================================================
 
@@ -2278,14 +2390,13 @@ app.get('/api/stats/dashboard', async (req, res) => {
         const startDateStr = startDate.toISOString().split('T')[0];
         console.log(`📅 Data inicial: ${startDateStr}`);
 
-        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const [orders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
                AND DATE(created_at) >= ? 
                AND status IN ('entregue', 'Entregue', 'delivered')
              ORDER BY created_at DESC`,
-            [tenantId, startDateStr]  // ✅ FILTRO POR TENANT
+            [tenantId, startDateStr]
         );
 
         console.log(`📦 Pedidos entregues encontrados para ${tenantId}: ${orders.length}`);
@@ -2309,13 +2420,12 @@ app.get('/api/stats/dashboard', async (req, res) => {
             salesData.push({ date: today, total: 0, orders: 0 });
         }
 
-        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const [allOrders] = await pool.query(
             `SELECT * FROM orders 
              WHERE tenant_id = ? 
                AND DATE(created_at) >= ? 
              ORDER BY created_at DESC`,
-            [tenantId, startDateStr]  // ✅ FILTRO POR TENANT
+            [tenantId, startDateStr]
         );
 
         const statusCount = {};
@@ -2342,7 +2452,6 @@ app.get('/api/stats/dashboard', async (req, res) => {
             statusData.push({ name: '🟡 Pendente', value: 0 });
         }
 
-        // ✅ CORREÇÃO: FILTRAR PELO TENANT
         const productSales = {};
         orders.forEach(order => {
             let items = order.items;
@@ -2415,6 +2524,83 @@ app.get('/api/tenant', (req, res) => {
         }
     });
 });
+
+// ============================================================
+//  FUNÇÃO PARA ENVIAR NOTIFICAÇÕES PUSH
+// ============================================================
+async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId) {
+    try {
+        // Buscar todas as subscriptions do tenant
+        const [subscriptions] = await pool.query(
+            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ?',
+            [tenantId]
+        );
+
+        if (subscriptions.length === 0) {
+            console.log(`📱 Nenhuma inscrição push encontrada para o tenant: ${tenantId}`);
+            return;
+        }
+
+        console.log(`📱 Encontrando ${subscriptions.length} inscrições para o tenant: ${tenantId}`);
+
+        const messages = {
+            'confirmado': {
+                title: `✅ Pedido #${orderNumber} confirmado!`,
+                body: 'Seu pedido foi confirmado e será preparado em breve.'
+            },
+            'preparando': {
+                title: `👨‍🍳 Pedido #${orderNumber} em preparo!`,
+                body: 'Seu pedido está sendo preparado pela nossa equipe.'
+            },
+            'despachado': {
+                title: `🏍️ Pedido #${orderNumber} saiu para entrega!`,
+                body: 'Seu pedido está a caminho. Fique atento ao entregador!'
+            },
+            'entregue': {
+                title: `📦 Pedido #${orderNumber} entregue!`,
+                body: 'Seu pedido foi entregue! Aproveite sua refeição! 🍔'
+            }
+        };
+
+        const message = messages[status];
+        if (!message) {
+            console.log(`📱 Status "${status}" não possui mensagem de push configurada`);
+            return;
+        }
+
+        const payload = JSON.stringify({
+            title: message.title,
+            body: message.body,
+            url: `/track/${orderId}?token=${accessToken}`,
+            orderId: orderId,
+            token: accessToken
+        });
+
+        let sentCount = 0;
+        for (const sub of subscriptions) {
+            try {
+                const subscription = JSON.parse(sub.subscription);
+                await webpush.sendNotification(subscription, payload);
+                sentCount++;
+                console.log(`✅ Push enviado para: ${subscription.endpoint.substring(0, 50)}...`);
+            } catch (error) {
+                console.error(`❌ Erro ao enviar push: ${error.message}`);
+                if (error.statusCode === 410) {
+                    // Subscription expirada, remover do banco
+                    await pool.query(
+                        'DELETE FROM push_subscriptions WHERE subscription = ?',
+                        [sub.subscription]
+                    );
+                    console.log(`🗑️ Subscription removida (expirada)`);
+                }
+            }
+        }
+
+        console.log(`📱 ${sentCount}/${subscriptions.length} notificações push enviadas para o pedido #${orderNumber}`);
+    } catch (error) {
+        console.error('❌ Erro ao enviar notificações push:', error);
+    }
+}
 
 // ============================================================
 //  ROTAS DE ARQUIVOS ESTÁTICOS
@@ -2605,5 +2791,11 @@ testDatabaseConnection().then(() => {
         console.log('   ✅ Aplicável para Dinheiro e Pix');
         console.log('   ✅ Percentual configurável (padrão 4%)');
         console.log('   ✅ Exibido no resumo do pedido');
+        console.log('');
+        console.log('🔔 NOTIFICAÇÕES PUSH:');
+        console.log('   ✅ Envio automático por mudança de status');
+        console.log('   ✅ Mensagens personalizadas por status');
+        console.log('   ✅ Integração com Web Push API');
+        console.log('   ✅ Suporte a Service Worker');
     });
 });

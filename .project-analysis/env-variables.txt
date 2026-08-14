@@ -1,0 +1,11 @@
+VARIÁVEIS DE AMBIENTE (SOMENTE ESTRUTURA)
+==========================================
+
+📌 VARIÁVEIS CONFIGURADAS:
+# Configuração do TiDB Cloud
+
+# Configuração do Servidor
+
+# Configuração da Loja
+
+

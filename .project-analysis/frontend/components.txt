@@ -1,0 +1,49 @@
+COMPONENTES DO FRONTEND
+=======================
+
+📌 COMPONENTES CLIENT:
+AddressModal.jsx
+CartDrawer.jsx
+Checkout.jsx
+ClientLayout.jsx
+DateTimePicker.jsx
+Login.jsx
+OrdersHistory.jsx
+OrderVerification.jsx
+ProductCard.jsx
+Register.jsx
+TrackOrder.jsx
+
+📌 COMPONENTES ADMIN:
+AdminLayout.jsx
+AdminLayout.styled.js
+AdminRoutes.jsx
+Categories.jsx
+CategoryModal.jsx
+ChangePassword.jsx
+Config.jsx
+Dashboard/DashboardGrid.jsx
+Dashboard/FilterBar.jsx
+Dashboard/RecentOrders.jsx
+Dashboard/SalesChart.jsx
+Dashboard.jsx
+DeliverySettings.jsx
+Login.jsx
+OperatingHours.jsx
+Orders.jsx
+OrderTrackingModal.jsx
+ProductFilters.jsx
+ProductModal.jsx
+Products.jsx
+Register.jsx
+
+📌 COMPONENTES SHARED:
+Container.jsx
+Loading.jsx
+Modal.styled.js
+Pagination.jsx
+📌 CONTEXTS:
+CartContext.jsx
+ModalContext.jsx
+TenantContext.jsx
+ToastContext.jsx

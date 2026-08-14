@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useContext } from 'react';
+// frontend-react/src/App.jsx
+import React, { lazy, Suspense, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { TenantProvider, TenantContext } from './contexts/TenantContext';
@@ -7,6 +8,11 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ModalProvider } from './contexts/ModalContext';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
+
+// ============================================================
+//  COMPONENTE DE NOTIFICAÇÃO PWA
+// ============================================================
+import NotificationPermission from './components/Shared/NotificationPermission';
 
 // ============================================================
 //  LAZY LOAD - TODOS OS COMPONENTES PESADOS
@@ -26,7 +32,9 @@ const OrderVerification = lazy(() => import('./components/Client/OrderVerificati
 // Admin - AGORA LAZY (era carregado diretamente antes)
 const AdminLayout = lazy(() => import('./components/Admin/AdminLayout'));
 
-// Componente de loading melhorado
+// ============================================================
+//  COMPONENTE DE LOADING MELHORADO
+// ============================================================
 const LoadingFallback = () => (
     <div style={{
         display: 'flex',
@@ -133,6 +141,20 @@ const WelcomePage = () => (
 const AppContent = () => {
     const { tenant, loading } = useContext(TenantContext);
 
+    // Detectar atualização do Service Worker
+    useEffect(() => {
+        const handleSWUpdate = () => {
+            console.log('📦 Nova versão do PWA disponível!');
+            // Mostrar notificação para o usuário
+            if (window.confirm('Uma nova versão do app está disponível. Deseja atualizar agora?')) {
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('swUpdate', handleSWUpdate);
+        return () => window.removeEventListener('swUpdate', handleSWUpdate);
+    }, []);
+
     if (loading) {
         return <LoadingFallback />;
     }
@@ -171,6 +193,8 @@ const AppContent = () => {
                         {/* Admin - agora lazy! */}
                         <Route path="/admin/*" element={<AdminLayout />} />
                     </Routes>
+                    {/* Componente de permissão de notificação PWA */}
+                    <NotificationPermission />
                 </Suspense>
             </BrowserRouter>
         );
@@ -202,11 +226,16 @@ const AppContent = () => {
                     <Route path="/verify-orders" element={<OrderVerification />} />
                     <Route path="/admin/*" element={<AdminLayout />} />
                 </Routes>
+                {/* Componente de permissão de notificação PWA */}
+                <NotificationPermission />
             </Suspense>
         </BrowserRouter>
     );
 };
 
+// ============================================================
+//  APP PRINCIPAL
+// ============================================================
 function App() {
     return (
         <ThemeProvider theme={theme}>

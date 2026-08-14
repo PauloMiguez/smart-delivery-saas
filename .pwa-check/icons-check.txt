@@ -1,0 +1,7 @@
+ICONES PWA
+==========
+
+📌 ÍCONES ENCONTRADOS:
+frontend-react/public/favicon.png
+frontend-react/public/favicon.svg
+frontend-react/public/icons.svg

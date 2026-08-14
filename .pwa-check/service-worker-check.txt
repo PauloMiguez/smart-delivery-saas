@@ -1,0 +1,8 @@
+SERVICE WORKER CHECK
+====================
+
+❌ service-worker.js NÃO encontrado!
+   ⚠️ Necessário criar em: frontend-react/src/service-worker.js
+
+📄 REGISTRO NO MAIN.JSX:
+❌ Service Worker NÃO registrado no main.jsx

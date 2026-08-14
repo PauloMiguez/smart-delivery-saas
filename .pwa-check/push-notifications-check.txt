@@ -1,0 +1,15 @@
+PUSH NOTIFICATIONS CHECK
+========================
+
+📌 VAPID KEYS CONFIGURADAS:
+❌ VAPID keys NÃO configuradas!
+
+📌 COMPONENTES DE NOTIFICAÇÃO:
+
+📌 ENDPOINTS DE PUSH NO BACKEND:
+                availableSlots.push({
+            io.to(`tenant-${tenantId}`).emit('new-order-notification', {
+                defaultHours.push({
+            salesData.push({ date: today, total: 0, orders: 0 });
+            statusData.push({ name: '🟡 Pendente', value: 0 });
+            topProducts.push({ name: 'Nenhum produto vendido', quantity: 0 });

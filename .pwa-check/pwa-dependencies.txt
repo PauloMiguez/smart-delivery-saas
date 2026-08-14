@@ -1,0 +1,8 @@
+DEPENDÊNCIAS PWA
+================
+
+📌 DEPENDÊNCIAS PWA:
+❌ Nenhuma dependência PWA encontrada
+
+📌 DEPENDÊNCIAS DE PUSH (BACKEND):
+❌ Nenhuma dependência de push encontrada

@@ -58,7 +58,7 @@ const subscribeToPush = async (registration) => {
       return existingSubscription;
     }
     
-    const response = await fetch('/api/notifications/vapid-public-key');
+    const response = await fetch('/api/push/vapid-public-key');
     const data = await response.json();
     const publicKey = data.publicKey;
     
@@ -74,7 +74,7 @@ const subscribeToPush = async (registration) => {
     
     console.log('✅ Inscrito para push!');
     
-    await fetch('/api/notifications/subscribe', {
+    await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(subscription),

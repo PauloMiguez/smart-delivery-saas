@@ -1,0 +1,9 @@
+UTILITÁRIOS E HELPERS
+=====================
+
+📌 ARQUIVOS DE UTILITÁRIOS:
+notificationSound.js
+printOrder.js
+tenantUtils.js
+
+📌 FUNÇÕES UTILITÁRIAS:

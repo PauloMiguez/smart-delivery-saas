@@ -1,0 +1,12 @@
+ESTILOS E TEMA
+==============
+
+📌 ARQUIVOS DE ESTILO:
+GlobalStyle.js
+theme.js
+tokens.js
+
+📌 TOKENS DE DESIGN:
+    colors: {
+    spacing: {
+    breakpoints: {

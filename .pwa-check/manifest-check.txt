@@ -1,0 +1,32 @@
+MANIFEST.JSON CHECK
+===================
+
+✅ manifest.json encontrado!
+
+📄 CONTEÚDO:
+{
+  "name": "Smart Delivery SaaS",
+  "short_name": "Smart Delivery",
+  "description": "Sistema de delivery multi-tenant para restaurantes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e67e22",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
+
+📄 REFERÊNCIA NO INDEX.HTML:
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#e67e22" />

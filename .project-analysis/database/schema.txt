@@ -1,0 +1,36 @@
+ESQUEMA DO BANCO DE DADOS
+=========================
+
+📌 TABELAS DO BANCO DE DADOS:
+
+📌 QUERIES SQL PRINCIPAIS:
+            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
+            `SELECT * FROM operating_hours 
+            'SELECT * FROM users WHERE email = ?',
+            'SELECT * FROM tenants WHERE subdomain = ?',
+            'SELECT * FROM users WHERE email = ?',
+            'SELECT * FROM products WHERE tenant_id = ? ORDER BY category, name',
+            'SELECT * FROM categories WHERE tenant_id = ? ORDER BY display_order ASC, name',
+            `UPDATE categories SET name = ?, display_order = ?
+            `SELECT * FROM operating_hours 
+            'SELECT * FROM orders WHERE id = ? AND access_token = ?',
+            'UPDATE orders SET tracking_views = tracking_views + 1 WHERE id = ?',
+            'SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC',
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            `SELECT order_number FROM orders 
+            `SELECT * FROM operating_hours 
+            `UPDATE orders SET status = ?, updated_at = NOW()
+            'SELECT order_number FROM orders WHERE id = ? AND tenant_id = ?',
+            'SELECT id FROM tenants WHERE id = ?',
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
+            `SELECT * FROM operating_hours 
+            'SELECT id, password FROM users WHERE id = ?',
+            'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',
+            'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
+                'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
+                'SELECT * FROM operating_hours WHERE tenant_id = ? ORDER BY day_of_week',
+            `SELECT * FROM orders 
+            `SELECT * FROM orders 
+                `UPDATE config SET config_value = NULL 

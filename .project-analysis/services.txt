@@ -1,0 +1,8 @@
+SERVIÇOS E APIS
+===============
+
+📌 ARQUIVOS DE SERVIÇO:
+api.js
+socket.js
+
+📌 ENDPOINTS UTILIZADOS:

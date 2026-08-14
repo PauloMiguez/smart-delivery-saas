@@ -1,0 +1,64 @@
+ENDPOINTS DA API
+================
+
+📌 ENDPOINTS DISPONÍVEIS:
+app.get('/api/domain-mapping', (req, res) => {
+app.get('/api/health', (req, res) => {
+app.get('/api/test-db', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
+app.get('/api/products', async (req, res) => {
+app.post('/api/products', verifyToken, async (req, res) => {
+app.put('/api/products/:id', verifyToken, async (req, res) => {
+app.delete('/api/products/:id', verifyToken, async (req, res) => {
+app.get('/api/categories', async (req, res) => {
+app.post('/api/categories', verifyToken, async (req, res) => {
+app.put('/api/categories/:id', verifyToken, async (req, res) => {
+app.delete('/api/categories/:id', verifyToken, async (req, res) => {
+app.get('/api/orders/available-slots', async (req, res) => {
+app.get('/api/orders/:id', async (req, res) => {
+app.get('/api/orders', async (req, res) => {
+app.post('/api/orders', async (req, res) => {
+const io = req.app.get('io');
+app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
+const io = req.app.get('io');
+app.get('/api/config', async (req, res) => {
+app.post('/api/calculate-delivery', async (req, res) => {
+app.get('/api/store/status', async (req, res) => {
+app.put('/api/config', verifyToken, async (req, res) => {
+app.put('/api/auth/change-password', verifyToken, async (req, res) => {
+app.get('/api/operating-hours', async (req, res) => {
+app.put('/api/operating-hours', verifyToken, async (req, res) => {
+app.post('/api/upload/banner', verifyToken, uploadBanner.single('image'), async (req, res) => {
+app.post('/api/upload/logo', verifyToken, uploadLogo.single('image'), async (req, res) => {
+app.post('/api/upload/product', verifyToken, uploadProduct.single('image'), async (req, res) => {
+app.get('/api/stats/orders', async (req, res) => {
+app.get('/api/stats/dashboard', async (req, res) => {
+app.get('/api/tenant', (req, res) => {
+app.get('/admin*', (req, res) => {
+app.get('/', (req, res) => {
+app.get('*', (req, res) => {
+app.get('/register.html', (req, res) => {
+app.get('/login.html', (req, res) => {
+app.post('/api/upload/delete', verifyToken, async (req, res) => {
+
+📌 FUNÇÕES PRINCIPAIS:
+function getTodayLocal() {
+function createLocalDate(dateStr) {
+function calcularTaxaEntrega(tenantId, endereco, config) {
+async function checkStoreOpenNow(tenantId) {
+async function testDatabaseConnection() {
+function getDomainMapping() {
+function generateToken(userId, tenantId) {
+async function verifyToken(req, res, next) {
+async function checkSlotAvailability(tenantId, scheduledTime) {
+
+📌 MIDDLEWARES:
+app.use(cors({
+app.use(express.json({ limit: '10mb' }));
+app.use((req, res, next) => {
+app.use(express.static(REACT_BUILD_PATH));
+app.use(express.static(path.join(PROJECT_ROOT, 'frontend/public')));
+app.use('/admin', express.static(path.join(PROJECT_ROOT, 'frontend/admin')));
+app.use((req, res) => {
+app.use('/api/', tenantLimiter);

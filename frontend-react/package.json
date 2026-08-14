@@ -17,7 +17,12 @@
     "react-router-dom": "^6.20.0",
     "recharts": "^3.10.1",
     "socket.io-client": "^4.8.3",
-    "styled-components": "^6.4.4"
+    "styled-components": "^6.4.4",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",

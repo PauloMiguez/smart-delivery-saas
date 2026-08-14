@@ -1,0 +1,8 @@
+DEPENDÊNCIAS DO PROJETO
+=======================
+
+📌 BACKEND DEPENDÊNCIAS:
+Arquivo package.json não está em formato JSON válido
+
+📌 FRONTEND DEPENDÊNCIAS:
+Arquivo package.json não está em formato JSON válido

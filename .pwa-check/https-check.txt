@@ -1,0 +1,35 @@
+HTTPS CONFIGURATION CHECK
+=========================
+
+📌 CONFIGURAÇÃO HTTPS:
+            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
+        'https://smart-delivery-saas.onrender.com',
+    ssl: {
+                `INSERT INTO config (tenant_id, config_key, config_value) 
+                    url: `https://${subdomain}.smartdelivery.com`
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            config[row.config_key] = row.config_value;
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            config[row.config_key] = row.config_value;
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            config[row.config_key] = row.config_value;
+            'SELECT config_value FROM config WHERE tenant_id = ? AND config_key = ?',
+            for (const [key, value] of Object.entries(configData)) {
+                    `INSERT INTO config (tenant_id, config_key, config_value) 
+                    [tenantId, key, stringValue, stringValue]
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+            `INSERT INTO config (tenant_id, config_key, config_value) 
+        const statusData = Object.entries(statusCount).map(([key, value]) => ({
+            name: statusMap[key] || key,
+            url: `https://${tenant}.smartdelivery.com`
+    keyGenerator: (req) => {
+        const { public_id, config_key } = req.body;
+        if (config_key) {
+                 WHERE tenant_id = ? AND config_key = ?`,
+                [tenantId, config_key]
+        origin: ['http://localhost:5173', 'https://smart-delivery-saas.onrender.com'],
+
+📌 VARIÁVEIS SSL:
+CLOUDINARY_API_KEY=747772164744112
