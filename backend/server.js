@@ -2746,11 +2746,55 @@ io.on('connection', (socket) => {
     const tenant = socket.tenant;
     console.log(`🔌 Cliente conectado ao tenant: ${tenant}`);
 
+    // Entrar na sala do tenant
     socket.join(`tenant-${tenant}`);
+    console.log(`🏠 Cliente entrou na sala tenant-${tenant}`);
 
     socket.emit('connected', {
         message: 'Conectado ao servidor de notificações',
-        tenant: tenant
+        tenant: tenant,
+        socketId: socket.id
+    });
+
+    // ============================================================
+    //  EVENTO: Entrar na sala de um pedido específico
+    // ============================================================
+    socket.on('join-order-room', (data) => {
+        const { orderId } = data;
+        if (orderId) {
+            const roomName = `order-${orderId}`;
+            socket.join(roomName);
+            console.log(`📦 Cliente entrou na sala do pedido: ${roomName}`);
+            
+            socket.emit('joined-order-room', { 
+                orderId, 
+                room: roomName, 
+                success: true 
+            });
+        } else {
+            socket.emit('joined-order-room', { 
+                success: false, 
+                error: 'orderId não fornecido' 
+            });
+        }
+    });
+
+    // ============================================================
+    //  EVENTO: Sair da sala de um pedido
+    // ============================================================
+    socket.on('leave-order-room', (data) => {
+        const { orderId } = data;
+        if (orderId) {
+            const roomName = `order-${orderId}`;
+            socket.leave(roomName);
+            console.log(`🚪 Cliente saiu da sala do pedido: ${roomName}`);
+            
+            socket.emit('left-order-room', { 
+                orderId, 
+                room: roomName, 
+                success: true 
+            });
+        }
     });
 
     socket.on('disconnect', () => {

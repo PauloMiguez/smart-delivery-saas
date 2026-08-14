@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTenant } from '../../contexts/TenantContext';
@@ -51,7 +51,6 @@ const OrderNumber = styled.div`
     margin-bottom: 8px;
 `;
 
-// ✅ StatusBadge atualizado com "despachado"
 const StatusBadge = styled.div`
     display: inline-block;
     padding: 8px 16px;
@@ -181,7 +180,6 @@ const ErrorContainer = styled.div`
     color: #e74c3c;
 `;
 
-// ✅ Status Labels atualizado com "Despachado"
 const statusLabels = {
     'pending': 'Aguardando confirmação',
     'confirmado': 'Confirmado',
@@ -192,7 +190,6 @@ const statusLabels = {
     'scheduled': 'Agendado'
 };
 
-// ✅ Status Emojis atualizado com "Despachado"
 const statusEmojis = {
     'pending': '📋',
     'confirmado': '✅',
@@ -202,7 +199,6 @@ const statusEmojis = {
     'cancelado': '❌'
 };
 
-// ✅ Status Order atualizado com "Despachado"
 const statusOrder = ['pending', 'confirmado', 'preparando', 'despachado', 'entregue'];
 
 // ============================================================
@@ -295,6 +291,7 @@ const TrackOrder = () => {
     const [socket, setSocket] = useState(null);
     const [orderTenant, setOrderTenant] = useState(null);
     const [isFromOrders, setIsFromOrders] = useState(false);
+    const socketRef = useRef(null);
 
     const token = searchParams.get('token');
     const fromParam = searchParams.get('from');
@@ -305,6 +302,9 @@ const TrackOrder = () => {
         console.log('📱 Origem do acesso:', isFromOrdersPage ? 'Meus Pedidos' : 'Link Direto');
     }, [fromParam]);
 
+    // ============================================================
+    //  FUNÇÃO PARA CARREGAR O PEDIDO
+    // ============================================================
     const loadOrder = async () => {
         setLoading(true);
         setError(null);
@@ -382,6 +382,9 @@ const TrackOrder = () => {
         }
     };
 
+    // ============================================================
+    //  RECARREGAR O PEDIDO QUANDO O ID MUDAR
+    // ============================================================
     useEffect(() => {
         if (orderId) {
             loadOrder();
@@ -391,35 +394,164 @@ const TrackOrder = () => {
         }
     }, [orderId]);
 
+    // ============================================================
+    //  WEBSOCKET - ATUALIZAÇÕES EM TEMPO REAL (CORRIGIDO)
+    // ============================================================
     useEffect(() => {
-        if (!orderTenant || !orderId || !token || !order) return;
+        // Aguardar dados necessários
+        if (!orderTenant || !orderId || !token || !order) {
+            console.log('⏳ Aguardando dados para conectar socket...');
+            return;
+        }
+
+        console.log('🔌 Conectando socket para tracking...');
+        console.log(`📦 Pedido ID: ${orderId}, Tenant: ${orderTenant}`);
 
         const tokenAuth = localStorage.getItem('token');
+        
+        // Conectar socket
         const socketInstance = connectSocket(tokenAuth);
+        socketRef.current = socketInstance;
         setSocket(socketInstance);
 
         if (socketInstance) {
+            // ============================================================
+            //  EVENTO: Quando conectar
+            // ============================================================
+            socketInstance.on('connect', () => {
+                console.log('✅ Socket conectado para tracking');
+                console.log(`📡 Socket ID: ${socketInstance.id}`);
+                
+                // Entrar na sala do pedido
+                socketInstance.emit('join-order-room', { 
+                    orderId: parseInt(orderId),
+                    tenant: orderTenant 
+                });
+                console.log(`📦 Solicitando entrada na sala order-${orderId}`);
+            });
+
+            // ============================================================
+            //  EVENTO: Confirmar entrada na sala do pedido
+            // ============================================================
+            socketInstance.on('joined-order-room', (data) => {
+                console.log('✅ Entrou na sala do pedido:', data);
+            });
+
+            // ============================================================
+            //  EVENTO: Atualização do pedido (MAIS IMPORTANTE)
+            // ============================================================
             socketInstance.on('order-updated', (data) => {
+                console.log('📦 Atualização do pedido recebida:', data);
+                
+                // Verificar se é o pedido atual
                 if (data.order && data.order.id === parseInt(orderId)) {
-                    console.log('📦 Status atualizado:', data.order.status);
+                    console.log(`✅ Pedido #${orderId} atualizado para: ${data.order.status}`);
+                    
+                    // Atualizar o estado
                     setOrder(prev => ({
                         ...prev,
                         status: data.order.status,
-                        updated_at: new Date().toISOString()
+                        updated_at: data.timestamp || new Date().toISOString()
                     }));
+                    
+                    // Mostrar toast de notificação
+                    const statusEmoji = {
+                        'pending': '📋',
+                        'confirmado': '✅',
+                        'preparando': '👨‍🍳',
+                        'despachado': '🏍️',
+                        'entregue': '📦',
+                        'cancelado': '❌',
+                        'scheduled': '📅'
+                    };
+                    
+                    const statusLabelsMap = {
+                        'pending': 'Aguardando confirmação',
+                        'confirmado': 'Confirmado',
+                        'preparando': 'Em preparação',
+                        'despachado': 'Saiu para entrega',
+                        'entregue': 'Entregue',
+                        'cancelado': 'Cancelado',
+                        'scheduled': 'Agendado'
+                    };
+                    
                     showToast(
-                        `Status do pedido: ${statusEmojis[data.order.status]} ${statusLabels[data.order.status]}`,
+                        `${statusEmoji[data.order.status] || '📦'} Status atualizado: ${statusLabelsMap[data.order.status] || data.order.status}`,
                         'info'
                     );
+                } else {
+                    console.log('⚠️ Atualização para outro pedido:', data.order?.id);
                 }
+            });
+
+            // ============================================================
+            //  EVENTO: Nova notificação
+            // ============================================================
+            socketInstance.on('new-order-notification', (data) => {
+                console.log('📦 Nova notificação recebida:', data);
+                if (data.order && data.order.id === parseInt(orderId)) {
+                    setOrder(prev => ({
+                        ...prev,
+                        status: data.order.status,
+                        updated_at: data.timestamp || new Date().toISOString()
+                    }));
+                }
+            });
+
+            // ============================================================
+            //  DEBUG: Mostrar todos os eventos
+            // ============================================================
+            socketInstance.onAny((event, ...args) => {
+                console.log(`📡 Evento recebido: ${event}`, args);
             });
         }
 
+        // ============================================================
+        //  CLEANUP
+        // ============================================================
         return () => {
-            disconnectSocket();
+            console.log('🔌 Desconectando socket de tracking...');
+            if (socketRef.current) {
+                socketRef.current.off('connect');
+                socketRef.current.off('joined-order-room');
+                socketRef.current.off('order-updated');
+                socketRef.current.off('new-order-notification');
+                socketRef.current.offAny();
+                disconnectSocket();
+                socketRef.current = null;
+            }
             setSocket(null);
         };
     }, [orderTenant, orderId, token, order]);
+
+    // ============================================================
+    //  RECARREGAR QUANDO A PÁGINA GANHAR FOCO
+    // ============================================================
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                console.log('👁️ Página visível, recarregando pedido...');
+                loadOrder();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
+    // ============================================================
+    //  POLLING DE FALLBACK (A CADA 30 SEGUNDOS)
+    // ============================================================
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (!document.hidden) {
+                console.log('🔄 Polling: verificando atualizações...');
+                loadOrder();
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const getStatusIndex = (status) => statusOrder.indexOf(status);
 
