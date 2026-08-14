@@ -1,3 +1,8 @@
+Aqui está o README.md completo e atualizado com todas as funcionalidades implementadas:
+
+```markdown
+# 🚀 Smart Delivery SaaS
+
 Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se cadastrar, gerenciar seu cardápio e receber pedidos. Cada restaurante tem seu próprio subdomínio e dados isolados.
 
 ![Smart Delivery SaaS](https://img.shields.io/badge/version-2.0.0-blue)
@@ -34,18 +39,22 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ Taxa de entrega configurável (Fixa/Dinâmica/Manual)
 - ✅ Notificações em tempo real com WebSocket
 - ✅ Layout responsivo com cards mobile
+- ✅ Alteração de senha do administrador
+- ✅ Botão de logout no painel
 
 ### 🔐 Multi-tenant
 - ✅ Isolamento total de dados por restaurante
 - ✅ Subdomínios para cada tenant
 - ✅ Autenticação JWT por usuário
 - ✅ Página de boas-vindas para acessos sem tenant
+- ✅ Detecção automática de tenant por domínio personalizado
 
 ### 📦 Pedidos
 - ✅ Numeração sequencial por tenant (ex: #FIREBURGER-000001)
-- ✅ Status: Pendente → Confirmado → Em preparo → Entregue
+- ✅ Status: Pendente → Confirmado → Em preparo → Despachado → Entregue
 - ✅ Agendamento de pedidos com limite de 2 dias
 - ✅ Status "📅 Agendado" para pedidos programados
+- ✅ Status "🏍️ Despachado" para pedidos em rota de entrega
 - ✅ Notificações em tempo real via WebSocket
 - ✅ Link único seguro para acompanhamento (token + validação)
 - ✅ Histórico de pedidos por cliente
@@ -56,6 +65,19 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ **Manual:** Definida após o pedido
 - ✅ Cálculo automático baseado no endereço do cliente
 - ✅ Exibição "Informada após o pedido" para taxas pendentes
+
+### 💰 Desconto por Forma de Pagamento
+- ✅ Configurável por tenant
+- ✅ Aplicável para Dinheiro e Pix
+- ✅ Percentual configurável (padrão 4%)
+- ✅ Exibido no checkout, admin e tracking
+- ✅ Gerenciamento via painel administrativo
+
+### 🌐 Domínios Personalizados
+- ✅ Suporte a múltiplos domínios por tenant
+- ✅ Configuração via variável de ambiente
+- ✅ Detecção automática do tenant pelo domínio
+- ✅ URLs limpas sem parâmetros
 
 ---
 
@@ -142,6 +164,9 @@ CLOUDINARY_CLOUD_NAME=seu_cloud_name
 CLOUDINARY_API_KEY=sua_api_key
 CLOUDINARY_API_SECRET=sua_api_secret
 CLOUDINARY_FOLDER=smart-delivery
+
+# Domínios Personalizados (opcional)
+TENANT_DOMAINS=fireburgerpetropolis.com.br:fireburger,outrodominio.com:outrotenant
 ```
 
 ### Deploy no Render
@@ -189,6 +214,8 @@ npm run dev
 - ✅ Sanitização de entradas do usuário
 - ✅ Token único para acompanhamento de pedidos
 - ✅ Validação de nome e telefone para acesso aos pedidos
+- ✅ Senhas hashadas com bcrypt
+- ✅ Proteção contra SQL Injection
 
 ---
 
@@ -199,6 +226,8 @@ npm run dev
 | GET | `/api/health` | Health check |
 | POST | `/api/auth/login` | Login do administrador |
 | POST | `/api/auth/register` | Cadastro do restaurante |
+| PUT | `/api/auth/change-password` | Alterar senha do administrador |
+| GET | `/api/domain-mapping` | Mapeamento de domínios personalizados |
 | GET | `/api/products` | Listar produtos |
 | POST | `/api/products` | Criar produto |
 | PUT | `/api/products/:id` | Atualizar produto |
@@ -254,23 +283,26 @@ npm run dev
    ↓
 6. Restaurante confirma e prepara o pedido
    ↓
-7. Cliente acompanha o pedido pelo link único
+7. Restaurante despacha para entrega
    ↓
-8. Pedido é entregue e finalizado
+8. Cliente acompanha o pedido pelo link único
+   ↓
+9. Pedido é entregue e finalizado
 ```
 
 ---
 
 ## 📊 Status do Pedido
 
-| Status | Descrição |
-|--------|-----------|
-| 📋 Pendente | Aguardando confirmação do restaurante |
-| ✅ Confirmado | Pedido confirmado, aguardando preparo |
-| 👨‍🍳 Em preparo | Pedido sendo preparado na cozinha |
-| 📦 Entregue | Pedido entregue ao cliente |
-| 📅 Agendado | Pedido agendado para data/hora futura |
-| ❌ Cancelado | Pedido cancelado |
+| Status | Descrição | Cor |
+|--------|-----------|-----|
+| 📋 Pendente | Aguardando confirmação do restaurante | Amarelo |
+| ✅ Confirmado | Pedido confirmado, aguardando preparo | Verde |
+| 👨‍🍳 Em preparo | Pedido sendo preparado na cozinha | Laranja |
+| 🏍️ Despachado | Pedido saiu para entrega | Azul |
+| 📦 Entregue | Pedido entregue ao cliente | Verde escuro |
+| 📅 Agendado | Pedido agendado para data/hora futura | Azul claro |
+| ❌ Cancelado | Pedido cancelado | Vermelho |
 
 ---
 
@@ -314,14 +346,19 @@ Este projeto está sob a licença MIT.
 
 ---
 
+**Desenvolvido com ❤️ para o ecossistema de delivery SaaS**
+
 🔗 **Demo:** https://smart-delivery-saas.onrender.com/?tenant=fireburger
+🌐 **Domínio Personalizado:** https://fireburgerpetropolis.com.br
 📧 **Contato:** seu-email@dominio.com
 ```
 
-## 📝 **COMMIT E DEPLOY**
+---
+
+## 📝 **COMMIT**
 
 ```bash
-# 1. Substituir o README.md
+# 1. Atualizar o README.md
 cat > README.md << 'EOF'
 # (conteúdo acima)
 EOF
@@ -330,12 +367,14 @@ EOF
 git add README.md
 git commit -m "docs: atualiza README com todas as funcionalidades do sistema
 
-- Adiciona agendamento de pedidos
-- Adiciona horários de funcionamento
-- Adiciona status '📅 Agendado'
+- Adiciona status '🏍️ Despachado'
+- Adiciona desconto por forma de pagamento
+- Adiciona alteração de senha do administrador
+- Adiciona domínios personalizados
+- Adiciona botão de logout
+- Atualiza fluxo de pedidos
 - Adiciona endpoints da API
-- Atualiza estrutura do projeto
-- Adiciona links do sistema"
+- Atualiza estrutura do projeto"
 
 git push origin main
 ```
