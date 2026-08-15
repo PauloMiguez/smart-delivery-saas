@@ -11,7 +11,6 @@ const STATIC_ASSETS = [
   '/icons.svg',
 ];
 
-// Instalação
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...');
   event.waitUntil(
@@ -24,7 +23,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Ativação
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...');
   event.waitUntil(
@@ -42,11 +40,9 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Interceptação de requisições
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Ignorar API, WebSocket e imagens externas
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/socket.io/') ||
@@ -87,121 +83,128 @@ self.addEventListener('fetch', (event) => {
 // NOTIFICAÇÕES PUSH
 // ============================================
 
-// Recebimento de notificação push
 self.addEventListener('push', (event) => {
-    console.log('[SW] Push received:', event);
-    
-    let data = {
-        title: 'Smart Delivery',
-        body: 'Você tem uma nova notificação!',
-        icon: '/favicon.png',
-        badge: '/favicon.png',
-        tag: 'default',
-        data: { url: '/' },
-        vibrate: [200, 100, 200],
-        requireInteraction: true,
-        actions: [
-            { action: 'open', title: '🔍 Ver agora' },
-            { action: 'close', title: '❌ Fechar' }
-        ]
-    };
-    
-    // Parse dos dados da notificação
-    if (event.data) {
-        try {
-            const payload = event.data.json();
-            data = { ...data, ...payload };
-            console.log('[SW] Payload:', payload);
-        } catch (e) {
-            console.log('[SW] Erro ao parsear payload:', e);
-            data.body = event.data.text();
-        }
+  console.log('[SW] 🔔 Push recebido!');
+  
+  let title = 'Smart Delivery';
+  let body = 'Você tem uma nova notificação!';
+  let icon = '/favicon.png';
+  let badge = '/favicon.png';
+  let tag = `notification-${Date.now()}`;
+  let orderId = null;
+  let token = null;
+  let url = '/';
+  
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      console.log('[SW] 📦 Payload:', payload);
+      
+      title = payload.title || title;
+      body = payload.body || body;
+      icon = payload.icon || icon;
+      badge = payload.badge || badge;
+      tag = payload.tag || tag;
+      orderId = payload.orderId || null;
+      token = payload.token || null;
+      url = payload.url || '/';
+      
+      console.log('[SW] 📦 Dados: orderId=' + orderId + ', token=' + (token ? 'presente' : 'ausente'));
+    } catch (error) {
+      console.log('[SW] ❌ Erro ao parsear payload:', error);
+      body = event.data.text() || body;
     }
-    
-    console.log('[SW] Mostrando notificação:', data);
-    
-    // Garantir que a notificação seja mostrada
-    event.waitUntil(
-        self.registration.showNotification(data.title, {
-            body: data.body,
-            icon: data.icon || '/favicon.png',
-            badge: data.badge || '/favicon.png',
-            tag: data.tag || `notification-${Date.now()}`,
-            data: data.data || { url: '/' },
-            vibrate: data.vibrate || [200, 100, 200],
-            requireInteraction: true,
-            actions: data.actions || [
-                { action: 'open', title: '🔍 Ver agora' },
-                { action: 'close', title: '❌ Fechar' }
-            ],
-            silent: false,
-            renotify: true,
-            timestamp: Date.now()
-        })
-    );
+  }
+  
+  // Construir URL para redirecionamento
+  let targetUrl = url;
+  if (orderId && token) {
+    targetUrl = `/track/${orderId}?token=${token}`;
+    console.log('[SW] 🎯 URL construída:', targetUrl);
+  }
+  
+  const options = {
+    body: body,
+    icon: icon,
+    badge: badge,
+    tag: tag,
+    data: { 
+      orderId: orderId,
+      token: token,
+      url: targetUrl
+    },
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    actions: [
+      { action: 'open', title: '🔍 Ver agora' },
+      { action: 'close', title: '❌ Fechar' }
+    ]
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => console.log('[SW] ✅ Notificação exibida'))
+      .catch((error) => console.log('[SW] ❌ Erro ao exibir:', error))
+  );
 });
 
-// Clique na notificação
+// ============================================
+// CLIQUE NA NOTIFICAÇÃO
+// ============================================
 self.addEventListener('notificationclick', (event) => {
-    console.log('[SW] 👆 Notificação clicada:', event);
-    
-    // Fechar a notificação
-    event.notification.close();
-    
-    // Obter dados da notificação
-    const notification = event.notification;
-    const data = notification.data || {};
-    const action = event.action || 'open';
-    
-    // Construir URL de destino
-    let targetUrl = '/';
-    
-    // Prioridade: orderId + token > url > /
-    if (data.orderId && data.token) {
-        targetUrl = `/track/${data.orderId}?token=${data.token}`;
-        console.log(`[SW] 🎯 URL do pedido: ${targetUrl}`);
-    } else if (data.url) {
-        targetUrl = data.url;
-        console.log(`[SW] 🎯 URL da notificação: ${targetUrl}`);
-    } else {
-        console.log(`[SW] 🎯 URL padrão: ${targetUrl}`);
-    }
-    
-    console.log(`[SW] 🔗 URL final: ${targetUrl}`);
-    console.log(`[SW] 🎯 Ação: ${action}`);
-    
-    // Se for ação de fechar, não faz nada
-    if (action === 'close') {
-        console.log('[SW] ❌ Notificação fechada pelo usuário');
-        return;
-    }
-    
-    // Abrir a URL
-    event.waitUntil(
-        clients.matchAll({ 
-            type: 'window', 
-            includeUncontrolled: true 
-        })
-        .then((clientList) => {
-            // Verificar se já existe uma janela com a URL
-            for (const client of clientList) {
-                if (client.url.includes(targetUrl) && 'focus' in client) {
-                    console.log('[SW] 📱 Focando janela existente:', client.url);
-                    return client.focus();
-                }
-            }
-            // Abrir nova janela
-            console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
-            if (clients.openWindow) {
-                return clients.openWindow(targetUrl);
-            }
-        })
-        .catch((error) => {
-            console.log('[SW] ❌ Erro ao abrir URL:', error);
-            // Fallback: abrir a página inicial
-            return clients.openWindow('/');
-        })
-    );
+  console.log('[SW] 👆 Notificação clicada!');
+  
+  event.notification.close();
+  
+  const data = event.notification.data || {};
+  const action = event.action || 'open';
+  
+  console.log('[SW] 📦 Dados da notificação:', data);
+  
+  if (action === 'close') {
+    console.log('[SW] ❌ Notificação fechada');
+    return;
+  }
+  
+  // CONSTRUIR URL DE REDIRECIONAMENTO
+  let targetUrl = '/';
+  
+  // PRIORIDADE 1: orderId + token
+  if (data.orderId && data.token) {
+    targetUrl = `/track/${data.orderId}?token=${data.token}`;
+    console.log('[SW] 🎯 URL do pedido:', targetUrl);
+  } 
+  // PRIORIDADE 2: url do payload
+  else if (data.url) {
+    targetUrl = data.url;
+    console.log('[SW] 🎯 URL da notificação:', targetUrl);
+  }
+  
+  console.log('[SW] 🔗 Abrindo URL final:', targetUrl);
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Verificar se já existe uma janela com a URL
+        for (const client of clientList) {
+          if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
+            console.log('[SW] 📱 Focando janela existente:', client.url);
+            return client.focus();
+          }
+        }
+        // Abrir nova janela
+        console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
+        return clients.openWindow(targetUrl);
+      })
+      .catch((error) => {
+        console.log('[SW] ❌ Erro ao abrir URL:', error);
+        return clients.openWindow('/');
+      })
+  );
 });
 
-console.log('[SW] Service Worker loaded!');
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] ❌ Notificação fechada');
+});
+
+console.log('[SW] ✅ Service Worker carregado!');
