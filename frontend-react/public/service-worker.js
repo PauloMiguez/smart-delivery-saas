@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================
-// NOTIFICAÇÕES PUSH - CORRIGIDO
+// NOTIFICAÇÕES PUSH
 // ============================================
 
 self.addEventListener('push', (event) => {
@@ -106,25 +106,26 @@ self.addEventListener('push', (event) => {
       badge = payload.badge || badge;
       tag = payload.tag || tag;
       
-      // ✅ PRIORIDADE: orderId e token
       orderId = payload.orderId || payload.data?.orderId || null;
       token = payload.token || payload.data?.token || null;
       url = payload.url || payload.data?.url || '/';
       
-      console.log('[SW] 📦 Dados: orderId=' + orderId + ', token=' + (token ? 'presente' : 'ausente'));
+      console.log('[SW] 📦 orderId:', orderId, 'token:', token ? 'presente' : 'ausente');
     } catch (error) {
       console.log('[SW] ❌ Erro ao parsear payload:', error);
       body = event.data.text() || body;
     }
   }
   
-  // ✅ CONSTRUIR URL DO PEDIDO
   let targetUrl = url;
   if (orderId && token) {
     targetUrl = `/track/${orderId}?token=${token}`;
-    console.log('[SW] 🎯 URL do pedido:', targetUrl);
+    console.log('[SW] 🎯 URL:', targetUrl);
   }
   
+  // ✅ NOTA: Em dispositivos móveis, os botões "actions" podem não ser exibidos
+  // ou podem ser exibidos de forma diferente. Vamos usar actions e também
+  // armazenar os dados para o clique.
   const options = {
     body: body,
     icon: icon,
@@ -133,13 +134,15 @@ self.addEventListener('push', (event) => {
     data: { 
       orderId: orderId,
       token: token,
-      url: targetUrl
+      url: targetUrl,
+      // ✅ Dados extras para garantir o redirecionamento
+      targetUrl: targetUrl
     },
     vibrate: [200, 100, 200],
     requireInteraction: true,
     actions: [
-      { action: 'open', title: '🔍 Ver agora' },
-      { action: 'close', title: '❌ Fechar' }
+      { action: 'open', title: 'Ver agora' },
+      { action: 'close', title: 'Fechar' }
     ]
   };
   
@@ -151,47 +154,49 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================
-// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO
+// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO PARA CELULAR
 // ============================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 👆 Notificação clicada!');
-  console.log('[SW] 🔍 Evento:', event);
-  console.log('[SW] 🔍 Ação:', event.action);
-  console.log('[SW] 🔍 Notification data:', event.notification.data);
+  console.log('[SW] 🔍 Action:', event.action);
+  console.log('[SW] 🔍 Notification:', event.notification);
+  console.log('[SW] 🔍 Data:', event.notification.data);
   
   // Fechar a notificação
   event.notification.close();
   
-  // Obter dados da notificação
-  const data = event.notification.data || {};
+  // ✅ IMPORTANTE: No celular, o clique na notificação pode não ter action
+  // ou pode ter action = '' em vez de 'open'
   const action = event.action || 'open';
+  const data = event.notification.data || {};
   
+  console.log('[SW] 🎯 Action processada:', action);
   console.log('[SW] 📦 Dados:', data);
-  console.log('[SW] 🎯 Ação:', action);
   
-  // Se for ação de fechar, não faz nada
-  if (action === 'close') {
-    console.log('[SW] ❌ Notificação fechada');
+  // ✅ Se for 'close' ou 'fechar', não faz nada
+  if (action === 'close' || action === 'fechar' || action === 'Fechar') {
+    console.log('[SW] ❌ Botão Fechar clicado - ignorando');
     return;
   }
   
-  // ✅ CONSTRUIR URL DE DESTINO
+  // ✅ CONSTRUIR URL PARA REDIRECIONAMENTO
+  // PRIORIDADE: data.targetUrl > data.url > data.orderId + token
   let targetUrl = '/';
   
-  // PRIORIDADE 1: orderId + token (do data da notificação)
-  if (data.orderId && data.token) {
-    targetUrl = `/track/${data.orderId}?token=${data.token}`;
-    console.log('[SW] 🎯 URL do pedido (data):', targetUrl);
-  } 
-  // PRIORIDADE 2: url do data
-  else if (data.url) {
-    targetUrl = data.url;
-    console.log('[SW] 🎯 URL do data:', targetUrl);
+  // 1. Tentar targetUrl (definido no push)
+  if (data.targetUrl && data.targetUrl !== '/') {
+    targetUrl = data.targetUrl;
+    console.log('[SW] 🎯 URL (targetUrl):', targetUrl);
   }
-  // PRIORIDADE 3: url da notificação (fallback)
-  else {
-    targetUrl = '/';
-    console.log('[SW] 🎯 URL padrão:', targetUrl);
+  // 2. Tentar url
+  else if (data.url && data.url !== '/') {
+    targetUrl = data.url;
+    console.log('[SW] 🎯 URL (url):', targetUrl);
+  }
+  // 3. Tentar orderId + token
+  else if (data.orderId && data.token) {
+    targetUrl = `/track/${data.orderId}?token=${data.token}`;
+    console.log('[SW] 🎯 URL (orderId+token):', targetUrl);
   }
   
   console.log('[SW] 🔗 Abrindo URL final:', targetUrl);
@@ -215,6 +220,7 @@ self.addEventListener('notificationclick', (event) => {
     })
     .catch((error) => {
       console.log('[SW] ❌ Erro ao abrir URL:', error);
+      // Fallback: abrir a página inicial
       return clients.openWindow('/');
     })
   );
