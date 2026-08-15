@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================
-// NOTIFICAÇÕES PUSH
+// NOTIFICAÇÕES PUSH - VERSÃO FINAL
 // ============================================
 
 self.addEventListener('push', (event) => {
@@ -106,21 +106,23 @@ self.addEventListener('push', (event) => {
       badge = payload.badge || badge;
       tag = payload.tag || tag;
       
+      // Extrair orderId e token de várias fontes
       orderId = payload.orderId || payload.data?.orderId || null;
       token = payload.token || payload.data?.token || null;
       url = payload.url || payload.data?.url || '/';
       
-      console.log('[SW] 📦 orderId:', orderId, 'token:', token ? 'presente' : 'ausente');
+      console.log('[SW] 📦 orderId=' + orderId + ', token=' + (token ? '✅ presente' : '❌ ausente'));
     } catch (error) {
       console.log('[SW] ❌ Erro ao parsear payload:', error);
       body = event.data.text() || body;
     }
   }
   
+  // Construir URL do pedido
   let targetUrl = url;
   if (orderId && token) {
     targetUrl = `/track/${orderId}?token=${token}`;
-    console.log('[SW] 🎯 URL:', targetUrl);
+    console.log('[SW] 🎯 URL construída:', targetUrl);
   }
   
   const options = {
@@ -136,7 +138,7 @@ self.addEventListener('push', (event) => {
     },
     vibrate: [200, 100, 200],
     requireInteraction: true,
-    // ✅ USAR APENAS UM BOTÃO para evitar confusão no celular
+    // ✅ Botão único para evitar confusão
     actions: [
       { action: 'open', title: '📦 Ver pedido' }
     ]
@@ -150,51 +152,59 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================
-// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO
+// CLIQUE NA NOTIFICAÇÃO - VERSÃO FINAL
 // ============================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 👆 Notificação clicada!');
-  console.log('[SW] 🔍 Action:', event.action);
-  console.log('[SW] 🔍 Notification data:', event.notification.data);
+  console.log('[SW] 🔍 Action recebida:', event.action);
+  console.log('[SW] 🔍 Dados da notificação:', event.notification.data);
   
   // Fechar a notificação
   event.notification.close();
   
+  // Obter dados
   const data = event.notification.data || {};
   const action = event.action || 'open';
   
-  // ✅ ACEITAR QUALQUER CLIQUE COMO "open"
-  // No celular, o clique no botão pode ser 'open' ou ''
-  // No computador, pode ser 'open' ou undefined
+  console.log('[SW] 🎯 Action processada:', action);
+  console.log('[SW] 📦 Dados:', data);
+  
+  // ✅ TODO CLIQUE ABRE O PEDIDO (exceto se for explicitamente 'close')
   if (action === 'close' || action === 'fechar') {
-    console.log('[SW] ❌ Botão Fechar - ignorando');
+    console.log('[SW] ❌ Fechar - ignorando');
     return;
   }
   
-  // ✅ CONSTRUIR URL
+  // ✅ Construir URL de destino
   let targetUrl = '/';
   
-  // Prioridade: targetUrl > url > orderId+token
+  // Tentar todas as fontes de URL
   if (data.targetUrl && data.targetUrl !== '/') {
     targetUrl = data.targetUrl;
+    console.log('[SW] 🎯 targetUrl:', targetUrl);
   } else if (data.url && data.url !== '/') {
     targetUrl = data.url;
+    console.log('[SW] 🎯 url:', targetUrl);
   } else if (data.orderId && data.token) {
     targetUrl = `/track/${data.orderId}?token=${data.token}`;
+    console.log('[SW] 🎯 orderId+token:', targetUrl);
   }
   
-  console.log('[SW] 🔗 Abrindo URL:', targetUrl);
+  console.log('[SW] 🔗 URL final:', targetUrl);
   
+  // ✅ Abrir a URL
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        // Verificar janela existente
         for (const client of clientList) {
           if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
-            console.log('[SW] 📱 Focando janela existente');
+            console.log('[SW] 📱 Focando janela existente:', client.url);
             return client.focus();
           }
         }
-        console.log('[SW] 🪟 Abrindo nova janela');
+        // Abrir nova janela
+        console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
         return clients.openWindow(targetUrl);
       })
       .catch((error) => {
@@ -205,7 +215,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] ❌ Notificação fechada');
+  console.log('[SW] ❌ Notificação fechada sem ação');
 });
 
-console.log('[SW] ✅ Service Worker carregado!');
+console.log('[SW] ✅ Service Worker FINAL carregado!');
