@@ -322,24 +322,45 @@ app.post('/api/notifications/subscribe', async (req, res) => {
         console.log('📱 Tenant:', tenant);
         console.log('📱 Endpoint:', subscription?.endpoint?.substring(0, 50) + '...');
 
-        if (!subscription) {
+        if (!subscription || !subscription.endpoint) {
             return res.status(400).json({
                 success: false,
-                error: 'Subscription é obrigatório'
+                error: 'Subscription inválida'
             });
         }
 
-        // Salvar no banco sem user_id (para clientes anônimos)
-        const [result] = await pool.query(
-            `INSERT INTO push_subscriptions 
-             (tenant_id, subscription, created_at, updated_at) 
-             VALUES (?, ?, NOW(), NOW())
-             ON DUPLICATE KEY UPDATE subscription = ?, updated_at = NOW()`,
-            [tenant || 'fireburger', JSON.stringify(subscription), JSON.stringify(subscription)]
+        const tenantId = tenant || 'fireburger';
+        const subscriptionStr = JSON.stringify(subscription);
+        const endpoint = subscription.endpoint;
+
+        // 🔥 VERIFICAR SE ESTA INSCRIÇÃO JÁ EXISTE PELO ENDPOINT
+        const [existing] = await pool.query(
+            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND subscription = ?',
+            [tenantId, subscriptionStr]
         );
 
-        console.log('✅ Inscrição salva com sucesso!');
+        if (existing.length > 0) {
+            console.log('🔄 Inscrição já existe, atualizando...');
+            await pool.query(
+                `UPDATE push_subscriptions 
+                 SET subscription = ?, updated_at = NOW() 
+                 WHERE tenant_id = ? AND subscription = ?`,
+                [subscriptionStr, tenantId, subscriptionStr]
+            );
+            return res.json({
+                success: true,
+                message: 'Inscrição atualizada'
+            });
+        }
 
+        // ✅ INSERIR NOVA (permitindo múltiplas inscrições)
+        await pool.query(
+            `INSERT INTO push_subscriptions (tenant_id, subscription, created_at, updated_at) 
+             VALUES (?, ?, NOW(), NOW())`,
+            [tenantId, subscriptionStr]
+        );
+
+        console.log('✅ Nova inscrição salva com sucesso!');
         res.json({
             success: true,
             message: 'Inscrição push salva com sucesso'
