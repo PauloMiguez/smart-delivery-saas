@@ -1604,56 +1604,92 @@ async function checkSlotAvailability(tenantId, scheduledTime) {
 // ============================================================
 //  5. ROTA PUT /api/orders/:id/status - ATUALIZAR STATUS
 // ============================================================
-const [orderInfo] = await pool.query(
-    'SELECT order_number, access_token FROM orders WHERE id = ? AND tenant_id = ?',
-    [orderId, tenantId]
-);
+app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        const orderId = req.params.id;
+        const { status } = req.body;
 
-if (orderInfo.length > 0) {
-    const orderNumber = orderInfo[0].order_number;
-    const accessToken = orderInfo[0].access_token;
+        if (!status) {
+            return res.status(400).json({ success: false, error: 'Status é obrigatório' });
+        }
 
-    // ✅ Enviar notificação push (APENAS UMA VEZ)
-    if (['confirmado', 'preparando', 'despachado', 'entregue'].includes(status)) {
-        await sendPushNotifications(
-            orderId,
-            orderNumber,
-            status,
-            accessToken,
-            tenantId
+        const validStatuses = ['pending', 'confirmado', 'preparando', 'despachado', 'entregue', 'cancelado'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Status inválido. Use: ' + validStatuses.join(', ')
+            });
+        }
+
+        console.log(`📝 Atualizando pedido ${orderId} para status: ${status}`);
+
+        const [result] = await pool.query(
+            `UPDATE orders SET status = ?, updated_at = NOW()
+             WHERE id = ? AND tenant_id = ?`,
+            [status, orderId, tenantId]
         );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
+        }
+
+        // ✅ Buscar informações do pedido para notificação (DENTRO DA FUNÇÃO async)
+        const [orderInfo] = await pool.query(
+            'SELECT order_number, access_token FROM orders WHERE id = ? AND tenant_id = ?',
+            [orderId, tenantId]
+        );
+
+        if (orderInfo.length > 0) {
+            const orderNumber = orderInfo[0].order_number;
+            const accessToken = orderInfo[0].access_token;
+
+            // Enviar notificação push
+            if (['confirmado', 'preparando', 'despachado', 'entregue'].includes(status)) {
+                await sendPushNotifications(
+                    orderId,
+                    orderNumber,
+                    status,
+                    accessToken,
+                    tenantId
+                );
+            }
+
+            // Enviar WebSocket
+            const io = req.app.get('io');
+            if (io) {
+                const orderData = {
+                    id: parseInt(orderId),
+                    orderNumber: orderNumber,
+                    status: status,
+                    accessToken: accessToken,
+                    updated_at: new Date().toISOString()
+                };
+
+                console.log(`🔔 Enviando atualização WebSocket para pedido ${orderId}`);
+
+                io.to(`tenant-${tenantId}`).emit('order-updated', {
+                    action: 'status_change',
+                    order: orderData,
+                    timestamp: new Date().toISOString()
+                });
+
+                io.to(`order-${orderId}`).emit('order-updated', {
+                    action: 'status_change',
+                    order: orderData,
+                    timestamp: new Date().toISOString()
+                });
+
+                console.log(`✅ Notificações WebSocket enviadas`);
+            }
+        }
+
+        res.json({ success: true, message: 'Status atualizado com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar status:', error);
+        res.status(500).json({ success: false, error: 'Erro ao atualizar status: ' + error.message });
     }
-
-    // ✅ Enviar WebSocket (APENAS UMA VEZ, com dados completos)
-    const io = req.app.get('io');
-    if (io) {
-        const orderData = {
-            id: parseInt(orderId),
-            orderNumber: orderNumber,
-            status: status,
-            accessToken: accessToken,
-            updated_at: new Date().toISOString()
-        };
-
-        console.log(`🔔 Enviando atualização WebSocket para pedido ${orderId}`);
-
-        // Enviar para a sala do tenant (admins)
-        io.to(`tenant-${tenantId}`).emit('order-updated', {
-            action: 'status_change',
-            order: orderData,
-            timestamp: new Date().toISOString()
-        });
-
-        // Enviar para a sala específica do pedido (cliente tracking)
-        io.to(`order-${orderId}`).emit('order-updated', {
-            action: 'status_change',
-            order: orderData,
-            timestamp: new Date().toISOString()
-        });
-
-        console.log(`✅ Notificações WebSocket enviadas para tenant-${tenantId} e order-${orderId}`);
-    }
-}
+});
 
 // ============================================================
 //  ROTAS DE CONFIGURAÇÕES (COM DESCONTO)
