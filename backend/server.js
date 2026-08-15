@@ -2561,6 +2561,9 @@ app.get('/api/tenant', (req, res) => {
 // ============================================================
 //  FUNÇÃO PARA ENVIAR NOTIFICAÇÕES PUSH
 // ============================================================
+// ============================================================
+//  FUNÇÃO PARA ENVIAR NOTIFICAÇÕES PUSH (CORRIGIDA)
+// ============================================================
 async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId) {
     try {
         // Buscar todas as subscriptions do tenant
@@ -2601,29 +2604,39 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
             return;
         }
 
-        // ✅ PAYLOAD CORRIGIDO com todas as informações para redirecionamento
-        const payload = JSON.stringify({
+        // ✅ PAYLOAD CORRIGIDO - com dados no formato correto para o Service Worker
+        const payload = {
             title: message.title,
             body: message.body,
             icon: '/favicon.png',
             badge: '/favicon.png',
             tag: `order-${orderId}`,
+            // ✅ DADOS PRINCIPAIS para redirecionamento
             orderId: String(orderId),
             token: accessToken,
             url: `/track/${orderId}?token=${accessToken}`,
+            // ✅ DADOS DENTRO DE "data" (Service Worker usa isso)
+            data: {
+                orderId: String(orderId),
+                token: accessToken,
+                url: `/track/${orderId}?token=${accessToken}`
+            },
             vibrate: [200, 100, 200],
             requireInteraction: true,
             actions: [
                 { action: 'open', title: '🔍 Ver agora' },
                 { action: 'close', title: '❌ Fechar' }
             ]
-        });
+        };
+
+        const payloadStr = JSON.stringify(payload);
+        console.log(`📤 Payload enviado:`, payloadStr);
 
         let sentCount = 0;
         for (const sub of subscriptions) {
             try {
                 const subscription = JSON.parse(sub.subscription);
-                await webpush.sendNotification(subscription, payload);
+                await webpush.sendNotification(subscription, payloadStr);
                 sentCount++;
                 console.log(`✅ Push enviado para: ${subscription.endpoint.substring(0, 50)}...`);
             } catch (error) {
