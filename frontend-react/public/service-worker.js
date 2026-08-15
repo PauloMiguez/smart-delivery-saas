@@ -123,9 +123,6 @@ self.addEventListener('push', (event) => {
     console.log('[SW] 🎯 URL:', targetUrl);
   }
   
-  // ✅ NOTA: Em dispositivos móveis, os botões "actions" podem não ser exibidos
-  // ou podem ser exibidos de forma diferente. Vamos usar actions e também
-  // armazenar os dados para o clique.
   const options = {
     body: body,
     icon: icon,
@@ -135,14 +132,13 @@ self.addEventListener('push', (event) => {
       orderId: orderId,
       token: token,
       url: targetUrl,
-      // ✅ Dados extras para garantir o redirecionamento
       targetUrl: targetUrl
     },
     vibrate: [200, 100, 200],
     requireInteraction: true,
+    // ✅ USAR APENAS UM BOTÃO para evitar confusão no celular
     actions: [
-      { action: 'open', title: 'Ver agora' },
-      { action: 'close', title: 'Fechar' }
+      { action: 'open', title: '📦 Ver pedido' }
     ]
   };
   
@@ -154,75 +150,57 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================
-// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO PARA CELULAR
+// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO
 // ============================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 👆 Notificação clicada!');
   console.log('[SW] 🔍 Action:', event.action);
-  console.log('[SW] 🔍 Notification:', event.notification);
-  console.log('[SW] 🔍 Data:', event.notification.data);
+  console.log('[SW] 🔍 Notification data:', event.notification.data);
   
   // Fechar a notificação
   event.notification.close();
   
-  // ✅ IMPORTANTE: No celular, o clique na notificação pode não ter action
-  // ou pode ter action = '' em vez de 'open'
-  const action = event.action || 'open';
   const data = event.notification.data || {};
+  const action = event.action || 'open';
   
-  console.log('[SW] 🎯 Action processada:', action);
-  console.log('[SW] 📦 Dados:', data);
-  
-  // ✅ Se for 'close' ou 'fechar', não faz nada
-  if (action === 'close' || action === 'fechar' || action === 'Fechar') {
-    console.log('[SW] ❌ Botão Fechar clicado - ignorando');
+  // ✅ ACEITAR QUALQUER CLIQUE COMO "open"
+  // No celular, o clique no botão pode ser 'open' ou ''
+  // No computador, pode ser 'open' ou undefined
+  if (action === 'close' || action === 'fechar') {
+    console.log('[SW] ❌ Botão Fechar - ignorando');
     return;
   }
   
-  // ✅ CONSTRUIR URL PARA REDIRECIONAMENTO
-  // PRIORIDADE: data.targetUrl > data.url > data.orderId + token
+  // ✅ CONSTRUIR URL
   let targetUrl = '/';
   
-  // 1. Tentar targetUrl (definido no push)
+  // Prioridade: targetUrl > url > orderId+token
   if (data.targetUrl && data.targetUrl !== '/') {
     targetUrl = data.targetUrl;
-    console.log('[SW] 🎯 URL (targetUrl):', targetUrl);
-  }
-  // 2. Tentar url
-  else if (data.url && data.url !== '/') {
+  } else if (data.url && data.url !== '/') {
     targetUrl = data.url;
-    console.log('[SW] 🎯 URL (url):', targetUrl);
-  }
-  // 3. Tentar orderId + token
-  else if (data.orderId && data.token) {
+  } else if (data.orderId && data.token) {
     targetUrl = `/track/${data.orderId}?token=${data.token}`;
-    console.log('[SW] 🎯 URL (orderId+token):', targetUrl);
   }
   
-  console.log('[SW] 🔗 Abrindo URL final:', targetUrl);
+  console.log('[SW] 🔗 Abrindo URL:', targetUrl);
   
   event.waitUntil(
-    clients.matchAll({ 
-      type: 'window', 
-      includeUncontrolled: true 
-    })
-    .then((clientList) => {
-      // Verificar se já existe uma janela com a URL
-      for (const client of clientList) {
-        if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
-          console.log('[SW] 📱 Focando janela existente:', client.url);
-          return client.focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
+            console.log('[SW] 📱 Focando janela existente');
+            return client.focus();
+          }
         }
-      }
-      // Abrir nova janela
-      console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
-      return clients.openWindow(targetUrl);
-    })
-    .catch((error) => {
-      console.log('[SW] ❌ Erro ao abrir URL:', error);
-      // Fallback: abrir a página inicial
-      return clients.openWindow('/');
-    })
+        console.log('[SW] 🪟 Abrindo nova janela');
+        return clients.openWindow(targetUrl);
+      })
+      .catch((error) => {
+        console.log('[SW] ❌ Erro:', error);
+        return clients.openWindow('/');
+      })
   );
 });
 
