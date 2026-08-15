@@ -5,26 +5,101 @@ const NotificationPermission = () => {
   const [permission, setPermission] = useState('default');
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [requested, setRequested] = useState(false);
 
   useEffect(() => {
     if ('Notification' in window) {
-      setPermission(Notification.permission);
-      if (Notification.permission === 'default') {
+      const perm = Notification.permission;
+      setPermission(perm);
+      
+      // Se a permissão não foi definida e ainda não solicitamos, mostrar banner
+      if (perm === 'default' && !requested) {
         setShowBanner(true);
+        // Aguardar 2 segundos antes de solicitar automaticamente
+        const timer = setTimeout(() => {
+          requestPermission();
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else if (perm === 'granted') {
+        // Se já tem permissão, verificar inscrição
+        subscribeIfNeeded();
       }
     }
   }, []);
 
-  const requestPermission = async () => {
-    setLoading(true);
+  const subscribeIfNeeded = async () => {
     try {
-      const result = await window.__PWA?.requestNotificationPermission();
-      if (result) {
-        setPermission('granted');
-        setShowBanner(false);
-      } else {
-        setPermission('denied');
-        setShowBanner(false);
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        // Se tem permissão mas não está inscrito, inscrever
+        await subscribeToPush();
+      }
+    } catch (error) {
+      console.error('Erro ao verificar inscrição:', error);
+    }
+  };
+
+  const subscribeToPush = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const response = await fetch('/api/notifications/vapid-public-key');
+      const data = await response.json();
+      
+      if (!data.publicKey) {
+        console.error('VAPID key não disponível');
+        return;
+      }
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: data.publicKey
+      });
+      
+      const tenant = new URLSearchParams(window.location.search).get('tenant') || 'fireburger';
+      
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription: subscription,
+          tenant: tenant
+        })
+      });
+      
+      console.log('✅ Inscrição push salva com sucesso!');
+      
+      // Enviar notificação de boas-vindas
+      registration.showNotification('🔔 Notificações ativadas!', {
+        body: 'Você receberá atualizações sobre seus pedidos em tempo real.',
+        icon: '/favicon.png',
+        tag: 'welcome'
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao inscrever:', error);
+    }
+  };
+
+  const requestPermission = async () => {
+    if (loading || requested) return;
+    setLoading(true);
+    setRequested(true);
+    
+    try {
+      // Solicitar permissão diretamente
+      const result = await Notification.requestPermission();
+      console.log('📌 Resultado da permissão:', result);
+      setPermission(result);
+      setShowBanner(false);
+      
+      if (result === 'granted') {
+        console.log('✅ Permissão concedida!');
+        await subscribeIfNeeded();
+      } else if (result === 'denied') {
+        console.log('❌ Permissão negada pelo usuário');
       }
     } catch (error) {
       console.error('Erro ao solicitar permissão:', error);
@@ -33,10 +108,12 @@ const NotificationPermission = () => {
     }
   };
 
+  // Se a permissão já foi concedida ou negada, não mostra nada
   if (permission !== 'default' || !showBanner) {
     return null;
   }
 
+  // Banner de solicitação automática
   return (
     <Banner>
       <Icon>🔔</Icon>
@@ -52,6 +129,7 @@ const NotificationPermission = () => {
   );
 };
 
+// Styled Components
 const Banner = styled.div`
   position: fixed;
   bottom: 20px;
