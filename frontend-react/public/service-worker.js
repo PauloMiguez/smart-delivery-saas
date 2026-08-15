@@ -143,27 +143,65 @@ self.addEventListener('push', (event) => {
 
 // Clique na notificação
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification click:', event);
-  event.notification.close();
-  
-  const url = event.notification.data?.url || '/';
-  const action = event.action;
-  
-  if (action === 'close') return;
-  
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        for (const client of clientList) {
-          if (client.url.includes(url) && 'focus' in client) {
-            return client.focus();
-          }
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
-      })
-  );
+    console.log('[SW] 👆 Notificação clicada:', event);
+    
+    // Fechar a notificação
+    event.notification.close();
+    
+    // Obter dados da notificação
+    const notification = event.notification;
+    const data = notification.data || {};
+    const action = event.action || 'open';
+    
+    // Construir URL de destino
+    let targetUrl = '/';
+    
+    // Prioridade: orderId + token > url > /
+    if (data.orderId && data.token) {
+        targetUrl = `/track/${data.orderId}?token=${data.token}`;
+        console.log(`[SW] 🎯 URL do pedido: ${targetUrl}`);
+    } else if (data.url) {
+        targetUrl = data.url;
+        console.log(`[SW] 🎯 URL da notificação: ${targetUrl}`);
+    } else {
+        console.log(`[SW] 🎯 URL padrão: ${targetUrl}`);
+    }
+    
+    console.log(`[SW] 🔗 URL final: ${targetUrl}`);
+    console.log(`[SW] 🎯 Ação: ${action}`);
+    
+    // Se for ação de fechar, não faz nada
+    if (action === 'close') {
+        console.log('[SW] ❌ Notificação fechada pelo usuário');
+        return;
+    }
+    
+    // Abrir a URL
+    event.waitUntil(
+        clients.matchAll({ 
+            type: 'window', 
+            includeUncontrolled: true 
+        })
+        .then((clientList) => {
+            // Verificar se já existe uma janela com a URL
+            for (const client of clientList) {
+                if (client.url.includes(targetUrl) && 'focus' in client) {
+                    console.log('[SW] 📱 Focando janela existente:', client.url);
+                    return client.focus();
+                }
+            }
+            // Abrir nova janela
+            console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+        .catch((error) => {
+            console.log('[SW] ❌ Erro ao abrir URL:', error);
+            // Fallback: abrir a página inicial
+            return clients.openWindow('/');
+        })
+    );
 });
 
 console.log('[SW] Service Worker loaded!');
