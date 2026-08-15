@@ -46,9 +46,9 @@ const LoadingFallback = () => (
         background: '#fff'
     }}>
         <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-                width: 40, 
-                height: 40, 
+            <div style={{
+                width: 40,
+                height: 40,
                 border: '4px solid #f3f3f3',
                 borderTop: '4px solid #e67e22',
                 borderRadius: '50%',
@@ -70,10 +70,10 @@ const LoadingFallback = () => (
 //  PÁGINA DE BOAS-VINDAS (OTIMIZADA)
 // ============================================================
 const WelcomePage = () => (
-    <div style={{ 
-        maxWidth: 480, 
-        margin: '0 auto', 
-        padding: '60px 20px', 
+    <div style={{
+        maxWidth: 480,
+        margin: '0 auto',
+        padding: '60px 20px',
         textAlign: 'center',
         minHeight: '100vh',
         display: 'flex',
@@ -87,9 +87,9 @@ const WelcomePage = () => (
         <p style={{ color: '#888', marginBottom: 24, fontSize: 16 }}>
             Sistema de delivery para restaurantes
         </p>
-        <div style={{ 
-            background: '#f8f9fa', 
-            padding: '20px', 
+        <div style={{
+            background: '#f8f9fa',
+            padding: '20px',
             borderRadius: '12px',
             width: '100%',
             maxWidth: 380
@@ -97,7 +97,7 @@ const WelcomePage = () => (
             <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
                 Para acessar um restaurante, use o link correto:
             </p>
-            <code style={{ 
+            <code style={{
                 display: 'block',
                 background: '#fff',
                 padding: '8px 12px',
@@ -112,7 +112,7 @@ const WelcomePage = () => (
             <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
                 Ou use o painel administrativo:
             </p>
-            <code style={{ 
+            <code style={{
                 display: 'block',
                 background: '#fff',
                 padding: '8px 12px',
@@ -123,9 +123,9 @@ const WelcomePage = () => (
             }}>
                 https://smart-delivery-saas.onrender.com/admin?tenant=nome_do_restaurante
             </code>
-            <p style={{ 
-                color: '#888', 
-                fontSize: '12px', 
+            <p style={{
+                color: '#888',
+                fontSize: '12px',
                 marginTop: '16px',
                 fontStyle: 'italic'
             }}>
@@ -141,14 +141,13 @@ const WelcomePage = () => (
 const AppContent = () => {
     const { tenant, loading } = useContext(TenantContext);
 
-    // Detectar atualização do Service Worker
+    // Detectar atualização do Service Worker - CORRIGIDO
     useEffect(() => {
         const handleSWUpdate = () => {
             console.log('📦 Nova versão do PWA disponível!');
-            // Mostrar notificação para o usuário
-            if (window.confirm('Uma nova versão do app está disponível. Deseja atualizar agora?')) {
-                window.location.reload();
-            }
+            // ✅ Apenas mostra no console - NÃO recarrega automaticamente
+            // O usuário pode recarregar manualmente se quiser
+            // Ou podemos usar um banner simples
         };
 
         window.addEventListener('swUpdate', handleSWUpdate);
@@ -160,7 +159,7 @@ const AppContent = () => {
     }
 
     const pathname = window.location.pathname;
-    
+
     // Rotas que não precisam de tenant
     const isTrackingRoute = pathname.includes('/track/');
     const isLoginRoute = pathname.includes('/login');
@@ -171,7 +170,7 @@ const AppContent = () => {
     const isAdminRoute = pathname.includes('/admin');
 
     // Rotas que não precisam de tenant
-    if (isTrackingRoute || isLoginRoute || isRegisterRoute || isCheckoutRoute || 
+    if (isTrackingRoute || isLoginRoute || isRegisterRoute || isCheckoutRoute ||
         isOrdersRoute || isVerifyRoute || isAdminRoute) {
         return (
             <BrowserRouter>
@@ -184,12 +183,12 @@ const AppContent = () => {
                         <Route path="/register.html" element={<Navigate to="/register" />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/login.html" element={<Navigate to="/login" />} />
-                        
+
                         {/* Rotas com lazy loading */}
                         <Route path="/track/:orderId" element={<TrackOrder />} />
                         <Route path="/orders" element={<OrdersHistory />} />
                         <Route path="/verify-orders" element={<OrderVerification />} />
-                        
+
                         {/* Admin - agora lazy! */}
                         <Route path="/admin/*" element={<AdminLayout />} />
                     </Routes>

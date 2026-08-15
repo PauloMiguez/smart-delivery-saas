@@ -25,7 +25,8 @@ const registerSW = async () => {
       
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('📦 Nova versão instalada! Recarregue a página.');
+          console.log('📦 Nova versão instalada!');
+          // ✅ Apenas notifica, NÃO recarrega automaticamente
           window.dispatchEvent(new CustomEvent('swUpdate'));
         }
       });
@@ -74,12 +75,18 @@ const subscribeToPush = async (registration) => {
     
     console.log('✅ Inscrito para push!');
     
+    const tenant = new URLSearchParams(window.location.search).get('tenant') || 'fireburger';
+    
     await fetch('/api/notifications/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({
+        subscription: subscription,
+        tenant: tenant
+      }),
     });
     
+    console.log('✅ Inscrição salva no servidor!');
     return subscription;
   } catch (error) {
     console.error('❌ Erro ao inscrever para push:', error);
@@ -120,9 +127,11 @@ if (document.readyState === 'complete') {
   window.addEventListener('load', registerSW);
 }
 
+// ✅ CORRIGIDO: NÃO recarrega automaticamente
 navigator.serviceWorker?.addEventListener('controllerchange', () => {
   console.log('🔄 Service Worker atualizado!');
-  setTimeout(() => window.location.reload(), 2000);
+  // ✅ Apenas notifica, sem recarregar
+  window.dispatchEvent(new CustomEvent('swUpdate'));
 });
 
 // ============================================
