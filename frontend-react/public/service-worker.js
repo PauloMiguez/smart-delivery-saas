@@ -89,43 +89,56 @@ self.addEventListener('fetch', (event) => {
 
 // Recebimento de notificação push
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push received:', event);
-  
-  let data = {
-    title: 'Smart Delivery',
-    body: 'Você tem uma nova notificação!',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
-    tag: 'default',
-    data: { url: '/' },
-  };
-  
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      data = { ...data, ...payload };
-    } catch (e) {
-      data.body = event.data.text();
+    console.log('[SW] Push received:', event);
+    
+    let data = {
+        title: 'Smart Delivery',
+        body: 'Você tem uma nova notificação!',
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: 'default',
+        data: { url: '/' },
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
+        actions: [
+            { action: 'open', title: '🔍 Ver agora' },
+            { action: 'close', title: '❌ Fechar' }
+        ]
+    };
+    
+    // Parse dos dados da notificação
+    if (event.data) {
+        try {
+            const payload = event.data.json();
+            data = { ...data, ...payload };
+            console.log('[SW] Payload:', payload);
+        } catch (e) {
+            console.log('[SW] Erro ao parsear payload:', e);
+            data.body = event.data.text();
+        }
     }
-  }
-  
-  const options = {
-    body: data.body,
-    icon: data.icon || '/favicon.png',
-    badge: data.badge || '/favicon.png',
-    tag: data.tag || `notification-${Date.now()}`,
-    data: data.data || { url: '/' },
-    vibrate: [200, 100, 200],
-    requireInteraction: true,
-    actions: [
-      { action: 'open', title: '🔍 Ver agora' },
-      { action: 'close', title: '❌ Fechar' },
-    ],
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+    
+    console.log('[SW] Mostrando notificação:', data);
+    
+    // Garantir que a notificação seja mostrada
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: data.icon || '/favicon.png',
+            badge: data.badge || '/favicon.png',
+            tag: data.tag || `notification-${Date.now()}`,
+            data: data.data || { url: '/' },
+            vibrate: data.vibrate || [200, 100, 200],
+            requireInteraction: true,
+            actions: data.actions || [
+                { action: 'open', title: '🔍 Ver agora' },
+                { action: 'close', title: '❌ Fechar' }
+            ],
+            silent: false,
+            renotify: true,
+            timestamp: Date.now()
+        })
+    );
 });
 
 // Clique na notificação
