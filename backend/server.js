@@ -320,7 +320,6 @@ app.post('/api/notifications/subscribe', async (req, res) => {
 
         console.log('📱 📝 NOVA INSCRIÇÃO PUSH');
         console.log('📱 Tenant:', tenant);
-        console.log('📱 Endpoint:', subscription?.endpoint?.substring(0, 50) + '...');
 
         if (!subscription || !subscription.endpoint) {
             return res.status(400).json({
@@ -333,19 +332,19 @@ app.post('/api/notifications/subscribe', async (req, res) => {
         const subscriptionStr = JSON.stringify(subscription);
         const endpoint = subscription.endpoint;
 
-        // 🔥 VERIFICAR SE ESTA INSCRIÇÃO JÁ EXISTE PELO ENDPOINT
+        // ✅ VERIFICAR SE ESTE ENDPOINT JÁ EXISTE
         const [existing] = await pool.query(
-            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND subscription = ?',
-            [tenantId, subscriptionStr]
+            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
+            [tenantId, `%${endpoint}%`]
         );
 
         if (existing.length > 0) {
-            console.log('🔄 Inscrição já existe, atualizando...');
+            console.log('🔄 Endpoint já existe, atualizando...');
             await pool.query(
                 `UPDATE push_subscriptions 
                  SET subscription = ?, updated_at = NOW() 
-                 WHERE tenant_id = ? AND subscription = ?`,
-                [subscriptionStr, tenantId, subscriptionStr]
+                 WHERE tenant_id = ? AND subscription LIKE ?`,
+                [subscriptionStr, tenantId, `%${endpoint}%`]
             );
             return res.json({
                 success: true,
@@ -353,7 +352,7 @@ app.post('/api/notifications/subscribe', async (req, res) => {
             });
         }
 
-        // ✅ INSERIR NOVA (permitindo múltiplas inscrições)
+        // ✅ INSERIR NOVA
         await pool.query(
             `INSERT INTO push_subscriptions (tenant_id, subscription, created_at, updated_at) 
              VALUES (?, ?, NOW(), NOW())`,
