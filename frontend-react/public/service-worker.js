@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================
-// NOTIFICAÇÕES PUSH
+// NOTIFICAÇÕES PUSH - CORRIGIDO
 // ============================================
 
 self.addEventListener('push', (event) => {
@@ -105,9 +105,11 @@ self.addEventListener('push', (event) => {
       icon = payload.icon || icon;
       badge = payload.badge || badge;
       tag = payload.tag || tag;
-      orderId = payload.orderId || null;
-      token = payload.token || null;
-      url = payload.url || '/';
+      
+      // ✅ PRIORIDADE: orderId e token
+      orderId = payload.orderId || payload.data?.orderId || null;
+      token = payload.token || payload.data?.token || null;
+      url = payload.url || payload.data?.url || '/';
       
       console.log('[SW] 📦 Dados: orderId=' + orderId + ', token=' + (token ? 'presente' : 'ausente'));
     } catch (error) {
@@ -116,11 +118,11 @@ self.addEventListener('push', (event) => {
     }
   }
   
-  // Construir URL para redirecionamento
+  // ✅ CONSTRUIR URL DO PEDIDO
   let targetUrl = url;
   if (orderId && token) {
     targetUrl = `/track/${orderId}?token=${token}`;
-    console.log('[SW] 🎯 URL construída:', targetUrl);
+    console.log('[SW] 🎯 URL do pedido:', targetUrl);
   }
   
   const options = {
@@ -149,57 +151,72 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================
-// CLIQUE NA NOTIFICAÇÃO
+// CLIQUE NA NOTIFICAÇÃO - CORRIGIDO
 // ============================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 👆 Notificação clicada!');
+  console.log('[SW] 🔍 Evento:', event);
+  console.log('[SW] 🔍 Ação:', event.action);
+  console.log('[SW] 🔍 Notification data:', event.notification.data);
   
+  // Fechar a notificação
   event.notification.close();
   
+  // Obter dados da notificação
   const data = event.notification.data || {};
   const action = event.action || 'open';
   
-  console.log('[SW] 📦 Dados da notificação:', data);
+  console.log('[SW] 📦 Dados:', data);
+  console.log('[SW] 🎯 Ação:', action);
   
+  // Se for ação de fechar, não faz nada
   if (action === 'close') {
     console.log('[SW] ❌ Notificação fechada');
     return;
   }
   
-  // CONSTRUIR URL DE REDIRECIONAMENTO
+  // ✅ CONSTRUIR URL DE DESTINO
   let targetUrl = '/';
   
-  // PRIORIDADE 1: orderId + token
+  // PRIORIDADE 1: orderId + token (do data da notificação)
   if (data.orderId && data.token) {
     targetUrl = `/track/${data.orderId}?token=${data.token}`;
-    console.log('[SW] 🎯 URL do pedido:', targetUrl);
+    console.log('[SW] 🎯 URL do pedido (data):', targetUrl);
   } 
-  // PRIORIDADE 2: url do payload
+  // PRIORIDADE 2: url do data
   else if (data.url) {
     targetUrl = data.url;
-    console.log('[SW] 🎯 URL da notificação:', targetUrl);
+    console.log('[SW] 🎯 URL do data:', targetUrl);
+  }
+  // PRIORIDADE 3: url da notificação (fallback)
+  else {
+    targetUrl = '/';
+    console.log('[SW] 🎯 URL padrão:', targetUrl);
   }
   
   console.log('[SW] 🔗 Abrindo URL final:', targetUrl);
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Verificar se já existe uma janela com a URL
-        for (const client of clientList) {
-          if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
-            console.log('[SW] 📱 Focando janela existente:', client.url);
-            return client.focus();
-          }
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    })
+    .then((clientList) => {
+      // Verificar se já existe uma janela com a URL
+      for (const client of clientList) {
+        if (client.url && client.url.includes(targetUrl) && 'focus' in client) {
+          console.log('[SW] 📱 Focando janela existente:', client.url);
+          return client.focus();
         }
-        // Abrir nova janela
-        console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
-        return clients.openWindow(targetUrl);
-      })
-      .catch((error) => {
-        console.log('[SW] ❌ Erro ao abrir URL:', error);
-        return clients.openWindow('/');
-      })
+      }
+      // Abrir nova janela
+      console.log('[SW] 🪟 Abrindo nova janela:', targetUrl);
+      return clients.openWindow(targetUrl);
+    })
+    .catch((error) => {
+      console.log('[SW] ❌ Erro ao abrir URL:', error);
+      return clients.openWindow('/');
+    })
   );
 });
 
