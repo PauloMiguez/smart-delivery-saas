@@ -1635,7 +1635,7 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Pedido não encontrado' });
         }
 
-        // ✅ Buscar informações do pedido para notificação (DENTRO DA FUNÇÃO async)
+        // ✅ Buscar informações do pedido para notificação
         const [orderInfo] = await pool.query(
             'SELECT order_number, access_token FROM orders WHERE id = ? AND tenant_id = ?',
             [orderId, tenantId]
@@ -1645,14 +1645,22 @@ app.put('/api/orders/:id/status', verifyToken, async (req, res) => {
             const orderNumber = orderInfo[0].order_number;
             const accessToken = orderInfo[0].access_token;
 
-            // Enviar notificação push
+            // ✅ Buscar device_token do pedido
+            const [orderWithDevice] = await pool.query(
+                'SELECT device_token FROM orders WHERE id = ? AND tenant_id = ?',
+                [orderId, tenantId]
+            );
+            const deviceToken = orderWithDevice.length > 0 ? orderWithDevice[0].device_token : null;
+
+            // ✅ Enviar notificação push (SEMPRE com device_token)
             if (['confirmado', 'preparando', 'despachado', 'entregue'].includes(status)) {
                 await sendPushNotifications(
                     orderId,
                     orderNumber,
                     status,
                     accessToken,
-                    tenantId
+                    tenantId,
+                    deviceToken
                 );
             }
 
@@ -2566,31 +2574,26 @@ app.get('/api/tenant', (req, res) => {
 // ============================================================
 async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId, deviceToken = null) {
     try {
-        let subscriptions = [];
-
-        // ✅ Se tem device_token, busca APENAS essa subscription
-        if (deviceToken) {
-            const [result] = await pool.query(
-                'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
-                [tenantId, `%${deviceToken}%`]
-            );
-            subscriptions = result;
-            console.log(`📱 Buscando device_token específico: ${deviceToken.substring(0, 30)}...`);
-        } else {
-            const [all] = await pool.query(
-                'SELECT subscription FROM push_subscriptions WHERE tenant_id = ?',
-                [tenantId]
-            );
-            subscriptions = all;
-            console.log(`📱 Enviando para TODAS as inscrições (${subscriptions.length})`);
-        }
-
-        if (subscriptions.length === 0) {
-            console.log(`📱 Nenhuma inscrição push encontrada para o tenant: ${tenantId}`);
+        // ✅ Se não houver device_token, não envia notificação
+        if (!deviceToken) {
+            console.log(`📱 ⚠️ Nenhum device_token fornecido para o pedido #${orderNumber}. Notificação não será enviada.`);
             return;
         }
 
-        console.log(`📱 Encontrando ${subscriptions.length} inscrições`);
+        // ✅ Buscar APENAS a subscription específica
+        const [result] = await pool.query(
+            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
+            [tenantId, `%${deviceToken}%`]
+        );
+        
+        const subscriptions = result;
+
+        if (subscriptions.length === 0) {
+            console.log(`📱 Nenhuma inscrição push encontrada para o device_token do pedido #${orderNumber}`);
+            return;
+        }
+
+        console.log(`📱 Encontrando ${subscriptions.length} inscrições para o device_token do pedido #${orderNumber}`);
 
         const messages = {
             'confirmado': {
