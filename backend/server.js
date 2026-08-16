@@ -300,7 +300,7 @@ app.get('/api/notifications/vapid-public-key', (req, res) => {
     console.log('📱 🔥 ROTA VAPID CHAMADA!');
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     console.log('📱 Chave VAPID:', publicKey ? '✅ Existe' : '❌ NÃO EXISTE');
-    
+
     if (!publicKey) {
         console.error('❌ VAPID_PUBLIC_KEY não encontrada no .env');
         return res.status(500).json({
@@ -407,7 +407,7 @@ app.use((req, res, next) => {
     console.log('🔍 [TENANT] Host:', req.get('host'));
     console.log('🔍 [TENANT] Headers X-Tenant-ID:', req.headers['x-tenant-id']);
     console.log('🔍 ==========================================');
-    
+
     const publicRoutes = [
         '/api/health',
         '/api/auth/login',
@@ -1258,7 +1258,8 @@ app.post('/api/orders', async (req, res) => {
             delivery_type = 'delivery',
             notes = '',
             scheduled_time,
-            is_scheduled = false
+            is_scheduled = false,
+            device_token  // ✅ ADICIONAR
         } = req.body;
 
         console.log('📦 Pedido recebido:', {
@@ -1410,13 +1411,13 @@ app.post('/api/orders', async (req, res) => {
 
         const [result] = await pool.query(
             `INSERT INTO orders (
-                tenant_id, order_number, customer_name, customer_email,
-                customer_phone, customer_address, items, subtotal,
-                delivery_fee, discount, total, payment_method,
-                delivery_type, notes, is_scheduled, scheduled_time,
-                scheduled_status, status, access_token, delivery_status,
-                discount_percentage, discount_reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        tenant_id, order_number, customer_name, customer_email,
+        customer_phone, customer_address, items, subtotal,
+        delivery_fee, discount, discount_percentage, discount_reason,
+        device_token, total, payment_method, delivery_type, notes,
+        is_scheduled, scheduled_time, scheduled_status, status,
+        access_token, delivery_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 tenantId,
                 orderNumber,
@@ -1428,6 +1429,9 @@ app.post('/api/orders', async (req, res) => {
                 parseFloat(subtotal || 0),
                 finalDeliveryFee,
                 finalDiscount,
+                parseFloat(discount_percentage || 0),
+                discount_reason || '',
+                device_token || null,  // ✅ ADICIONAR
                 finalTotal,
                 payment_method,
                 deliveryType,
@@ -1437,9 +1441,7 @@ app.post('/api/orders', async (req, res) => {
                 finalScheduledStatus,
                 finalStatus,
                 accessToken,
-                deliveryStatus,
-                parseFloat(discount_percentage || 0),
-                discount_reason || ''
+                deliveryStatus
             ]
         );
 
@@ -2557,26 +2559,38 @@ app.get('/api/tenant', (req, res) => {
     });
 });
 
-// ============================================================
-//  FUNÇÃO PARA ENVIAR NOTIFICAÇÕES PUSH
-// ============================================================
+
 // ============================================================
 //  FUNÇÃO PARA ENVIAR NOTIFICAÇÕES PUSH (CORRIGIDA)
+//  ✅ Envia APENAS para o dispositivo que fez o pedido
 // ============================================================
-async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId) {
+async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId, deviceToken = null) {
     try {
-        // Buscar todas as subscriptions do tenant
-        const [subscriptions] = await pool.query(
-            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ?',
-            [tenantId]
-        );
+        let subscriptions = [];
+
+        // ✅ Se tem device_token, busca APENAS essa subscription
+        if (deviceToken) {
+            const [result] = await pool.query(
+                'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
+                [tenantId, `%${deviceToken}%`]
+            );
+            subscriptions = result;
+            console.log(`📱 Buscando device_token específico: ${deviceToken.substring(0, 30)}...`);
+        } else {
+            const [all] = await pool.query(
+                'SELECT subscription FROM push_subscriptions WHERE tenant_id = ?',
+                [tenantId]
+            );
+            subscriptions = all;
+            console.log(`📱 Enviando para TODAS as inscrições (${subscriptions.length})`);
+        }
 
         if (subscriptions.length === 0) {
             console.log(`📱 Nenhuma inscrição push encontrada para o tenant: ${tenantId}`);
             return;
         }
 
-        console.log(`📱 Encontrando ${subscriptions.length} inscrições para o tenant: ${tenantId}`);
+        console.log(`📱 Encontrando ${subscriptions.length} inscrições`);
 
         const messages = {
             'confirmado': {
@@ -2603,18 +2617,15 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
             return;
         }
 
-        // ✅ PAYLOAD CORRIGIDO - com dados no formato correto para o Service Worker
         const payload = {
             title: message.title,
             body: message.body,
             icon: '/favicon.png',
             badge: '/favicon.png',
             tag: `order-${orderId}`,
-            // ✅ DADOS PRINCIPAIS para redirecionamento
             orderId: String(orderId),
             token: accessToken,
             url: `/track/${orderId}?token=${accessToken}`,
-            // ✅ DADOS DENTRO DE "data" (Service Worker usa isso)
             data: {
                 orderId: String(orderId),
                 token: accessToken,
@@ -2623,13 +2634,12 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
             vibrate: [200, 100, 200],
             requireInteraction: true,
             actions: [
-                { action: 'open', title: '🔍 Ver agora' },
-                { action: 'close', title: '❌ Fechar' }
+                { action: 'open', title: '📦 Ver pedido' }
             ]
         };
 
         const payloadStr = JSON.stringify(payload);
-        console.log(`📤 Payload enviado:`, payloadStr);
+        console.log(`📤 Enviando notificação para ${subscriptions.length} dispositivo(s)`);
 
         let sentCount = 0;
         for (const sub of subscriptions) {
@@ -2637,7 +2647,7 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
                 const subscription = JSON.parse(sub.subscription);
                 await webpush.sendNotification(subscription, payloadStr);
                 sentCount++;
-                console.log(`✅ Push enviado para: ${subscription.endpoint.substring(0, 50)}...`);
+                console.log(`✅ Push enviado`);
             } catch (error) {
                 console.error(`❌ Erro ao enviar push: ${error.message}`);
                 if (error.statusCode === 410) {
@@ -2645,12 +2655,12 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
                         'DELETE FROM push_subscriptions WHERE subscription = ?',
                         [sub.subscription]
                     );
-                    console.log(`🗑️ Subscription removida (expirada)`);
+                    console.log(`🗑️ Subscription expirada removida`);
                 }
             }
         }
 
-        console.log(`📱 ${sentCount}/${subscriptions.length} notificações push enviadas para o pedido #${orderNumber}`);
+        console.log(`📱 ${sentCount}/${subscriptions.length} notificações enviadas para o pedido #${orderNumber}`);
     } catch (error) {
         console.error('❌ Erro ao enviar notificações push:', error);
     }
@@ -2819,16 +2829,16 @@ io.on('connection', (socket) => {
             const roomName = `order-${orderId}`;
             socket.join(roomName);
             console.log(`📦 Cliente entrou na sala do pedido: ${roomName}`);
-            
-            socket.emit('joined-order-room', { 
-                orderId, 
-                room: roomName, 
-                success: true 
+
+            socket.emit('joined-order-room', {
+                orderId,
+                room: roomName,
+                success: true
             });
         } else {
-            socket.emit('joined-order-room', { 
-                success: false, 
-                error: 'orderId não fornecido' 
+            socket.emit('joined-order-room', {
+                success: false,
+                error: 'orderId não fornecido'
             });
         }
     });
@@ -2842,11 +2852,11 @@ io.on('connection', (socket) => {
             const roomName = `order-${orderId}`;
             socket.leave(roomName);
             console.log(`🚪 Cliente saiu da sala do pedido: ${roomName}`);
-            
-            socket.emit('left-order-room', { 
-                orderId, 
-                room: roomName, 
-                success: true 
+
+            socket.emit('left-order-room', {
+                orderId,
+                room: roomName,
+                success: true
             });
         }
     });
