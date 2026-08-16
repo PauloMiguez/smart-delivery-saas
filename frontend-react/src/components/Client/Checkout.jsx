@@ -21,6 +21,35 @@ const isCustomDomain = () => {
 };
 
 // ============================================================
+//  FUNÇÃO PARA OBTER DEVICE_TOKEN (endpoint da inscrição push)
+// ============================================================
+const getDeviceToken = async () => {
+    try {
+        // Verificar se o Service Worker está disponível
+        if (!('serviceWorker' in navigator)) {
+            console.log('⚠️ Service Worker não disponível');
+            return null;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            // Extrair o endpoint para usar como device_token
+            const endpoint = subscription.endpoint;
+            console.log('📱 Device token obtido:', endpoint.substring(0, 50) + '...');
+            return endpoint;
+        } else {
+            console.log('⚠️ Nenhuma inscrição push ativa');
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao obter device_token:', error);
+        return null;
+    }
+};
+
+// ============================================================
 //  STYLED COMPONENTS
 // ============================================================
 const CheckoutContainer = styled(Container)`
@@ -645,7 +674,7 @@ const Checkout = () => {
     const finalTotal = totalWithDiscount + deliveryFee;
 
     // ============================================================
-    //  SUBMIT - CORRIGIDO COM DESCONTO
+    //  SUBMIT - CORRIGIDO COM DEVICE_TOKEN
     // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -672,6 +701,10 @@ const Checkout = () => {
                 ? formatScheduledTime(selectedSchedule.datetime)
                 : null;
 
+            // ✅ OBTER DEVICE_TOKEN
+            const deviceToken = await getDeviceToken();
+            console.log('📱 Device token para o pedido:', deviceToken ? '✅ obtido' : '❌ não disponível');
+
             const orderData = {
                 customer_name: formData.name.trim(),
                 customer_phone: formData.phone.trim(),
@@ -691,7 +724,8 @@ const Checkout = () => {
                 payment_method: paymentMethod,
                 delivery_type: 'delivery',
                 is_scheduled: isScheduled || !isStoreOpen ? true : false,
-                scheduled_time: scheduledTimeToSend
+                scheduled_time: scheduledTimeToSend,
+                device_token: deviceToken // ✅ ADICIONAR DEVICE_TOKEN
             };
 
             if (!isStoreOpen && !selectedSchedule) {
