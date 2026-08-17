@@ -285,12 +285,164 @@ app.get('/api/domain-mapping', (req, res) => {
 });
 
 // ============================================================
+//  MANIFEST.JSON DINÂMICO POR TENANT
+// ============================================================
+
+app.get('/manifest.json', async (req, res) => {
+    try {
+        // Obter tenant da query, host ou header
+        let tenantId = req.query.tenant || req.tenantId;
+
+        if (!tenantId) {
+            const host = req.get('host');
+            if (host) {
+                const hostClean = host.split(':')[0];
+                const domainMap = getDomainMapping();
+                if (domainMap[hostClean]) {
+                    tenantId = domainMap[hostClean];
+                } else {
+                    const parts = host.split('.');
+                    if (parts.length >= 3) {
+                        const subdomain = parts[0];
+                        if (subdomain && subdomain !== 'www' && subdomain !== 'smart-delivery-saas') {
+                            tenantId = subdomain;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!tenantId) {
+            tenantId = 'default';
+        }
+
+        console.log(`📱 Gerando manifest.json para tenant: ${tenantId}`);
+
+        // Buscar configurações do tenant
+        const [configRows] = await pool.query(
+            'SELECT config_key, config_value FROM config WHERE tenant_id = ?',
+            [tenantId]
+        );
+
+        const config = {};
+        configRows.forEach(row => {
+            config[row.config_key] = row.config_value;
+        });
+
+        // Buscar nome do tenant
+        const [tenantRows] = await pool.query(
+            'SELECT name FROM tenants WHERE id = ?',
+            [tenantId]
+        );
+
+        const tenantName = tenantRows.length > 0 ? tenantRows[0].name : 'Smart Delivery';
+        const shortName = tenantName.length > 12 ? tenantName.substring(0, 12) : tenantName;
+
+        // Definir cores baseadas no tenant ou usar padrão
+        const themeColor = config.theme_color || '#e67e22';
+        const backgroundColor = config.background_color || '#ffffff';
+
+        // Definir ícone (logo do tenant ou padrão)
+        const iconUrl = config.logo_image || '/favicon.png';
+
+        // Construir manifest.json dinâmico
+        const manifest = {
+            name: tenantName,
+            short_name: shortName,
+            description: `${tenantName} - Peça seu delivery pelo Smart Delivery`,
+            start_url: `/?tenant=${tenantId}`,
+            display: 'standalone',
+            background_color: backgroundColor,
+            theme_color: themeColor,
+            orientation: 'portrait',
+            categories: ['food', 'delivery', 'restaurant'],
+            lang: 'pt-BR',
+            scope: '/',
+            icons: [
+                {
+                    src: iconUrl,
+                    sizes: '192x192',
+                    type: 'image/png',
+                    purpose: 'any maskable'
+                },
+                {
+                    src: iconUrl,
+                    sizes: '512x512',
+                    type: 'image/png',
+                    purpose: 'any maskable'
+                }
+            ],
+            shortcuts: [
+                {
+                    name: 'Cardápio',
+                    short_name: 'Cardápio',
+                    description: 'Veja nosso cardápio',
+                    url: `/?tenant=${tenantId}`,
+                    icons: [
+                        {
+                            src: iconUrl,
+                            sizes: '96x96',
+                            type: 'image/png'
+                        }
+                    ]
+                },
+                {
+                    name: 'Meus Pedidos',
+                    short_name: 'Pedidos',
+                    description: 'Acompanhe seus pedidos',
+                    url: `/?tenant=${tenantId}&page=orders`,
+                    icons: [
+                        {
+                            src: iconUrl,
+                            sizes: '96x96',
+                            type: 'image/png'
+                        }
+                    ]
+                }
+            ],
+            related_applications: [],
+            prefer_related_applications: false
+        };
+
+        // Cache control
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hora
+        res.json(manifest);
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar manifest.json:', error);
+        // Fallback: manifest padrão
+        res.json({
+            name: 'Smart Delivery',
+            short_name: 'Smart Delivery',
+            description: 'Sistema de Delivery SaaS',
+            start_url: '/',
+            display: 'standalone',
+            background_color: '#ffffff',
+            theme_color: '#e67e22',
+            icons: [
+                {
+                    src: '/favicon.png',
+                    sizes: '192x192',
+                    type: 'image/png'
+                },
+                {
+                    src: '/favicon.png',
+                    sizes: '512x512',
+                    type: 'image/png'
+                }
+            ]
+        });
+    }
+});
+
+// ============================================================
 //  NOTIFICAÇÕES PUSH - ROTAS PÚBLICAS (ANTES DO MIDDLEWARE)
 // ============================================================
 
 // Configurar VAPID
 webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@smartdelivery.com',
+    process.env.VAPID_SUBJECT || 'mailto:paulo.migueoli@gmail.com',
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
 );

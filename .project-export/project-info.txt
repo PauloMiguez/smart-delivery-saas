@@ -1,0 +1,42 @@
+=========================================
+📋 INFORMAÇÕES DO PROJETO
+=========================================
+
+📌 NOME: Smart Delivery SaaS
+📌 VERSÃO: 2.0.0
+📌 REPOSITÓRIO: https://github.com/PauloMiguez/smart-delivery-saas
+📌 DOMÍNIO: https://smart-delivery-saas.onrender.com
+📌 DOMÍNIO PERSONALIZADO: https://fireburgerpetropolis.com.br
+
+📦 TECNOLOGIAS:
+   Backend: Node.js + Express + MySQL (TiDB Cloud)
+   Frontend: React 18 + Vite + Styled Components
+   Autenticação: JWT
+   WebSocket: Socket.io
+   Push Notifications: Web Push API (VAPID)
+   Upload: Cloudinary
+
+✅ FUNCIONALIDADES:
+   - PWA completo com Service Worker
+   - Notificações push específicas por dispositivo
+   - Multi-tenant com isolamento de dados
+   - Cardápio online com categorias
+   - Checkout com agendamento
+   - Acompanhamento de pedidos em tempo real
+   - Painel administrativo completo
+   - Dashboard com métricas
+   - Desconto por forma de pagamento
+   - Domínio personalizado
+   - WhatsApp integrado
+
+📁 ESTRUTURA:
+   backend/
+   └── server.js (API principal com WebSocket)
+   frontend-react/
+   └── src/
+       ├── components/
+       ├── contexts/
+       ├── services/
+       └── styles/
+
+=========================================

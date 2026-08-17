@@ -9,6 +9,9 @@ import { ModalProvider } from './contexts/ModalContext';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { theme } from './styles/theme';
 
+// ✅ IMPORTAR O HOOK USE MANIFEST
+import { useManifest } from './hooks/useManifest';
+
 // ============================================================
 //  COMPONENTE DE NOTIFICAÇÃO PWA
 // ============================================================
@@ -18,18 +21,16 @@ import NotificationPermission from './components/Shared/NotificationPermission';
 //  LAZY LOAD - TODOS OS COMPONENTES PESADOS
 // ============================================================
 
-// Cliente - já estavam lazy
+// Cliente
 const TrackOrder = lazy(() => import('./components/Client/TrackOrder'));
 const OrdersHistory = lazy(() => import('./components/Client/OrdersHistory'));
-
-// Cliente - agora também lazy (componentes que só são usados em rotas específicas)
 const ClientLayout = lazy(() => import('./components/Client/ClientLayout'));
 const Checkout = lazy(() => import('./components/Client/Checkout'));
 const Register = lazy(() => import('./components/Client/Register'));
 const Login = lazy(() => import('./components/Client/Login'));
 const OrderVerification = lazy(() => import('./components/Client/OrderVerification'));
 
-// Admin - AGORA LAZY (era carregado diretamente antes)
+// Admin
 const AdminLayout = lazy(() => import('./components/Admin/AdminLayout'));
 
 // ============================================================
@@ -136,18 +137,32 @@ const WelcomePage = () => (
 );
 
 // ============================================================
+//  COMPONENTE QUE GERENCIA O MANIFEST
+// ============================================================
+const ManifestManager = () => {
+    const { tenant, loading } = useContext(TenantContext);
+    const { manifestLoaded } = useManifest();
+
+    useEffect(() => {
+        if (!loading && tenant && manifestLoaded) {
+            console.log(`📱 Manifest carregado para tenant: ${tenant}`);
+        }
+    }, [tenant, loading, manifestLoaded]);
+
+    return null;
+};
+
+// ============================================================
 //  COMPONENTE PRINCIPAL
 // ============================================================
 const AppContent = () => {
     const { tenant, loading } = useContext(TenantContext);
 
-    // Detectar atualização do Service Worker - CORRIGIDO
+    // Detectar atualização do Service Worker
     useEffect(() => {
         const handleSWUpdate = () => {
             console.log('📦 Nova versão do PWA disponível!');
-            // ✅ Apenas mostra no console - NÃO recarrega automaticamente
-            // O usuário pode recarregar manualmente se quiser
-            // Ou podemos usar um banner simples
+            // Apenas mostra no console - NÃO recarrega automaticamente
         };
 
         window.addEventListener('swUpdate', handleSWUpdate);
@@ -168,6 +183,14 @@ const AppContent = () => {
     const isOrdersRoute = pathname.includes('/orders');
     const isVerifyRoute = pathname.includes('/verify-orders');
     const isAdminRoute = pathname.includes('/admin');
+
+    // ✅ COMPONENTE DE NOTIFICAÇÃO E MANIFEST (compartilhado)
+    const SharedComponents = () => (
+        <>
+            <NotificationPermission />
+            <ManifestManager />
+        </>
+    );
 
     // Rotas que não precisam de tenant
     if (isTrackingRoute || isLoginRoute || isRegisterRoute || isCheckoutRoute ||
@@ -192,8 +215,7 @@ const AppContent = () => {
                         {/* Admin - agora lazy! */}
                         <Route path="/admin/*" element={<AdminLayout />} />
                     </Routes>
-                    {/* Componente de permissão de notificação PWA */}
-                    <NotificationPermission />
+                    <SharedComponents />
                 </Suspense>
             </BrowserRouter>
         );
@@ -225,8 +247,7 @@ const AppContent = () => {
                     <Route path="/verify-orders" element={<OrderVerification />} />
                     <Route path="/admin/*" element={<AdminLayout />} />
                 </Routes>
-                {/* Componente de permissão de notificação PWA */}
-                <NotificationPermission />
+                <SharedComponents />
             </Suspense>
         </BrowserRouter>
     );

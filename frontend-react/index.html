@@ -5,14 +5,166 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#e67e22" />
+    
+    <!-- ✅ MANIFEST DINÂMICO - Será atualizado via JavaScript -->
+    <link rel="manifest" id="manifest-link" href="/manifest.json" />
+    
+    <!-- ✅ META THEME-COLOR DINÂMICO -->
+    <meta name="theme-color" id="theme-color" content="#e67e22" />
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Delivery - Sistema de Delivery SaaS</title>
+    <title id="page-title">Smart Delivery - Sistema de Delivery SaaS</title>
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- ✅ SCRIPT PARA ATUALIZAR MANIFEST E THEME-COLOR COM O TENANT -->
+    <script>
+      (function() {
+        console.log('📱 Inicializando configuração multi-tenant...');
+        
+        // ============================================================
+        // 1. DETECTAR TENANT
+        // ============================================================
+        function getTenant() {
+          // Tentar da URL (query param)
+          const urlParams = new URLSearchParams(window.location.search);
+          const tenantFromUrl = urlParams.get('tenant');
+          if (tenantFromUrl) {
+            console.log('📱 Tenant da URL:', tenantFromUrl);
+            return tenantFromUrl;
+          }
+          
+          // Tentar do localStorage
+          const tenantFromStorage = localStorage.getItem('tenant') || sessionStorage.getItem('tenant');
+          if (tenantFromStorage) {
+            console.log('📱 Tenant do storage:', tenantFromStorage);
+            return tenantFromStorage;
+          }
+          
+          // Tentar do subdomínio
+          const hostname = window.location.hostname;
+          const parts = hostname.split('.');
+          if (parts.length >= 3) {
+            const subdomain = parts[0];
+            if (subdomain && subdomain !== 'www' && subdomain !== 'smart-delivery-saas') {
+              console.log('📱 Tenant do subdomínio:', subdomain);
+              return subdomain;
+            }
+          }
+          
+          // Verificar se é domínio personalizado
+          // Isso será resolvido pelo backend via fetch
+          return null;
+        }
+        
+        const tenant = getTenant();
+        
+        // ============================================================
+        // 2. ATUALIZAR MANIFEST
+        // ============================================================
+        if (tenant) {
+          const manifestLink = document.getElementById('manifest-link');
+          if (manifestLink) {
+            manifestLink.href = `/manifest.json?tenant=${encodeURIComponent(tenant)}`;
+            console.log(`📱 Manifest atualizado: /manifest.json?tenant=${tenant}`);
+          }
+          
+          // Salvar tenant para uso futuro
+          localStorage.setItem('tenant', tenant);
+          sessionStorage.setItem('tenant', tenant);
+        }
+        
+        // ============================================================
+        // 3. BUSCAR CONFIGURAÇÕES DO TENANT (via API)
+        // ============================================================
+        async function loadTenantConfig() {
+          try {
+            const tenantId = tenant || 'default';
+            const response = await fetch(`/api/config?tenant=${encodeURIComponent(tenantId)}`);
+            
+            if (!response.ok) {
+              console.warn('⚠️ Erro ao carregar configurações do tenant, usando padrão');
+              return;
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+              const config = result.data;
+              
+              // Atualizar theme-color
+              const themeColor = config.theme_color || '#e67e22';
+              const themeMeta = document.getElementById('theme-color');
+              if (themeMeta) {
+                themeMeta.content = themeColor;
+                console.log(`🎨 Theme-color atualizado: ${themeColor}`);
+              }
+              
+              // Atualizar título da página
+              const storeName = config.store_name || 'Smart Delivery';
+              const titleEl = document.getElementById('page-title');
+              if (titleEl) {
+                titleEl.textContent = `${storeName} - Delivery`;
+                document.title = `${storeName} - Delivery`;
+                console.log(`📝 Título atualizado: ${storeName} - Delivery`);
+              }
+            }
+          } catch (error) {
+            console.error('❌ Erro ao carregar configurações:', error);
+          }
+        }
+        
+        // Carregar configurações após a página carregar
+        if (document.readyState === 'complete') {
+          loadTenantConfig();
+        } else {
+          window.addEventListener('load', loadTenantConfig);
+        }
+        
+        // ============================================================
+        // 4. SERVICE WORKER - REGISTRO COM TENANT
+        // ============================================================
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function() {
+            console.log('[SW] 🔄 Registrando Service Worker...');
+            
+            // Passar tenant para o Service Worker via query param
+            const swUrl = `/service-worker.js${tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''}`;
+            
+            navigator.serviceWorker.register(swUrl, { scope: '/' })
+              .then(function(registration) {
+                console.log('[SW] ✅ Registrado com sucesso! Scope:', registration.scope);
+                
+                // Verificar atualizações
+                registration.addEventListener('updatefound', function() {
+                  console.log('[SW] 🔄 Nova versão encontrada!');
+                  const installingWorker = registration.installing;
+                  installingWorker.addEventListener('statechange', function() {
+                    if (installingWorker.state === 'installed') {
+                      console.log('[SW] ✅ Nova versão instalada!');
+                      if (navigator.serviceWorker.controller) {
+                        console.log('[SW] 🔄 Atualizando página...');
+                        // Não recarregar automaticamente para evitar loops
+                        // window.location.reload();
+                      }
+                    }
+                  });
+                });
+              })
+              .catch(function(error) {
+                console.error('[SW] ❌ Erro ao registrar:', error);
+              });
+          });
+        } else {
+          console.warn('[SW] ⚠️ Service Worker não suportado neste navegador');
+        }
+        
+        console.log('📱 Configuração multi-tenant concluída!');
+      })();
+    </script>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
