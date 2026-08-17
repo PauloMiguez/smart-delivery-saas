@@ -2,40 +2,133 @@
 // SERVICE WORKER PARA SMART DELIVERY SAAS - MULTI-TENANT
 // ============================================================
 
-const CACHE_NAME = 'smart-delivery-v3'; // ← VERSÃO ATUALIZADA
+const CACHE_NAME = 'smart-delivery-v3';
 const OFFLINE_URL = '/offline.html';
 
 // ============================================================
-// 1. DETECTAR TENANT DA URL
+// 1. DETECTAR TENANT DA URL - CORRIGIDO
 // ============================================================
 function getTenantFromUrl() {
     try {
-        // Tentar da query string
+        // 1. Tentar da query string
         const urlParams = new URLSearchParams(self.location.search);
         const tenant = urlParams.get('tenant');
-        if (tenant) return tenant;
+        if (tenant) {
+            console.log(`[SW] 📱 Tenant da query: ${tenant}`);
+            return tenant;
+        }
         
-        // Tentar do path
+        // 2. Tentar do hostname (domínio personalizado)
+        const hostname = self.location.hostname;
+        console.log(`[SW] 📱 Hostname: ${hostname}`);
+        
+        // Verificar se é um domínio personalizado
+        const parts = hostname.split('.');
+        
+        // Para domínios como fireburgerpetropolis.com.br
+        if (parts.length >= 2) {
+            const firstPart = parts[0];
+            // Verificar se não é um subdomínio comum
+            if (firstPart && 
+                firstPart !== 'www' && 
+                firstPart !== 'smart-delivery-saas' &&
+                firstPart !== 'localhost' &&
+                firstPart !== '127.0.0.1') {
+                
+                // Verificar se parece um tenant (não é um TLD conhecido)
+                const knownTlds = ['com', 'br', 'net', 'org', 'io', 'app', 'dev', 'tech', 'shop', 'store'];
+                if (!knownTlds.includes(firstPart) && firstPart.length > 2) {
+                    console.log(`[SW] 📱 Tenant do domínio personalizado: ${firstPart}`);
+                    return firstPart;
+                }
+            }
+        }
+        
+        // 3. Tentar do path
         const pathParts = self.location.pathname.split('/');
         for (const part of pathParts) {
             if (part && part.length > 0 && !part.includes('.')) {
                 // Verificar se é um tenant válido (evitar conflitos)
-                if (!['api', 'admin', 'track', 'login', 'register'].includes(part)) {
-                    return part;
+                if (!['api', 'admin', 'track', 'login', 'register', 'checkout', 'offline'].includes(part)) {
+                    if (part.length > 2 && part.length < 30) {
+                        console.log(`[SW] 📱 Tenant do path: ${part}`);
+                        return part;
+                    }
                 }
             }
         }
+        
+        console.log('[SW] 📱 Nenhum tenant detectado, usando default');
         return null;
-    } catch {
+    } catch (error) {
+        console.error('[SW] ❌ Erro ao detectar tenant:', error);
         return null;
     }
 }
 
-const TENANT = getTenantFromUrl() || 'default';
+// Detectar tenant inicial
+let TENANT = getTenantFromUrl() || 'default';
 console.log(`[SW] 🏷️ Tenant detectado: ${TENANT}`);
 
 // ============================================================
-// 2. ASSETS ESTÁTICOS COM SUPORTE MULTI-TENANT
+// 2. RECEBER TENANT DO CLIENTE VIA MENSAGEM - CORRIGIDO
+// ============================================================
+self.addEventListener('message', (event) => {
+    console.log('[SW] 📨 Mensagem recebida:', event.data);
+    
+    if (event.data && event.data.type === 'SET_TENANT') {
+        const newTenant = event.data.tenant;
+        if (newTenant && newTenant !== TENANT) {
+            console.log(`[SW] 📱 Tenant atualizado via mensagem: ${newTenant} (era: ${TENANT})`);
+            TENANT = newTenant;
+            // Atualizar cache com novo tenant
+            updateCacheForTenant(TENANT);
+        }
+        
+        // ✅ RESPONDER AO CLIENTE CONFIRMANDO RECEBIMENTO
+        if (event.ports && event.ports.length > 0) {
+            event.ports[0].postMessage({
+                type: 'TENANT_SET',
+                tenant: TENANT,
+                success: true,
+                timestamp: Date.now()
+            });
+            console.log(`[SW] 📤 Resposta enviada para o cliente: TENANT_SET`);
+        } else {
+            // Fallback: responder via clients
+            self.clients.matchAll().then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({
+                        type: 'TENANT_SET',
+                        tenant: TENANT,
+                        success: true,
+                        timestamp: Date.now()
+                    });
+                });
+            });
+        }
+    }
+});
+
+// Função para atualizar cache com novo tenant
+async function updateCacheForTenant(tenant) {
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        const manifestUrl = `/manifest.json?tenant=${encodeURIComponent(tenant)}`;
+        
+        // Verificar se já está no cache
+        const cached = await cache.match(manifestUrl);
+        if (!cached) {
+            await cache.add(manifestUrl);
+            console.log(`[SW] 📦 Cache atualizado para tenant: ${tenant}`);
+        }
+    } catch (error) {
+        console.error('[SW] ❌ Erro ao atualizar cache:', error);
+    }
+}
+
+// ============================================================
+// 3. ASSETS ESTÁTICOS COM SUPORTE MULTI-TENANT
 // ============================================================
 const STATIC_ASSETS = [
     '/',
@@ -45,25 +138,32 @@ const STATIC_ASSETS = [
     '/icons.svg',
 ];
 
-// ✅ Adicionar manifest com tenant
+// ✅ MANIFEST_URL - EXPLÍCITO PARA REFERÊNCIA
 const MANIFEST_URL = `/manifest.json?tenant=${encodeURIComponent(TENANT)}`;
-STATIC_ASSETS.push(MANIFEST_URL);
+console.log(`[SW] 📦 MANIFEST_URL: ${MANIFEST_URL}`);
 
-console.log(`[SW] 📦 Assets para tenant ${TENANT}:`, STATIC_ASSETS);
+// ✅ Adicionar manifest com tenant (será adicionado no install)
+console.log(`[SW] 📦 Assets base para tenant ${TENANT}:`, STATIC_ASSETS);
 
 // ============================================================
-// 3. INSTALL
+// 4. INSTALL - CORRIGIDO
 // ============================================================
 self.addEventListener('install', (event) => {
     console.log('[SW] 📦 Installing...');
     console.log(`[SW] 🏷️ Tenant: ${TENANT}`);
-    console.log(`[SW] 📦 Caching ${STATIC_ASSETS.length} assets...`);
+    
+    // Construir lista de assets com manifest do tenant
+    const manifestUrl = `/manifest.json?tenant=${encodeURIComponent(TENANT)}`;
+    const assets = [...STATIC_ASSETS, manifestUrl];
+    
+    console.log(`[SW] 📦 Assets para tenant ${TENANT}:`, assets);
+    console.log(`[SW] 📦 Total: ${assets.length} assets`);
     
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('[SW] 📦 Caching static assets...');
-                return cache.addAll(STATIC_ASSETS);
+                return cache.addAll(assets);
             })
             .then(() => {
                 console.log('[SW] ✅ Cache concluído!');
@@ -71,14 +171,27 @@ self.addEventListener('install', (event) => {
             })
             .catch((error) => {
                 console.error('[SW] ❌ Erro no cache:', error);
-                // Continuar mesmo com erro no cache
-                return self.skipWaiting();
+                // Tentar cache individual em caso de erro
+                console.log('[SW] 🔄 Tentando cache individual...');
+                return caches.open(CACHE_NAME)
+                    .then((cache) => {
+                        const promises = assets.map(url => {
+                            return cache.add(url).catch(err => {
+                                console.warn(`[SW] ⚠️ Falha ao cachear: ${url}`, err);
+                            });
+                        });
+                        return Promise.all(promises);
+                    })
+                    .then(() => {
+                        console.log('[SW] ✅ Cache individual concluído!');
+                        return self.skipWaiting();
+                    });
             })
     );
 });
 
 // ============================================================
-// 4. ACTIVATE
+// 5. ACTIVATE
 // ============================================================
 self.addEventListener('activate', (event) => {
     console.log('[SW] 🔄 Activating...');
@@ -104,7 +217,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // ============================================================
-// 5. FETCH - COM SUPORTE A MANIFEST DINÂMICO
+// 6. FETCH - COM SUPORTE A MANIFEST DINÂMICO
 // ============================================================
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
@@ -168,11 +281,11 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// 6. NOTIFICAÇÕES PUSH - CORRIGIDA
+// 7. NOTIFICAÇÕES PUSH - CORRIGIDA
 // ============================================================
 self.addEventListener('push', (event) => {
     console.log('[SW] 🔔 Push recebido!');
-    console.log(`[SW] 🏷️ Tenant: ${TENANT}`);
+    console.log(`[SW] 🏷️ Tenant atual: ${TENANT}`);
     
     let title = 'Smart Delivery';
     let body = 'Você tem uma nova notificação!';
@@ -211,6 +324,12 @@ self.addEventListener('push', (event) => {
         }
     }
     
+    // ✅ Atualizar tenant se veio na notificação
+    if (tenant && tenant !== TENANT) {
+        console.log(`[SW] 📱 Atualizando tenant para: ${tenant}`);
+        TENANT = tenant;
+    }
+    
     // Construir URL do pedido - PRIORIDADE MÁXIMA para tracking
     let targetUrl = '/';
     if (orderId && token) {
@@ -223,10 +342,10 @@ self.addEventListener('push', (event) => {
     
     // ✅ Adicionar tenant à URL se não estiver presente
     if (targetUrl === '/' || targetUrl === '/?') {
-        targetUrl = `/?tenant=${encodeURIComponent(tenant)}`;
+        targetUrl = `/?tenant=${encodeURIComponent(TENANT)}`;
     } else if (!targetUrl.includes('tenant=')) {
         const separator = targetUrl.includes('?') ? '&' : '?';
-        targetUrl = `${targetUrl}${separator}tenant=${encodeURIComponent(tenant)}`;
+        targetUrl = `${targetUrl}${separator}tenant=${encodeURIComponent(TENANT)}`;
     }
     
     console.log(`[SW] 🎯 URL final com tenant: ${targetUrl}`);
@@ -241,13 +360,13 @@ self.addEventListener('push', (event) => {
             token: token,
             url: targetUrl,
             targetUrl: targetUrl,
-            tenant: tenant,
+            tenant: TENANT,
             notificationData: {
                 title: title,
                 body: body,
                 orderId: orderId,
                 token: token,
-                tenant: tenant
+                tenant: TENANT
             }
         },
         vibrate: [200, 100, 200],
@@ -267,7 +386,7 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================================
-// 7. CLIQUE NA NOTIFICAÇÃO - CORRIGIDA
+// 8. CLIQUE NA NOTIFICAÇÃO - CORRIGIDA
 // ============================================================
 self.addEventListener('notificationclick', (event) => {
     console.log('[SW] 👆 Notificação clicada!');
@@ -285,6 +404,10 @@ self.addEventListener('notificationclick', (event) => {
         console.log('[SW] ❌ Fechar - ignorando');
         return;
     }
+    
+    // ✅ Usar tenant dos dados ou o atual
+    const tenant = data.tenant || TENANT;
+    console.log(`[SW] 📱 Tenant para a URL: ${tenant}`);
     
     // Construir URL de destino
     let targetUrl = '/';
@@ -306,7 +429,6 @@ self.addEventListener('notificationclick', (event) => {
     }
     
     // ✅ Adicionar tenant se não estiver presente
-    const tenant = data.tenant || TENANT;
     if (!targetUrl.includes('tenant=')) {
         const separator = targetUrl.includes('?') ? '&' : '?';
         targetUrl = `${targetUrl}${separator}tenant=${encodeURIComponent(tenant)}`;
