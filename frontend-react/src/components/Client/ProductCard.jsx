@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
+import ImageModal from './ImageModal';
 
 // ============================================================
 //  STYLED COMPONENTS - USANDO TOKENS ATUALIZADOS
@@ -27,6 +28,8 @@ const ProductImage = styled.div`
   background: ${tokens.colors.background};
   border-radius: ${tokens.radius.md} ${tokens.radius.md} 0 0;
   overflow: hidden;
+  position: relative;
+  cursor: pointer;
   
   img {
     width: 100%;
@@ -49,6 +52,65 @@ const ImagePlaceholder = styled.div`
   font-size: 48px;
   background: ${tokens.colors.accentLight};
   color: ${tokens.colors.accent};
+  cursor: default;
+`;
+
+// ✅ BOTÃO DE ZOOM SOBRE A IMAGEM
+const ZoomButton = styled.button`
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.8);
+  backdrop-filter: blur(4px);
+  
+  ${ProductImage}:hover & {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: scale(1.1);
+  }
+`;
+
+// ✅ HINT DE ZOOM
+const ZoomHint = styled.div`
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+  pointer-events: none;
+  
+  ${ProductImage}:hover & {
+    opacity: 1;
+  }
+  
+  span {
+    margin-right: 4px;
+  }
 `;
 
 const Content = styled.div`
@@ -189,6 +251,26 @@ const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const [qty, setQty] = useState(1);
+  const [showImageModal, setShowImageModal] = useState(false);
+
+  const hasImage = product.image_url && product.image_url.trim() !== '';
+
+  // ============================================================
+  //  ABRIR MODAL DA IMAGEM
+  // ============================================================
+  const openImageModal = (e) => {
+    e.stopPropagation();
+    if (hasImage) {
+      setShowImageModal(true);
+    }
+  };
+
+  // ============================================================
+  //  FECHAR MODAL DA IMAGEM
+  // ============================================================
+  const closeImageModal = () => {
+    setShowImageModal(false);
+  };
 
   // ============================================================
   //  INCREMENTAR QUANTIDADE
@@ -222,47 +304,66 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <Card>
-      <ProductImage>
-        {product.image_url ? (
-          <img src={product.image_url} alt={product.name} loading="lazy" />
-        ) : (
-          <ImagePlaceholder>🍔</ImagePlaceholder>
-        )}
-      </ProductImage>
-      
-      <Content>
-        <ProductName>{product.name}</ProductName>
-        {product.description && (
-          <ProductDesc>{product.description}</ProductDesc>
-        )}
-        <ProductPrice>R$ {formatPrice(product.price)}</ProductPrice>
+    <>
+      <Card>
+        <ProductImage onClick={openImageModal}>
+          {hasImage ? (
+            <>
+              <img src={product.image_url} alt={product.name} loading="lazy" />
+              <ZoomHint>
+                <span>🔍</span> Clique para ampliar
+              </ZoomHint>
+              <ZoomButton onClick={openImageModal} aria-label="Ampliar imagem">
+                🔍
+              </ZoomButton>
+            </>
+          ) : (
+            <ImagePlaceholder>🍔</ImagePlaceholder>
+          )}
+        </ProductImage>
         
-        <Footer>
-          <QtyControl>
-            <button 
-              onClick={decrement}
-              aria-label="Diminuir quantidade"
-              type="button"
-              disabled={qty <= 1}
-            >
-              −
-            </button>
-            <span>{qty}</span>
-            <button 
-              onClick={increment}
-              aria-label="Aumentar quantidade"
-              type="button"
-            >
-              +
-            </button>
-          </QtyControl>
-          <AddButton onClick={handleAdd} type="button">
-            Adicionar
-          </AddButton>
-        </Footer>
-      </Content>
-    </Card>
+        <Content>
+          <ProductName>{product.name}</ProductName>
+          {product.description && (
+            <ProductDesc>{product.description}</ProductDesc>
+          )}
+          <ProductPrice>R$ {formatPrice(product.price)}</ProductPrice>
+          
+          <Footer>
+            <QtyControl>
+              <button 
+                onClick={decrement}
+                aria-label="Diminuir quantidade"
+                type="button"
+                disabled={qty <= 1}
+              >
+                −
+              </button>
+              <span>{qty}</span>
+              <button 
+                onClick={increment}
+                aria-label="Aumentar quantidade"
+                type="button"
+              >
+                +
+              </button>
+            </QtyControl>
+            <AddButton onClick={handleAdd} type="button">
+              Adicionar
+            </AddButton>
+          </Footer>
+        </Content>
+      </Card>
+
+      {/* ✅ MODAL DE IMAGEM EM TELA CHEIA */}
+      {showImageModal && hasImage && (
+        <ImageModal
+          src={product.image_url}
+          alt={product.name}
+          onClose={closeImageModal}
+        />
+      )}
+    </>
   );
 };
 

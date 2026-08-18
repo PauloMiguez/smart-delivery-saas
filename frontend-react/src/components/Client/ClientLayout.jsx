@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 import { Badge } from '../Shared/Container';
 import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
+import ImageModal from './ImageModal';
 
 import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
@@ -378,6 +379,21 @@ const ClientLayout = () => {
     const [storeStatus, setStoreStatus] = useState(null);
     const [operatingHours, setOperatingHours] = useState([]);
 
+    // ✅ Estado para o modal de imagem
+    const [modalImage, setModalImage] = useState(null);
+
+    // ✅ Função para abrir o modal de imagem
+    const openImageModal = (imageUrl, imageAlt) => {
+        if (imageUrl) {
+            setModalImage({ src: imageUrl, alt: imageAlt || 'Imagem do produto' });
+        }
+    };
+
+    // ✅ Função para fechar o modal de imagem
+    const closeImageModal = () => {
+        setModalImage(null);
+    };
+
     const _forceComponents = [OrdersHistory, TrackOrder];
 
     // ============================================================
@@ -652,6 +668,15 @@ const ClientLayout = () => {
                     onClose={() => setIsCartOpen(false)}
                 />
             </AppContainer>
+
+            {/* ✅ MODAL DE IMAGEM - GLOBAL */}
+            {modalImage && (
+                <ImageModal
+                    src={modalImage.src}
+                    alt={modalImage.alt}
+                    onClose={closeImageModal}
+                />
+            )}
         </ThemeProvider>
     );
 };
