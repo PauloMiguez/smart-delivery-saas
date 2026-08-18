@@ -140,7 +140,7 @@ const ImageModal = ({ src, alt, onClose }) => {
         ✕
       </CloseButton>
       <ImageInfo>
-        {alt || 'Produto'} • Clique em qualquer lugar para fechar
+        {alt || 'Produto'} • Clique fora da imagem para fechar
       </ImageInfo>
     </Overlay>
   );
