@@ -1,45 +1,251 @@
+// ============================================================
+// NOTIFICATION PERMISSION - MULTI-PLATAFORMA COMPLETO
+// ============================================================
+
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
+// ============================================================
+// UTILITÁRIOS DE DETECÇÃO
+// ============================================================
+const isSafari = () => {
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+};
+
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
+const isPWA = () => {
+  return window.navigator.standalone || 
+         window.matchMedia('(display-mode: standalone)').matches ||
+         window.matchMedia('(display-mode: fullscreen)').matches;
+};
+
+// ============================================================
+// ESTILOS
+// ============================================================
+const Container = styled.div`
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  max-width: 420px;
+  width: 90%;
+  border: 1px solid #e8ebeb;
+  animation: slideUp 0.5s ease;
+
+  @keyframes slideUp {
+    from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+  }
+
+  @media (max-width: 480px) {
+    bottom: 10px;
+    padding: 14px 16px;
+    max-width: 95%;
+  }
+`;
+
+const Title = styled.div`
+  font-weight: 600;
+  font-size: 16px;
+  color: #1f2421;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const Message = styled.p`
+  font-size: 14px;
+  color: #60696b;
+  margin: 4px 0 12px;
+  line-height: 1.6;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const Button = styled.button`
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  flex: 1;
+  min-width: 80px;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const ButtonPrimary = styled(Button)`
+  background: #e67e22;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #d35400;
+    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
+  }
+`;
+
+const ButtonSecondary = styled(Button)`
+  background: #f0ede8;
+  color: #555;
+
+  &:hover:not(:disabled) {
+    background: #e0dcd5;
+  }
+`;
+
+const ButtonSuccess = styled(Button)`
+  background: #27ae60;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #1e8449;
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  }
+`;
+
+const ButtonDanger = styled(Button)`
+  background: #e74c3c;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #c0392b;
+  }
+`;
+
+const IconWrapper = styled.span`
+  font-size: 20px;
+`;
+
+const StepsList = styled.ol`
+  margin: 8px 0 12px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.8;
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  strong {
+    color: #1f2421;
+  }
+`;
+
+const HighlightBox = styled.div`
+  background: #fef9e7;
+  border-left: 3px solid #f39c12;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: #555;
+`;
+
+const Badge = styled.span`
+  display: inline-block;
+  background: #27ae60;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  margin-left: 8px;
+`;
+
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 const NotificationPermission = () => {
   const [permission, setPermission] = useState('default');
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [requested, setRequested] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  
+  // Detecção de plataforma
+  const [browserInfo, setBrowserInfo] = useState({
+    isSafari: false,
+    isIOS: false,
+    isPWA: false
+  });
 
+  // ============================================================
+  // 1. DETECTAR PLATAFORMA
+  // ============================================================
   useEffect(() => {
-    if ('Notification' in window) {
-      const perm = Notification.permission;
-      setPermission(perm);
-      
-      // Se a permissão não foi definida e ainda não solicitamos, mostrar banner
-      if (perm === 'default' && !requested) {
-        setShowBanner(true);
-        // Aguardar 2 segundos antes de solicitar automaticamente
-        const timer = setTimeout(() => {
-          requestPermission();
-        }, 3000);
-        return () => clearTimeout(timer);
-      } else if (perm === 'granted') {
-        // Se já tem permissão, verificar inscrição
-        subscribeIfNeeded();
-      }
-    }
+    const info = {
+      isSafari: isSafari(),
+      isIOS: isIOS(),
+      isPWA: isPWA()
+    };
+    setBrowserInfo(info);
+    
+    console.log('📱 [Notification] Detecção:', info);
+    console.log('📱 [Notification] UserAgent:', navigator.userAgent);
   }, []);
 
-  const subscribeIfNeeded = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (!subscription) {
-        // Se tem permissão mas não está inscrito, inscrever
-        await subscribeToPush();
+  // ============================================================
+  // 2. VERIFICAR PERMISSÃO E INSCRIÇÃO
+  // ============================================================
+  useEffect(() => {
+    const checkPermission = async () => {
+      if ('Notification' in window) {
+        const perm = Notification.permission;
+        setPermission(perm);
+        
+        if (perm === 'granted') {
+          // Verificar se já está inscrito
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            setIsSubscribed(!!subscription);
+          } catch (error) {
+            console.error('Erro ao verificar inscrição:', error);
+          }
+        }
+        
+        // Mostrar banner apenas se permissão for 'default' e NÃO for Safari
+        if (perm === 'default' && !browserInfo.isSafari) {
+          setShowBanner(true);
+        }
+        
+        // Se for Safari, mostrar banner com instruções
+        if (browserInfo.isSafari && perm === 'default') {
+          setShowBanner(true);
+        }
       }
-    } catch (error) {
-      console.error('Erro ao verificar inscrição:', error);
-    }
-  };
+    };
 
+    checkPermission();
+  }, [browserInfo.isSafari]);
+
+  // ============================================================
+  // 3. INSCREVER NO PUSH
+  // ============================================================
   const subscribeToPush = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -48,7 +254,7 @@ const NotificationPermission = () => {
       
       if (!data.publicKey) {
         console.error('VAPID key não disponível');
-        return;
+        return false;
       }
       
       const subscription = await registration.pushManager.subscribe({
@@ -56,9 +262,11 @@ const NotificationPermission = () => {
         applicationServerKey: data.publicKey
       });
       
-      const tenant = new URLSearchParams(window.location.search).get('tenant') || 'fireburger';
+      const tenant = new URLSearchParams(window.location.search).get('tenant') || 
+                     localStorage.getItem('tenant') || 
+                     'fireburger';
       
-      await fetch('/api/notifications/subscribe', {
+      const saveResponse = await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -69,37 +277,48 @@ const NotificationPermission = () => {
         })
       });
       
-      console.log('✅ Inscrição push salva com sucesso!');
-      
-      // Enviar notificação de boas-vindas
-      registration.showNotification('🔔 Notificações ativadas!', {
-        body: 'Você receberá atualizações sobre seus pedidos em tempo real.',
-        icon: '/favicon.png',
-        tag: 'welcome'
-      });
+      if (saveResponse.ok) {
+        console.log('✅ Inscrição push salva com sucesso!');
+        setIsSubscribed(true);
+        
+        // Enviar notificação de boas-vindas
+        registration.showNotification('🔔 Notificações ativadas!', {
+          body: 'Você receberá atualizações sobre seus pedidos em tempo real.',
+          icon: '/favicon.png',
+          tag: 'welcome'
+        });
+        
+        return true;
+      } else {
+        console.error('❌ Erro ao salvar inscrição');
+        return false;
+      }
       
     } catch (error) {
       console.error('❌ Erro ao inscrever:', error);
+      return false;
     }
   };
 
+  // ============================================================
+  // 4. SOLICITAR PERMISSÃO
+  // ============================================================
   const requestPermission = async () => {
-    if (loading || requested) return;
+    if (loading) return;
     setLoading(true);
-    setRequested(true);
     
     try {
-      // Solicitar permissão diretamente
       const result = await Notification.requestPermission();
       console.log('📌 Resultado da permissão:', result);
       setPermission(result);
-      setShowBanner(false);
       
       if (result === 'granted') {
         console.log('✅ Permissão concedida!');
-        await subscribeIfNeeded();
+        await subscribeToPush();
+        setShowBanner(false);
       } else if (result === 'denied') {
         console.log('❌ Permissão negada pelo usuário');
+        setShowBanner(false);
       }
     } catch (error) {
       console.error('Erro ao solicitar permissão:', error);
@@ -108,120 +327,152 @@ const NotificationPermission = () => {
     }
   };
 
-  // Se a permissão já foi concedida ou negada, não mostra nada
-  if (permission !== 'default' || !showBanner) {
-    return null;
+  // ============================================================
+  // 5. RENDER - JÁ INSCRITO
+  // ============================================================
+  if (isSubscribed) {
+    return (
+      <Container style={{ borderLeft: '4px solid #27ae60' }}>
+        <Title>
+          <IconWrapper>✅</IconWrapper>
+          Notificações ativas
+          <Badge>Ativo</Badge>
+        </Title>
+        <Message>
+          Você está recebendo notificações em tempo real sobre seus pedidos.
+        </Message>
+        <ButtonGroup>
+          <ButtonSuccess disabled>
+            ✅ Ativo
+          </ButtonSuccess>
+          <ButtonSecondary onClick={() => setShowBanner(false)}>
+            ✕ Fechar
+          </ButtonSecondary>
+        </ButtonGroup>
+      </Container>
+    );
   }
 
-  // Banner de solicitação automática
-  return (
-    <Banner>
-      <Icon>🔔</Icon>
-      <Content>
-        <Title>Receba notificações</Title>
-        <Description>Fique sabendo em tempo real sobre o status do seu pedido!</Description>
-      </Content>
-      <Button onClick={requestPermission} disabled={loading}>
-        {loading ? '⏳...' : 'Ativar'}
-      </Button>
-      <CloseButton onClick={() => setShowBanner(false)}>✕</CloseButton>
-    </Banner>
-  );
+  // ============================================================
+  // 6. RENDER - PERMISSÃO NEGADA
+  // ============================================================
+  if (permission === 'denied') {
+    return (
+      <Container style={{ borderLeft: '4px solid #e74c3c' }}>
+        <Title>
+          <IconWrapper>🔕</IconWrapper>
+          Notificações bloqueadas
+        </Title>
+        <Message>
+          Você bloqueou as notificações. Para reativar, vá nas configurações do navegador e permita o site.
+        </Message>
+        <ButtonGroup>
+          <ButtonSecondary onClick={() => setShowBanner(false)}>
+            ✕ Fechar
+          </ButtonSecondary>
+        </ButtonGroup>
+      </Container>
+    );
+  }
+
+  // ============================================================
+  // 7. RENDER - SAFARI / iOS (COM INSTRUÇÕES)
+  // ============================================================
+  if (browserInfo.isSafari || browserInfo.isIOS) {
+    // 7A: Já está rodando como PWA
+    if (browserInfo.isPWA) {
+      return (
+        <Container>
+          <Title>
+            <IconWrapper>🔔</IconWrapper>
+            Ativar Notificações no Safari
+          </Title>
+          <Message>
+            Toque em <strong>"Permitir"</strong> para receber notificações de pedidos em tempo real.
+          </Message>
+          <ButtonGroup>
+            <ButtonPrimary 
+              onClick={requestPermission}
+              disabled={loading}
+            >
+              {loading ? '⏳ Solicitando...' : '🔔 Permitir Notificações'}
+            </ButtonPrimary>
+            <ButtonSecondary onClick={() => setShowBanner(false)}>
+              ✕ Fechar
+            </ButtonSecondary>
+          </ButtonGroup>
+        </Container>
+      );
+    }
+
+    // 7B: Safari normal - precisa instalar o PWA
+    return (
+      <Container>
+        <Title>
+          <IconWrapper>📱</IconWrapper>
+          Ative as Notificações no Safari
+        </Title>
+        <Message>
+          Para receber notificações, você precisa instalar o app na tela de início:
+        </Message>
+        <StepsList>
+          <li>Toque no ícone <strong>"Compartilhar"</strong> <span style={{ fontSize: 18 }}>📤</span></li>
+          <li>Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></li>
+          <li>Abra o app pela <strong>tela de início</strong> do iPhone</li>
+          <li>Toque em <strong>"Permitir"</strong> quando o Safari solicitar</li>
+        </StepsList>
+        <HighlightBox>
+          💡 <strong>Dica:</strong> O Safari só permite notificações em apps instalados na tela de início.
+          Após instalar, abra o app e ative as notificações.
+        </HighlightBox>
+        <ButtonGroup>
+          <ButtonPrimary 
+            onClick={() => {
+              window.open('https://support.apple.com/pt-br/HT210599', '_blank');
+            }}
+          >
+            📖 Ver Tutorial no Site da Apple
+          </ButtonPrimary>
+          <ButtonSecondary onClick={() => setShowBanner(false)}>
+            ✕ Fechar
+          </ButtonSecondary>
+        </ButtonGroup>
+      </Container>
+    );
+  }
+
+  // ============================================================
+  // 8. RENDER - CHROME/ANDROID (PUSH NORMAL)
+  // ============================================================
+  if (permission === 'default' && showBanner) {
+    return (
+      <Container>
+        <Title>
+          <IconWrapper>🔔</IconWrapper>
+          Receba notificações em tempo real
+        </Title>
+        <Message>
+          Ative as notificações para acompanhar seus pedidos e receber novidades.
+        </Message>
+        <ButtonGroup>
+          <ButtonPrimary 
+            onClick={requestPermission}
+            disabled={loading}
+          >
+            {loading ? '⏳ Solicitando...' : '🔔 Ativar Notificações'}
+          </ButtonPrimary>
+          <ButtonSecondary onClick={() => setShowBanner(false)}>
+            ✕ Fechar
+          </ButtonSecondary>
+        </ButtonGroup>
+      </Container>
+    );
+  }
+
+  // ============================================================
+  // 9. RENDER - PADRÃO (NÃO MOSTRAR NADA)
+  // ============================================================
+  return null;
 };
-
-// Styled Components
-const Banner = styled.div`
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 420px;
-  width: calc(100% - 40px);
-  background: white;
-  border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 9999;
-  border: 1px solid #eee;
-  animation: slideUp 0.3s ease;
-
-  @keyframes slideUp {
-    from {
-      transform: translateX(-50%) translateY(20px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-  }
-
-  @media (max-width: 480px) {
-    padding: 12px 16px;
-    gap: 10px;
-  }
-`;
-
-const Icon = styled.div`
-  font-size: 28px;
-  flex-shrink: 0;
-`;
-
-const Content = styled.div`
-  flex: 1;
-`;
-
-const Title = styled.div`
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-  margin-bottom: 2px;
-`;
-
-const Description = styled.div`
-  color: #666;
-  font-size: 12px;
-  line-height: 1.4;
-`;
-
-const Button = styled.button`
-  background: #D2691E;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-  white-space: nowrap;
-  min-width: 60px;
-
-  &:hover {
-    background: #b85e1a;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-  flex-shrink: 0;
-
-  &:hover {
-    color: #666;
-  }
-`;
 
 export default NotificationPermission;

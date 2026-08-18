@@ -2,11 +2,19 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+    
+    <!-- ✅ ÍCONES PARA SAFARI (OBRIGATÓRIO PARA NOTIFICAÇÕES) -->
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
     
-    <!-- ✅ MANIFEST DINÂMICO - Será atualizado via JavaScript -->
+    <!-- ✅ META TAGS PARA PWA NO SAFARI -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Smart Delivery" />
+    
+    <!-- ✅ MANIFEST DINÂMICO -->
     <link rel="manifest" id="manifest-link" href="/manifest.json" />
     
     <!-- ✅ META THEME-COLOR DINÂMICO -->
@@ -28,7 +36,6 @@
         // 1. DETECTAR TENANT
         // ============================================================
         function getTenant() {
-          // Tentar da URL (query param)
           const urlParams = new URLSearchParams(window.location.search);
           const tenantFromUrl = urlParams.get('tenant');
           if (tenantFromUrl) {
@@ -36,14 +43,12 @@
             return tenantFromUrl;
           }
           
-          // Tentar do localStorage
           const tenantFromStorage = localStorage.getItem('tenant') || sessionStorage.getItem('tenant');
           if (tenantFromStorage) {
             console.log('📱 Tenant do storage:', tenantFromStorage);
             return tenantFromStorage;
           }
           
-          // Tentar do subdomínio
           const hostname = window.location.hostname;
           const parts = hostname.split('.');
           if (parts.length >= 3) {
@@ -54,7 +59,6 @@
             }
           }
           
-          // Tentar do domínio personalizado
           const domainMap = {
             'fireburgerpetropolis.com.br': 'fireburger',
             'www.fireburgerpetropolis.com.br': 'fireburger'
@@ -80,13 +84,12 @@
             console.log(`📱 Manifest atualizado: /manifest.json?tenant=${tenant}`);
           }
           
-          // Salvar tenant para uso futuro
           localStorage.setItem('tenant', tenant);
           sessionStorage.setItem('tenant', tenant);
         }
         
         // ============================================================
-        // 3. BUSCAR CONFIGURAÇÕES DO TENANT (via API)
+        // 3. BUSCAR CONFIGURAÇÕES DO TENANT
         // ============================================================
         async function loadTenantConfig() {
           try {
@@ -103,7 +106,6 @@
             if (result.success && result.data) {
               const config = result.data;
               
-              // Atualizar theme-color
               const themeColor = config.theme_color || '#e67e22';
               const themeMeta = document.getElementById('theme-color');
               if (themeMeta) {
@@ -111,7 +113,6 @@
                 console.log(`🎨 Theme-color atualizado: ${themeColor}`);
               }
               
-              // Atualizar título da página
               const storeName = config.store_name || 'Smart Delivery';
               const titleEl = document.getElementById('page-title');
               if (titleEl) {
@@ -119,13 +120,18 @@
                 document.title = `${storeName} - Delivery`;
                 console.log(`📝 Título atualizado: ${storeName} - Delivery`);
               }
+              
+              // ✅ Atualizar apple-mobile-web-app-title
+              const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+              if (appleTitle) {
+                appleTitle.content = storeName;
+              }
             }
           } catch (error) {
             console.error('❌ Erro ao carregar configurações:', error);
           }
         }
         
-        // Carregar configurações após a página carregar
         if (document.readyState === 'complete') {
           loadTenantConfig();
         } else {
@@ -133,13 +139,12 @@
         }
         
         // ============================================================
-        // 4. SERVICE WORKER - REGISTRO COM TENANT (CORRIGIDO)
+        // 4. SERVICE WORKER - REGISTRO COM TENANT
         // ============================================================
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', function() {
             console.log('[SW] 🔄 Registrando Service Worker...');
             
-            // ✅ Passar tenant para o Service Worker via query param
             const swUrl = `/service-worker.js${tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''}`;
             console.log(`[SW] 📦 URL do SW: ${swUrl}`);
             
@@ -147,7 +152,6 @@
               .then(function(registration) {
                 console.log('[SW] ✅ Registrado com sucesso! Scope:', registration.scope);
                 
-                // ✅ ENVIAR TENANT PARA O SERVICE WORKER APÓS REGISTRO
                 if (tenant && registration.active) {
                   try {
                     registration.active.postMessage({
@@ -160,7 +164,6 @@
                   }
                 }
                 
-                // ✅ Enviar tenant quando o SW estiver pronto
                 navigator.serviceWorker.ready.then(function(reg) {
                   if (tenant && reg.active) {
                     try {
@@ -175,7 +178,6 @@
                   }
                 });
                 
-                // Verificar atualizações
                 registration.addEventListener('updatefound', function() {
                   console.log('[SW] 🔄 Nova versão encontrada!');
                   const installingWorker = registration.installing;
@@ -184,7 +186,6 @@
                       console.log('[SW] ✅ Nova versão instalada!');
                       if (navigator.serviceWorker.controller) {
                         console.log('[SW] 🔄 Atualizando página...');
-                        // Não recarregar automaticamente para evitar loops
                       }
                     }
                   });
