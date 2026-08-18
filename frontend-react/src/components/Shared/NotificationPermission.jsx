@@ -178,6 +178,11 @@ const Badge = styled.span`
 `;
 
 // ============================================================
+// CHAVE PARA localStorage
+// ============================================================
+const BANNER_CLOSED_KEY = 'notification_banner_closed';
+
+// ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 const NotificationPermission = () => {
@@ -185,6 +190,7 @@ const NotificationPermission = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [bannerClosed, setBannerClosed] = useState(false);
   
   // Detecção de plataforma
   const [browserInfo, setBrowserInfo] = useState({
@@ -209,16 +215,19 @@ const NotificationPermission = () => {
   }, []);
 
   // ============================================================
-  // 2. VERIFICAR PERMISSÃO E INSCRIÇÃO
+  // 2. VERIFICAR PERMISSÃO, INSCRIÇÃO E BANNER FECHADO
   // ============================================================
   useEffect(() => {
     const checkPermission = async () => {
+      // ✅ Verificar se o usuário já fechou o banner
+      const closed = localStorage.getItem(BANNER_CLOSED_KEY) === 'true';
+      setBannerClosed(closed);
+      
       if ('Notification' in window) {
         const perm = Notification.permission;
         setPermission(perm);
         
         if (perm === 'granted') {
-          // Verificar se já está inscrito
           try {
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.getSubscription();
@@ -228,23 +237,34 @@ const NotificationPermission = () => {
           }
         }
         
-        // Mostrar banner apenas se permissão for 'default' e NÃO for Safari
-        if (perm === 'default' && !browserInfo.isSafari) {
+        // ✅ MOSTRAR BANNER APENAS SE:
+        // - Permissão for 'default' (ainda não decidiu)
+        // - O usuário NÃO fechou o banner anteriormente
+        // - Não está inscrito
+        if (perm === 'default' && !closed && !isSubscribed) {
           setShowBanner(true);
-        }
-        
-        // Se for Safari, mostrar banner com instruções
-        if (browserInfo.isSafari && perm === 'default') {
-          setShowBanner(true);
+        } else {
+          setShowBanner(false);
         }
       }
     };
 
     checkPermission();
-  }, [browserInfo.isSafari]);
+  }, [isSubscribed]);
 
   // ============================================================
-  // 3. INSCREVER NO PUSH
+  // 3. FECHAR BANNER (PERSISTENTE)
+  // ============================================================
+  const closeBanner = () => {
+    setShowBanner(false);
+    setBannerClosed(true);
+    // ✅ Salvar no localStorage para não mostrar novamente
+    localStorage.setItem(BANNER_CLOSED_KEY, 'true');
+    console.log('📱 [Notification] Banner fechado pelo usuário');
+  };
+
+  // ============================================================
+  // 4. INSCREVER NO PUSH
   // ============================================================
   const subscribeToPush = async () => {
     try {
@@ -280,6 +300,8 @@ const NotificationPermission = () => {
       if (saveResponse.ok) {
         console.log('✅ Inscrição push salva com sucesso!');
         setIsSubscribed(true);
+        setShowBanner(false);
+        localStorage.setItem(BANNER_CLOSED_KEY, 'true');
         
         // Enviar notificação de boas-vindas
         registration.showNotification('🔔 Notificações ativadas!', {
@@ -301,7 +323,7 @@ const NotificationPermission = () => {
   };
 
   // ============================================================
-  // 4. SOLICITAR PERMISSÃO
+  // 5. SOLICITAR PERMISSÃO
   // ============================================================
   const requestPermission = async () => {
     if (loading) return;
@@ -315,10 +337,9 @@ const NotificationPermission = () => {
       if (result === 'granted') {
         console.log('✅ Permissão concedida!');
         await subscribeToPush();
-        setShowBanner(false);
       } else if (result === 'denied') {
         console.log('❌ Permissão negada pelo usuário');
-        setShowBanner(false);
+        closeBanner();
       }
     } catch (error) {
       console.error('Erro ao solicitar permissão:', error);
@@ -328,7 +349,7 @@ const NotificationPermission = () => {
   };
 
   // ============================================================
-  // 5. RENDER - JÁ INSCRITO
+  // 6. RENDER - JÁ INSCRITO
   // ============================================================
   if (isSubscribed) {
     return (
@@ -345,7 +366,7 @@ const NotificationPermission = () => {
           <ButtonSuccess disabled>
             ✅ Ativo
           </ButtonSuccess>
-          <ButtonSecondary onClick={() => setShowBanner(false)}>
+          <ButtonSecondary onClick={closeBanner}>
             ✕ Fechar
           </ButtonSecondary>
         </ButtonGroup>
@@ -354,7 +375,7 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 6. RENDER - PERMISSÃO NEGADA
+  // 7. RENDER - PERMISSÃO NEGADA
   // ============================================================
   if (permission === 'denied') {
     return (
@@ -367,7 +388,7 @@ const NotificationPermission = () => {
           Você bloqueou as notificações. Para reativar, vá nas configurações do navegador e permita o site.
         </Message>
         <ButtonGroup>
-          <ButtonSecondary onClick={() => setShowBanner(false)}>
+          <ButtonSecondary onClick={closeBanner}>
             ✕ Fechar
           </ButtonSecondary>
         </ButtonGroup>
@@ -376,10 +397,13 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 7. RENDER - SAFARI / iOS (COM INSTRUÇÕES)
+  // 8. RENDER - SAFARI / iOS (COM INSTRUÇÕES)
   // ============================================================
   if (browserInfo.isSafari || browserInfo.isIOS) {
-    // 7A: Já está rodando como PWA
+    // ✅ Só mostrar o banner se showBanner for true
+    if (!showBanner) return null;
+
+    // 8A: Já está rodando como PWA
     if (browserInfo.isPWA) {
       return (
         <Container>
@@ -397,7 +421,7 @@ const NotificationPermission = () => {
             >
               {loading ? '⏳ Solicitando...' : '🔔 Permitir Notificações'}
             </ButtonPrimary>
-            <ButtonSecondary onClick={() => setShowBanner(false)}>
+            <ButtonSecondary onClick={closeBanner}>
               ✕ Fechar
             </ButtonSecondary>
           </ButtonGroup>
@@ -405,7 +429,7 @@ const NotificationPermission = () => {
       );
     }
 
-    // 7B: Safari normal - precisa instalar o PWA
+    // 8B: Safari normal - precisa instalar o PWA
     return (
       <Container>
         <Title>
@@ -433,7 +457,7 @@ const NotificationPermission = () => {
           >
             📖 Ver Tutorial no Site da Apple
           </ButtonPrimary>
-          <ButtonSecondary onClick={() => setShowBanner(false)}>
+          <ButtonSecondary onClick={closeBanner}>
             ✕ Fechar
           </ButtonSecondary>
         </ButtonGroup>
@@ -442,7 +466,7 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 8. RENDER - CHROME/ANDROID (PUSH NORMAL)
+  // 9. RENDER - CHROME/ANDROID (PUSH NORMAL)
   // ============================================================
   if (permission === 'default' && showBanner) {
     return (
@@ -461,7 +485,7 @@ const NotificationPermission = () => {
           >
             {loading ? '⏳ Solicitando...' : '🔔 Ativar Notificações'}
           </ButtonPrimary>
-          <ButtonSecondary onClick={() => setShowBanner(false)}>
+          <ButtonSecondary onClick={closeBanner}>
             ✕ Fechar
           </ButtonSecondary>
         </ButtonGroup>
@@ -470,7 +494,7 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 9. RENDER - PADRÃO (NÃO MOSTRAR NADA)
+  // 10. RENDER - PADRÃO (NÃO MOSTRAR NADA)
   // ============================================================
   return null;
 };
