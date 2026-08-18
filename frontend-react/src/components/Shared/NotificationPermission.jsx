@@ -24,6 +24,12 @@ const isPWA = () => {
 };
 
 // ============================================================
+// CHAVE PARA localStorage
+// ============================================================
+const BANNER_CLOSED_KEY = 'smart_delivery_notification_banner_closed';
+const BANNER_VERSION = 'v2'; // Para invalidar banners antigos
+
+// ============================================================
 // ESTILOS
 // ============================================================
 const Container = styled.div`
@@ -127,15 +133,6 @@ const ButtonSuccess = styled(Button)`
   }
 `;
 
-const ButtonDanger = styled(Button)`
-  background: #e74c3c;
-  color: #fff;
-
-  &:hover:not(:disabled) {
-    background: #c0392b;
-  }
-`;
-
 const IconWrapper = styled.span`
   font-size: 20px;
 `;
@@ -178,11 +175,6 @@ const Badge = styled.span`
 `;
 
 // ============================================================
-// CHAVE PARA localStorage
-// ============================================================
-const BANNER_CLOSED_KEY = 'notification_banner_closed';
-
-// ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 const NotificationPermission = () => {
@@ -190,9 +182,8 @@ const NotificationPermission = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [bannerClosed, setBannerClosed] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   
-  // Detecção de plataforma
   const [browserInfo, setBrowserInfo] = useState({
     isSafari: false,
     isIOS: false,
@@ -211,60 +202,83 @@ const NotificationPermission = () => {
     setBrowserInfo(info);
     
     console.log('📱 [Notification] Detecção:', info);
-    console.log('📱 [Notification] UserAgent:', navigator.userAgent);
   }, []);
 
   // ============================================================
-  // 2. VERIFICAR PERMISSÃO, INSCRIÇÃO E BANNER FECHADO
+  // 2. VERIFICAR SE O BANNER DEVE SER MOSTRADO
   // ============================================================
-  useEffect(() => {
-    const checkPermission = async () => {
-      // ✅ Verificar se o usuário já fechou o banner
-      const closed = localStorage.getItem(BANNER_CLOSED_KEY) === 'true';
-      setBannerClosed(closed);
-      
-      if ('Notification' in window) {
-        const perm = Notification.permission;
-        setPermission(perm);
-        
-        if (perm === 'granted') {
-          try {
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.getSubscription();
-            setIsSubscribed(!!subscription);
-          } catch (error) {
-            console.error('Erro ao verificar inscrição:', error);
-          }
-        }
-        
-        // ✅ MOSTRAR BANNER APENAS SE:
-        // - Permissão for 'default' (ainda não decidiu)
-        // - O usuário NÃO fechou o banner anteriormente
-        // - Não está inscrito
-        if (perm === 'default' && !closed && !isSubscribed) {
-          setShowBanner(true);
-        } else {
-          setShowBanner(false);
-        }
-      }
-    };
-
-    checkPermission();
-  }, [isSubscribed]);
-
-  // ============================================================
-  // 3. FECHAR BANNER (PERSISTENTE)
-  // ============================================================
-  const closeBanner = () => {
-    setShowBanner(false);
-    setBannerClosed(true);
-    // ✅ Salvar no localStorage para não mostrar novamente
-    localStorage.setItem(BANNER_CLOSED_KEY, 'true');
-    console.log('📱 [Notification] Banner fechado pelo usuário');
+  const shouldShowBanner = () => {
+    // Se a permissão já foi concedida ou negada, não mostrar
+    if (permission !== 'default') return false;
+    
+    // Se já está inscrito, não mostrar
+    if (isSubscribed) return false;
+    
+    // Verificar se o usuário já fechou o banner
+    const closed = localStorage.getItem(BANNER_CLOSED_KEY);
+    if (closed === 'true') {
+      console.log('📱 [Notification] Banner já foi fechado pelo usuário');
+      return false;
+    }
+    
+    return true;
   };
 
   // ============================================================
-  // 4. INSCREVER NO PUSH
+  // 3. VERIFICAR PERMISSÃO E INSCRIÇÃO
+  // ============================================================
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (!('Notification' in window)) {
+        console.log('📱 [Notification] Notification não suportado');
+        return;
+      }
+      
+      const perm = Notification.permission;
+      setPermission(perm);
+      console.log('📱 [Notification] Permissão atual:', perm);
+      
+      if (perm === 'granted') {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          setIsSubscribed(!!subscription);
+          console.log('📱 [Notification] Inscrito:', !!subscription);
+        } catch (error) {
+          console.error('Erro ao verificar inscrição:', error);
+        }
+      }
+      
+      // Atualizar visibilidade do banner
+      const show = shouldShowBanner();
+      setShowBanner(show);
+      console.log('📱 [Notification] Mostrar banner:', show);
+    };
+
+    checkPermission();
+  }, [permission, isSubscribed]);
+
+  // ============================================================
+  // 4. FECHAR BANNER (PERSISTENTE)
+  // ============================================================
+  const closeBanner = () => {
+    console.log('📱 [Notification] Fechando banner...');
+    
+    // Salvar no localStorage
+    try {
+      localStorage.setItem(BANNER_CLOSED_KEY, 'true');
+      console.log('📱 [Notification] Banner salvo como fechado no localStorage');
+    } catch (error) {
+      console.error('Erro ao salvar no localStorage:', error);
+    }
+    
+    // Esconder o banner
+    setShowBanner(false);
+    setIsVisible(false);
+  };
+
+  // ============================================================
+  // 5. INSCREVER NO PUSH
   // ============================================================
   const subscribeToPush = async () => {
     try {
@@ -303,7 +317,6 @@ const NotificationPermission = () => {
         setShowBanner(false);
         localStorage.setItem(BANNER_CLOSED_KEY, 'true');
         
-        // Enviar notificação de boas-vindas
         registration.showNotification('🔔 Notificações ativadas!', {
           body: 'Você receberá atualizações sobre seus pedidos em tempo real.',
           icon: '/favicon.png',
@@ -323,7 +336,7 @@ const NotificationPermission = () => {
   };
 
   // ============================================================
-  // 5. SOLICITAR PERMISSÃO
+  // 6. SOLICITAR PERMISSÃO
   // ============================================================
   const requestPermission = async () => {
     if (loading) return;
@@ -349,33 +362,21 @@ const NotificationPermission = () => {
   };
 
   // ============================================================
-  // 6. RENDER - JÁ INSCRITO
+  // 7. SE NÃO DEVE MOSTRAR, RETORNAR NULL
   // ============================================================
-  if (isSubscribed) {
-    return (
-      <Container style={{ borderLeft: '4px solid #27ae60' }}>
-        <Title>
-          <IconWrapper>✅</IconWrapper>
-          Notificações ativas
-          <Badge>Ativo</Badge>
-        </Title>
-        <Message>
-          Você está recebendo notificações em tempo real sobre seus pedidos.
-        </Message>
-        <ButtonGroup>
-          <ButtonSuccess disabled>
-            ✅ Ativo
-          </ButtonSuccess>
-          <ButtonSecondary onClick={closeBanner}>
-            ✕ Fechar
-          </ButtonSecondary>
-        </ButtonGroup>
-      </Container>
-    );
+  if (!isVisible || !showBanner) {
+    return null;
   }
 
   // ============================================================
-  // 7. RENDER - PERMISSÃO NEGADA
+  // 8. RENDER - JÁ INSCRITO (NÃO DEVE APARECER AQUI, MAS POR SEGURANÇA)
+  // ============================================================
+  if (isSubscribed) {
+    return null;
+  }
+
+  // ============================================================
+  // 9. RENDER - PERMISSÃO NEGADA
   // ============================================================
   if (permission === 'denied') {
     return (
@@ -397,13 +398,10 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 8. RENDER - SAFARI / iOS (COM INSTRUÇÕES)
+  // 10. RENDER - SAFARI / iOS
   // ============================================================
   if (browserInfo.isSafari || browserInfo.isIOS) {
-    // ✅ Só mostrar o banner se showBanner for true
-    if (!showBanner) return null;
-
-    // 8A: Já está rodando como PWA
+    // 10A: Já está rodando como PWA
     if (browserInfo.isPWA) {
       return (
         <Container>
@@ -429,7 +427,7 @@ const NotificationPermission = () => {
       );
     }
 
-    // 8B: Safari normal - precisa instalar o PWA
+    // 10B: Safari normal - precisa instalar o PWA
     return (
       <Container>
         <Title>
@@ -466,37 +464,30 @@ const NotificationPermission = () => {
   }
 
   // ============================================================
-  // 9. RENDER - CHROME/ANDROID (PUSH NORMAL)
+  // 11. RENDER - CHROME/ANDROID
   // ============================================================
-  if (permission === 'default' && showBanner) {
-    return (
-      <Container>
-        <Title>
-          <IconWrapper>🔔</IconWrapper>
-          Receba notificações em tempo real
-        </Title>
-        <Message>
-          Ative as notificações para acompanhar seus pedidos e receber novidades.
-        </Message>
-        <ButtonGroup>
-          <ButtonPrimary 
-            onClick={requestPermission}
-            disabled={loading}
-          >
-            {loading ? '⏳ Solicitando...' : '🔔 Ativar Notificações'}
-          </ButtonPrimary>
-          <ButtonSecondary onClick={closeBanner}>
-            ✕ Fechar
-          </ButtonSecondary>
-        </ButtonGroup>
-      </Container>
-    );
-  }
-
-  // ============================================================
-  // 10. RENDER - PADRÃO (NÃO MOSTRAR NADA)
-  // ============================================================
-  return null;
+  return (
+    <Container>
+      <Title>
+        <IconWrapper>🔔</IconWrapper>
+        Receba notificações em tempo real
+      </Title>
+      <Message>
+        Ative as notificações para acompanhar seus pedidos e receber novidades.
+      </Message>
+      <ButtonGroup>
+        <ButtonPrimary 
+          onClick={requestPermission}
+          disabled={loading}
+        >
+          {loading ? '⏳ Solicitando...' : '🔔 Ativar Notificações'}
+        </ButtonPrimary>
+        <ButtonSecondary onClick={closeBanner}>
+          ✕ Fechar
+        </ButtonSecondary>
+      </ButtonGroup>
+    </Container>
+  );
 };
 
 export default NotificationPermission;
