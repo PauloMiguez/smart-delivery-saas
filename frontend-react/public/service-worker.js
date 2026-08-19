@@ -217,12 +217,12 @@ self.addEventListener('activate', (event) => {
 });
 
 // ============================================================
-// 6. FETCH - COM SUPORTE A MANIFEST DINÂMICO
+// 6. FETCH - CORRIGIDO (EVITA ERROS NO CHECKOUT)
 // ============================================================
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
-    // Ignorar requisições de API e externas
+    // ✅ 1. Ignorar requisições de API e externas
     if (
         url.pathname.startsWith('/api/') ||
         url.pathname.startsWith('/socket.io/') ||
@@ -232,17 +232,17 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // ✅ Para manifest.json, sempre buscar do servidor (não cache)
+    // ✅ 2. Para manifest.json, buscar do servidor
     if (url.pathname === '/manifest.json') {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // Cache da resposta para uso offline
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME)
                         .then((cache) => {
                             cache.put(event.request, responseToCache);
-                        });
+                        })
+                        .catch(() => {});
                     return response;
                 })
                 .catch(() => {
@@ -252,7 +252,72 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // ✅ Para outros assets, usar cache-first
+    // ✅ 3. Para assets estáticos (js, css, imagens), usar cache-first
+    if (
+        url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webmanifest|woff|woff2|ttf|eot)$/) ||
+        url.pathname.startsWith('/assets/')
+    ) {
+        event.respondWith(
+            caches.match(event.request)
+                .then((cachedResponse) => {
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                    return fetch(event.request)
+                        .then((response) => {
+                            if (!response || response.status !== 200) {
+                                return response;
+                            }
+                            const responseToCache = response.clone();
+                            caches.open(CACHE_NAME)
+                                .then((cache) => {
+                                    cache.put(event.request, responseToCache);
+                                })
+                                .catch(() => {});
+                            return response;
+                        })
+                        .catch(() => {
+                            if (event.request.headers.get('accept')?.includes('text/html')) {
+                                return caches.match(OFFLINE_URL);
+                            }
+                        });
+                })
+        );
+        return;
+    }
+    
+    // ✅ 4. Para páginas HTML (incluindo checkout) - NETWORK FIRST
+    // ✅ Esta é a CORREÇÃO PRINCIPAL: evita erro no checkout
+    if (event.request.headers.get('accept')?.includes('text/html')) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // Cachear em background para uso offline (apenas se for 200)
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME)
+                            .then((cache) => {
+                                cache.put(event.request, responseToCache);
+                            })
+                            .catch(() => {});
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Fallback: tentar cache ou página offline
+                    return caches.match(event.request)
+                        .then((cached) => {
+                            if (cached) {
+                                return cached;
+                            }
+                            return caches.match(OFFLINE_URL);
+                        });
+                })
+        );
+        return;
+    }
+    
+    // ✅ 5. Para outros recursos, cache-first
     event.respondWith(
         caches.match(event.request)
             .then((cachedResponse) => {
@@ -268,7 +333,8 @@ self.addEventListener('fetch', (event) => {
                         caches.open(CACHE_NAME)
                             .then((cache) => {
                                 cache.put(event.request, responseToCache);
-                            });
+                            })
+                            .catch(() => {});
                         return response;
                     })
                     .catch(() => {
