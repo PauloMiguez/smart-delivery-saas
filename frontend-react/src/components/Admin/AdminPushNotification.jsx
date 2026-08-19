@@ -166,14 +166,16 @@ const AdminPushNotification = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subscription: subscription,
-          tenant: tenant
+          tenant: tenant,
+          userType: 'admin',       
+          userId: getUserId()       
         })
       });
 
       if (saveResponse.ok) {
         setIsSubscribed(true);
         showToast('🔔 Notificações ativadas! Você receberá alertas de novos pedidos.', 'success');
-        
+
         // Notificação de boas-vindas
         registration.showNotification('🔔 Smart Delivery - Admin', {
           body: 'Notificações de novos pedidos ativadas!',

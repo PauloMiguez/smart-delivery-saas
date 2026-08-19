@@ -21,9 +21,9 @@ const isCustomDomain = () => {
 };
 
 // ============================================================
-//  FUNÇÃO PARA OBTER DEVICE_TOKEN (endpoint da inscrição push)
+//  FUNÇÃO PARA OBTER OU CRIAR INSCRIÇÃO PUSH (CLIENTE)
 // ============================================================
-const getDeviceToken = async () => {
+const getOrCreateDeviceToken = async (tenantId) => {
     try {
         // Verificar se o Service Worker está disponível
         if (!('serviceWorker' in navigator)) {
@@ -32,19 +32,70 @@ const getDeviceToken = async () => {
         }
 
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
+        let subscription = await registration.pushManager.getSubscription();
+        
+        // ✅ SE NÃO TIVER INSCRIÇÃO, TENTAR CRIAR (como CLIENTE)
+        if (!subscription) {
+            console.log('🔄 Nenhuma inscrição encontrada. Criando como CLIENTE...');
+            
+            try {
+                const response = await fetch('/api/notifications/vapid-public-key');
+                const data = await response.json();
+                
+                if (!data.publicKey) {
+                    console.error('❌ VAPID key não disponível');
+                    return null;
+                }
+                
+                const applicationServerKey = (key) => {
+                    const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
+                    const rawData = atob(base64);
+                    const outputArray = new Uint8Array(rawData.length);
+                    for (let i = 0; i < rawData.length; ++i) {
+                        outputArray[i] = rawData.charCodeAt(i);
+                    }
+                    return outputArray;
+                };
+                
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey(data.publicKey)
+                });
+                
+                console.log('✅ Nova inscrição criada!');
+                
+                // ✅ SALVAR COMO CLIENTE
+                const tenant = tenantId || 'fireburger';
+                await fetch('/api/notifications/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        subscription: subscription,
+                        tenant: tenant,
+                        userType: 'client' // ✅ CLIENTE
+                    })
+                });
+                
+                console.log('✅ Inscrição salva no backend como CLIENTE');
+                
+            } catch (subscribeError) {
+                console.error('❌ Erro ao criar inscrição:', subscribeError);
+                return null;
+            }
+        }
         
         if (subscription) {
-            // Extrair o endpoint para usar como device_token
             const endpoint = subscription.endpoint;
             console.log('📱 Device token obtido:', endpoint.substring(0, 50) + '...');
             return endpoint;
         } else {
-            console.log('⚠️ Nenhuma inscrição push ativa');
+            console.log('⚠️ Nenhuma inscrição push disponível');
             return null;
         }
     } catch (error) {
-        console.error('❌ Erro ao obter device_token:', error);
+        console.error('❌ Erro ao obter/criar device_token:', error);
         return null;
     }
 };
@@ -674,7 +725,7 @@ const Checkout = () => {
     const finalTotal = totalWithDiscount + deliveryFee;
 
     // ============================================================
-    //  SUBMIT - CORRIGIDO COM DEVICE_TOKEN
+    //  SUBMIT - CORRIGIDO COM DEVICE_TOKEN E user_type: 'client'
     // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -701,8 +752,8 @@ const Checkout = () => {
                 ? formatScheduledTime(selectedSchedule.datetime)
                 : null;
 
-            // ✅ OBTER DEVICE_TOKEN
-            const deviceToken = await getDeviceToken();
+            // ✅ OBTER OU CRIAR DEVICE_TOKEN (como CLIENTE)
+            const deviceToken = await getOrCreateDeviceToken(tenant);
             console.log('📱 Device token para o pedido:', deviceToken ? '✅ obtido' : '❌ não disponível');
 
             const orderData = {

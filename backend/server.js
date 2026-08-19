@@ -468,10 +468,12 @@ app.get('/api/notifications/vapid-public-key', (req, res) => {
 // Rota para inscrever o dispositivo (PÚBLICA)
 app.post('/api/notifications/subscribe', async (req, res) => {
     try {
-        const { subscription, tenant } = req.body;
+        const { subscription, tenant, userType = 'client', userId = null } = req.body;
 
         console.log('📱 📝 NOVA INSCRIÇÃO PUSH');
         console.log('📱 Tenant:', tenant);
+        console.log('📱 Tipo de usuário:', userType);
+        console.log('📱 User ID:', userId);
 
         if (!subscription || !subscription.endpoint) {
             return res.status(400).json({
@@ -484,19 +486,19 @@ app.post('/api/notifications/subscribe', async (req, res) => {
         const subscriptionStr = JSON.stringify(subscription);
         const deviceToken = subscription.endpoint;
 
-        // ✅ VERIFICAR SE ESTE ENDPOINT JÁ EXISTE
+        // ✅ VERIFICAR SE ESTE ENDPOINT JÁ EXISTE PARA ESTE TIPO DE USUÁRIO
         const [existing] = await pool.query(
-            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND device_token = ?',
-            [tenantId, deviceToken]
+            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND device_token = ? AND user_type = ?',
+            [tenantId, deviceToken, userType]
         );
 
         if (existing.length > 0) {
             console.log('🔄 Endpoint já existe, atualizando...');
             await pool.query(
                 `UPDATE push_subscriptions 
-                 SET subscription = ?, updated_at = NOW() 
-                 WHERE tenant_id = ? AND device_token = ?`,
-                [subscriptionStr, tenantId, deviceToken]
+                 SET subscription = ?, updated_at = NOW(), user_id = ?
+                 WHERE tenant_id = ? AND device_token = ? AND user_type = ?`,
+                [subscriptionStr, userId, tenantId, deviceToken, userType]
             );
             return res.json({
                 success: true,
@@ -504,11 +506,12 @@ app.post('/api/notifications/subscribe', async (req, res) => {
             });
         }
 
-        // ✅ INSERIR NOVA
+        // ✅ INSERIR NOVA COM USER_TYPE
         await pool.query(
-            `INSERT INTO push_subscriptions (tenant_id, subscription, device_token, created_at, updated_at) 
-             VALUES (?, ?, ?, NOW(), NOW())`,
-            [tenantId, subscriptionStr, deviceToken]
+            `INSERT INTO push_subscriptions 
+             (tenant_id, subscription, device_token, user_type, user_id, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+            [tenantId, subscriptionStr, deviceToken, userType, userId]
         );
 
         console.log('✅ Nova inscrição salva com sucesso!');
@@ -1603,10 +1606,10 @@ app.post('/api/orders', async (req, res) => {
         //  ENVIAR NOTIFICAÇÃO PUSH PARA ADMIN
         // ============================================================
         try {
-            // Buscar TODAS as inscrições do tenant (admin)
+            // ✅ Buscar APENAS inscrições do tipo 'admin'
             const [adminSubscriptions] = await pool.query(
-                'SELECT subscription, id FROM push_subscriptions WHERE tenant_id = ?',
-                [tenantId]
+                'SELECT subscription, id FROM push_subscriptions WHERE tenant_id = ? AND user_type = ?',
+                [tenantId, 'admin']  // ✅ FILTRO POR USER_TYPE
             );
 
             if (adminSubscriptions.length > 0) {
@@ -1662,7 +1665,6 @@ app.post('/api/orders', async (req, res) => {
             }
         } catch (pushError) {
             console.error('❌ Erro ao enviar notificação push para admin:', pushError);
-            // Não bloqueia o pedido se a notificação falhar
         }
 
         // ============================================================
@@ -2797,18 +2799,17 @@ app.get('/api/tenant', (req, res) => {
 // ============================================================
 async function sendPushNotifications(orderId, orderNumber, status, accessToken, tenantId, deviceToken = null) {
     try {
-        // ✅ Se não houver device_token, não envia notificação
         if (!deviceToken) {
-            console.log(`📱 ⚠️ Nenhum device_token fornecido para o pedido #${orderNumber}. Notificação não será enviada.`);
+            console.log(`📱 ⚠️ Nenhum device_token fornecido para o pedido #${orderNumber}.`);
             return;
         }
 
-        // ✅ Buscar APENAS a subscription específica
+        // ✅ Buscar APENAS inscrições do tipo 'client' e com o device_token específico
         const [result] = await pool.query(
-            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND device_token = ?',
-            [tenantId, deviceToken]
+            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND device_token = ? AND user_type = ?',
+            [tenantId, deviceToken, 'client']
         );
-        
+
         const subscriptions = result;
 
         if (subscriptions.length === 0) {
