@@ -1606,16 +1606,17 @@ app.post('/api/orders', async (req, res) => {
         //  ENVIAR NOTIFICAÇÃO PUSH PARA ADMIN
         // ============================================================
         try {
-            // ✅ Buscar APENAS inscrições do tipo 'admin'
             const [adminSubscriptions] = await pool.query(
                 'SELECT subscription, id FROM push_subscriptions WHERE tenant_id = ? AND user_type = ?',
-                [tenantId, 'admin']  // ✅ FILTRO POR USER_TYPE
+                [tenantId, 'admin']
             );
 
             if (adminSubscriptions.length > 0) {
                 console.log(`📤 Enviando notificação para ${adminSubscriptions.length} admin(s)`);
 
-                // Montar payload da notificação
+                // ✅ Construir URL do pedido no admin
+                const orderUrl = `/admin?tenant=${tenantId}&tab=orders&orderId=${result.insertId}`;
+
                 const payload = {
                     title: `🆕 Novo Pedido #${orderNumber}`,
                     body: `Cliente: ${customer_name} | Total: R$ ${finalTotal.toFixed(2)}`,
@@ -1624,11 +1625,12 @@ app.post('/api/orders', async (req, res) => {
                     tag: `new-order-${result.insertId}`,
                     orderId: String(result.insertId),
                     orderNumber: orderNumber,
-                    url: `/admin?tenant=${tenantId}`,
+                    url: orderUrl, // ✅ URL com o pedido
                     data: {
                         orderId: String(result.insertId),
                         orderNumber: orderNumber,
-                        url: `/admin?tenant=${tenantId}`
+                        url: orderUrl, // ✅ URL com o pedido
+                        targetUrl: orderUrl // ✅ Para o Service Worker
                     },
                     vibrate: [300, 100, 200, 100, 300],
                     requireInteraction: true,
@@ -1649,7 +1651,6 @@ app.post('/api/orders', async (req, res) => {
                     } catch (error) {
                         console.error(`❌ Erro ao enviar push para admin ${sub.id}: ${error.message}`);
                         if (error.statusCode === 410) {
-                            // Remover inscrição expirada
                             await pool.query(
                                 'DELETE FROM push_subscriptions WHERE id = ?',
                                 [sub.id]

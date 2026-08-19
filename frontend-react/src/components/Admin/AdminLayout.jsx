@@ -377,6 +377,31 @@ const AdminLayout = () => {
     }, [filteredProducts, itemsPerPage]);
 
     // ============================================================
+    //  EFETTO: ABRIR PEDIDO ESPECÍFICO VIA URL
+    // ============================================================
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('orderId');
+        const tab = params.get('tab');
+
+        if (tab === 'orders' && orderId && orders.length > 0) {
+            // Mudar para a aba de pedidos
+            setActiveTab('orders');
+
+            // Buscar o pedido específico
+            const order = orders.find(o => o.id === parseInt(orderId));
+            if (order && order.access_token) {
+                // Abrir o modal de tracking
+                openTrackingModal(orderId, order.access_token);
+            }
+
+            // ✅ Limpar a URL para não reabrir ao recarregar
+            const newUrl = window.location.pathname + '?tenant=' + tenant;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [orders, tenant]);
+
+    // ============================================================
     //  FUNÇÃO applyFilters
     // ============================================================
     const applyFilters = () => {
