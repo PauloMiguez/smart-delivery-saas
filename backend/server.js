@@ -482,12 +482,12 @@ app.post('/api/notifications/subscribe', async (req, res) => {
 
         const tenantId = tenant || 'fireburger';
         const subscriptionStr = JSON.stringify(subscription);
-        const endpoint = subscription.endpoint;
+        const deviceToken = subscription.endpoint;
 
         // ✅ VERIFICAR SE ESTE ENDPOINT JÁ EXISTE
         const [existing] = await pool.query(
-            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
-            [tenantId, `%${endpoint}%`]
+            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND device_token = ?',
+            [tenantId, deviceToken]
         );
 
         if (existing.length > 0) {
@@ -495,8 +495,8 @@ app.post('/api/notifications/subscribe', async (req, res) => {
             await pool.query(
                 `UPDATE push_subscriptions 
                  SET subscription = ?, updated_at = NOW() 
-                 WHERE tenant_id = ? AND subscription LIKE ?`,
-                [subscriptionStr, tenantId, `%${endpoint}%`]
+                 WHERE tenant_id = ? AND device_token = ?`,
+                [subscriptionStr, tenantId, deviceToken]
             );
             return res.json({
                 success: true,
@@ -506,9 +506,9 @@ app.post('/api/notifications/subscribe', async (req, res) => {
 
         // ✅ INSERIR NOVA
         await pool.query(
-            `INSERT INTO push_subscriptions (tenant_id, subscription, created_at, updated_at) 
-             VALUES (?, ?, NOW(), NOW())`,
-            [tenantId, subscriptionStr]
+            `INSERT INTO push_subscriptions (tenant_id, subscription, device_token, created_at, updated_at) 
+             VALUES (?, ?, ?, NOW(), NOW())`,
+            [tenantId, subscriptionStr, deviceToken]
         );
 
         console.log('✅ Nova inscrição salva com sucesso!');
@@ -532,8 +532,8 @@ app.delete('/api/notifications/unsubscribe', async (req, res) => {
         const tenant = req.query.tenant || 'fireburger';
 
         await pool.query(
-            'DELETE FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
-            [tenant, `%${endpoint}%`]
+            'DELETE FROM push_subscriptions WHERE tenant_id = ? AND device_token = ?',
+            [tenant, endpoint]
         );
 
         res.json({
@@ -1411,7 +1411,7 @@ app.post('/api/orders', async (req, res) => {
             notes = '',
             scheduled_time,
             is_scheduled = false,
-            device_token  // ✅ ADICIONAR
+            device_token
         } = req.body;
 
         console.log('📦 Pedido recebido:', {
@@ -1583,7 +1583,7 @@ app.post('/api/orders', async (req, res) => {
                 finalDiscount,
                 parseFloat(discount_percentage || 0),
                 discount_reason || '',
-                device_token || null,  // ✅ ADICIONAR
+                device_token || null,
                 finalTotal,
                 payment_method,
                 deliveryType,
@@ -1599,6 +1599,75 @@ app.post('/api/orders', async (req, res) => {
 
         console.log(`✅ Pedido criado: ${orderNumber} ${is_scheduled ? '(Agendado para ' + scheduled_time + ')' : ''}`);
 
+        // ============================================================
+        //  ENVIAR NOTIFICAÇÃO PUSH PARA ADMIN
+        // ============================================================
+        try {
+            // Buscar TODAS as inscrições do tenant (admin)
+            const [adminSubscriptions] = await pool.query(
+                'SELECT subscription, id FROM push_subscriptions WHERE tenant_id = ?',
+                [tenantId]
+            );
+
+            if (adminSubscriptions.length > 0) {
+                console.log(`📤 Enviando notificação para ${adminSubscriptions.length} admin(s)`);
+
+                // Montar payload da notificação
+                const payload = {
+                    title: `🆕 Novo Pedido #${orderNumber}`,
+                    body: `Cliente: ${customer_name} | Total: R$ ${finalTotal.toFixed(2)}`,
+                    icon: '/favicon.png',
+                    badge: '/favicon.png',
+                    tag: `new-order-${result.insertId}`,
+                    orderId: String(result.insertId),
+                    orderNumber: orderNumber,
+                    url: `/admin?tenant=${tenantId}`,
+                    data: {
+                        orderId: String(result.insertId),
+                        orderNumber: orderNumber,
+                        url: `/admin?tenant=${tenantId}`
+                    },
+                    vibrate: [300, 100, 200, 100, 300],
+                    requireInteraction: true,
+                    actions: [
+                        { action: 'open', title: '📋 Ver Pedido' }
+                    ]
+                };
+
+                const payloadStr = JSON.stringify(payload);
+                let sentCount = 0;
+
+                for (const sub of adminSubscriptions) {
+                    try {
+                        const subscription = JSON.parse(sub.subscription);
+                        await webpush.sendNotification(subscription, payloadStr);
+                        sentCount++;
+                        console.log(`✅ Push enviado para admin ${sub.id}`);
+                    } catch (error) {
+                        console.error(`❌ Erro ao enviar push para admin ${sub.id}: ${error.message}`);
+                        if (error.statusCode === 410) {
+                            // Remover inscrição expirada
+                            await pool.query(
+                                'DELETE FROM push_subscriptions WHERE id = ?',
+                                [sub.id]
+                            );
+                            console.log(`🗑️ Subscription expirada removida (ID: ${sub.id})`);
+                        }
+                    }
+                }
+
+                console.log(`📱 ${sentCount}/${adminSubscriptions.length} notificações enviadas para admin`);
+            } else {
+                console.log('📱 Nenhum admin inscrito para notificações push');
+            }
+        } catch (pushError) {
+            console.error('❌ Erro ao enviar notificação push para admin:', pushError);
+            // Não bloqueia o pedido se a notificação falhar
+        }
+
+        // ============================================================
+        //  WEBSOCKET (FALLBACK)
+        // ============================================================
         const io = req.app.get('io');
         if (io) {
             const orderData = {
@@ -1623,6 +1692,8 @@ app.post('/api/orders', async (req, res) => {
                 action: 'new',
                 order: orderData
             });
+
+            console.log('🔔 WebSocket: Notificação de novo pedido enviada');
         }
 
         res.status(201).json({
@@ -2734,8 +2805,8 @@ async function sendPushNotifications(orderId, orderNumber, status, accessToken, 
 
         // ✅ Buscar APENAS a subscription específica
         const [result] = await pool.query(
-            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND subscription LIKE ?',
-            [tenantId, `%${deviceToken}%`]
+            'SELECT subscription FROM push_subscriptions WHERE tenant_id = ? AND device_token = ?',
+            [tenantId, deviceToken]
         );
         
         const subscriptions = result;
@@ -3060,5 +3131,6 @@ testDatabaseConnection().then(() => {
         console.log('   ✅ Mensagens personalizadas por status');
         console.log('   ✅ Integração com Web Push API');
         console.log('   ✅ Suporte a Service Worker');
+        console.log('   ✅ Notificações para admin sobre novos pedidos');
     });
 });

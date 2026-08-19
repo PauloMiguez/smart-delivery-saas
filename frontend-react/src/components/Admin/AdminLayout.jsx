@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 import { connectSocket, disconnectSocket } from '../../services/socket';
 import { playNewOrderSound, playNotificationSound } from '../../utils/notificationSound';
 import { tokens } from '../../styles/tokens';
+import AdminPushNotification from './AdminPushNotification';
 import {
     AdminContainer,
     Sidebar,
@@ -742,6 +743,7 @@ const AdminLayout = () => {
                         )}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <AdminPushNotification />
                         <span style={{
                             fontSize: '12px',
                             color: socketStatus === 'conectado' ? '#2e7d32' : '#d32f2f'
