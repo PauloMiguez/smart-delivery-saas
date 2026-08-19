@@ -486,19 +486,18 @@ app.post('/api/notifications/subscribe', async (req, res) => {
         const subscriptionStr = JSON.stringify(subscription);
         const deviceToken = subscription.endpoint;
 
-        // ✅ VERIFICAR SE ESTE ENDPOINT JÁ EXISTE PARA ESTE TIPO DE USUÁRIO
         const [existing] = await pool.query(
-            'SELECT id FROM push_subscriptions WHERE tenant_id = ? AND device_token = ? AND user_type = ?',
-            [tenantId, deviceToken, userType]
+            'SELECT id FROM push_subscriptions WHERE device_token = ? AND user_type = ? AND tenant_id = ?',
+            [deviceToken, userType, tenantId]
         );
 
         if (existing.length > 0) {
-            console.log('🔄 Endpoint já existe, atualizando...');
+            console.log('🔄 Combinação já existe, atualizando...');
             await pool.query(
                 `UPDATE push_subscriptions 
                  SET subscription = ?, updated_at = NOW(), user_id = ?
-                 WHERE tenant_id = ? AND device_token = ? AND user_type = ?`,
-                [subscriptionStr, userId, tenantId, deviceToken, userType]
+                 WHERE device_token = ? AND user_type = ? AND tenant_id = ?`,
+                [subscriptionStr, userId, deviceToken, userType, tenantId]
             );
             return res.json({
                 success: true,
@@ -506,7 +505,6 @@ app.post('/api/notifications/subscribe', async (req, res) => {
             });
         }
 
-        // ✅ INSERIR NOVA COM USER_TYPE
         await pool.query(
             `INSERT INTO push_subscriptions 
              (tenant_id, subscription, device_token, user_type, user_id, created_at, updated_at) 
