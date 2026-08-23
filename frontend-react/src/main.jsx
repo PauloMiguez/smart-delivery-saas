@@ -4,6 +4,20 @@ import App from './App.jsx';
 import './index.css';
 
 // ============================================
+// FUNÇÃO PARA CONVERTER CHAVE VAPID
+// ============================================
+const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+};
+
+// ============================================
 // REGISTRO DO SERVICE WORKER COM TENANT
 // ============================================
 const registerSW = async () => {
@@ -13,12 +27,10 @@ const registerSW = async () => {
     }
 
     try {
-        // ✅ OBTER TENANT DA URL
         const urlParams = new URLSearchParams(window.location.search);
         const tenant = urlParams.get('tenant') || 'fireburger';
-        
-        // ✅ REGISTRAR SW COM TENANT NA URL
         const swUrl = `/service-worker.js?tenant=${encodeURIComponent(tenant)}`;
+
         console.log(`📱 Registrando SW com tenant: ${tenant}`, swUrl);
 
         const registration = await navigator.serviceWorker.register(swUrl, {
@@ -28,23 +40,61 @@ const registerSW = async () => {
         console.log('✅ Service Worker registrado! Scope:', registration.scope);
 
         // ✅ ENVIAR TENANT PARA O SW
-        if (registration.active) {
-            registration.active.postMessage({
-                type: 'SET_TENANT',
-                tenant: tenant
-            });
-            console.log(`📱 Tenant enviado para SW: ${tenant}`);
-        } else {
+        const sendTenantToSW = (reg) => {
+            if (reg.active) {
+                reg.active.postMessage({
+                    type: 'SET_TENANT',
+                    tenant: tenant
+                });
+                console.log(`📱 Tenant enviado para SW: ${tenant}`);
+                return true;
+            }
+            return false;
+        };
+
+        // Tentar enviar imediatamente
+        if (!sendTenantToSW(registration)) {
             // Aguardar o SW ficar ativo
             registration.addEventListener('activate', () => {
-                if (registration.active) {
-                    registration.active.postMessage({
-                        type: 'SET_TENANT',
-                        tenant: tenant
+                sendTenantToSW(registration);
+            });
+        }
+
+        // ✅ Aguardar o SW ficar ativo ANTES de tentar inscrever
+        await navigator.serviceWorker.ready;
+
+        // ✅ Verificar se o SW está ativo
+        const swRegistration = await navigator.serviceWorker.ready;
+        if (!swRegistration.active) {
+            console.log('⏳ Aguardando SW ativar...');
+            await new Promise(resolve => {
+                if (swRegistration.active) {
+                    resolve();
+                } else {
+                    swRegistration.addEventListener('activate', () => {
+                        resolve();
                     });
-                    console.log(`📱 Tenant enviado para SW (após activate): ${tenant}`);
                 }
             });
+        }
+
+        console.log('✅ SW ativo, pronto para inscrição!');
+
+        // ✅ Tentar inscrever com retry
+        if ('Notification' in window) {
+            const permission = Notification.permission;
+            console.log(`🔔 Permissão de notificação: ${permission}`);
+
+            if (permission === 'granted') {
+                console.log('✅ Permissão concedida!');
+                await subscribeToPush(tenant);
+            } else if (permission === 'default') {
+                console.log('📱 Solicitando permissão...');
+                const result = await Notification.requestPermission();
+                if (result === 'granted') {
+                    await subscribeToPush(tenant);
+                }
+            }
         }
 
         registration.addEventListener('updatefound', () => {
@@ -54,39 +104,13 @@ const registerSW = async () => {
             newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'activated') {
                     console.log('📦 Nova versão instalada!');
-                    // ✅ Enviar tenant para o novo SW
-                    if (registration.active) {
-                        registration.active.postMessage({
-                            type: 'SET_TENANT',
-                            tenant: tenant
-                        });
-                        console.log(`📱 Tenant enviado para novo SW: ${tenant}`);
-                    }
+                    sendTenantToSW(registration);
+                    // Tentar inscrever novamente
+                    setTimeout(() => subscribeToPush(tenant), 1000);
                     window.dispatchEvent(new CustomEvent('swUpdate'));
                 }
             });
         });
-
-        // ✅ Verificar se já existe e enviar tenant
-        if (registration.active) {
-            setTimeout(() => {
-                registration.active?.postMessage({
-                    type: 'SET_TENANT',
-                    tenant: tenant
-                });
-                console.log(`📱 Tenant reenviado para SW (ready): ${tenant}`);
-            }, 500);
-        }
-
-        if ('Notification' in window) {
-            const permission = Notification.permission;
-            console.log(`🔔 Permissão de notificação: ${permission}`);
-
-            if (permission === 'granted') {
-                console.log('✅ Permissão concedida!');
-                await subscribeToPush(registration, tenant);
-            }
-        }
 
         return registration;
     } catch (error) {
@@ -95,23 +119,36 @@ const registerSW = async () => {
 };
 
 // ============================================
-// SUBSCRIÇÃO PUSH COM TENANT
+// SUBSCRIÇÃO PUSH COM TENANT E RETRY
 // ============================================
-const subscribeToPush = async (registration, tenant) => {
+const subscribeToPush = async (tenant, retryCount = 0) => {
     try {
-        const existingSubscription = await registration.pushManager.getSubscription();
-        if (existingSubscription) {
-            console.log('✅ Já inscrito para notificações push');
-            return existingSubscription;
+        const maxRetries = 3;
+        const swRegistration = await navigator.serviceWorker.ready;
+
+        if (!swRegistration.active) {
+            console.log('⏳ SW não está ativo, aguardando...');
+            await new Promise(resolve => {
+                if (swRegistration.active) {
+                    resolve();
+                } else {
+                    swRegistration.addEventListener('activate', () => {
+                        resolve();
+                    });
+                }
+            });
         }
 
-        console.log('📱 Tentando inscrever após instalação do SW...');
-        console.log('📱 Aguardando Service Worker estar pronto...');
+        // Verificar se já está inscrito
+        let subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) {
+            console.log('✅ Já inscrito para notificações push');
+            return subscription;
+        }
 
-        // Aguardar o SW ficar pronto
-        const swRegistration = await navigator.serviceWorker.ready;
-        console.log('📱 Service Worker pronto!');
+        console.log('📱 Tentando inscrever para push...');
 
+        // Buscar chave VAPID
         const response = await fetch('/api/notifications/vapid-public-key');
         const data = await response.json();
         const publicKey = data.publicKey;
@@ -121,27 +158,14 @@ const subscribeToPush = async (registration, tenant) => {
             return null;
         }
 
-        console.log('📱 Buscando chave VAPID pública...');
         console.log('📱 Convertendo chave VAPID...');
-
-        // Converter chave para Uint8Array
-        const applicationServerKey = (key) => {
-            const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        };
-
-        const vapidKey = applicationServerKey(publicKey);
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
         console.log('✅ Chave VAPID convertida para Uint8Array');
 
         console.log('📱 Inscrevendo para push...');
-        const subscription = await swRegistration.pushManager.subscribe({
+        subscription = await swRegistration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: vapidKey
+            applicationServerKey: applicationServerKey
         });
 
         console.log('✅ Inscrito para push!');
@@ -164,8 +188,17 @@ const subscribeToPush = async (registration, tenant) => {
 
         console.log('🎉✅ INSCRIÇÃO COMPLETA!');
         return subscription;
+
     } catch (error) {
-        console.error('❌ Erro ao inscrever para push:', error);
+        console.error(`❌ Erro ao inscrever para push (tentativa ${retryCount + 1}):`, error);
+
+        if (retryCount < 3) {
+            console.log(`🔄 Tentando novamente em ${(retryCount + 1) * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+            return subscribeToPush(tenant, retryCount + 1);
+        }
+
+        console.error('❌ Falha após 3 tentativas');
         return null;
     }
 };
@@ -179,16 +212,20 @@ const requestNotificationPermission = async () => {
         return false;
     }
 
-    const permission = await Notification.requestPermission();
+    try {
+        const permission = await Notification.requestPermission();
 
-    if (permission === 'granted') {
-        console.log('✅ Permissão concedida!');
-        const registration = await navigator.serviceWorker.ready;
-        const tenant = new URLSearchParams(window.location.search).get('tenant') || 'fireburger';
-        await subscribeToPush(registration, tenant);
-        return true;
-    } else {
-        console.warn('❌ Permissão negada:', permission);
+        if (permission === 'granted') {
+            console.log('✅ Permissão concedida!');
+            const tenant = new URLSearchParams(window.location.search).get('tenant') || 'fireburger';
+            await subscribeToPush(tenant);
+            return true;
+        } else {
+            console.warn('❌ Permissão negada:', permission);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao solicitar permissão:', error);
         return false;
     }
 };
@@ -197,22 +234,19 @@ const requestNotificationPermission = async () => {
 // INICIALIZAÇÃO
 // ============================================
 
-// Registrar SW ao carregar
 if (document.readyState === 'complete') {
     registerSW();
 } else {
     window.addEventListener('load', registerSW);
 }
 
-// ✅ CORRIGIDO: NÃO recarrega automaticamente
 navigator.serviceWorker?.addEventListener('controllerchange', () => {
     console.log('🔄 Service Worker atualizado!');
-    // ✅ Apenas notifica, sem recarregar
     window.dispatchEvent(new CustomEvent('swUpdate'));
 });
 
 // ============================================
-// EXPORTAR FUNÇÕES PARA USO NO APP
+// EXPORTAR FUNÇÕES
 // ============================================
 window.__PWA = {
     registerSW,
