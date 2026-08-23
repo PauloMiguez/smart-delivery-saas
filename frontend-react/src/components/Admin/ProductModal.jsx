@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
 import { api } from '../../services/api';
 import {
     ModalOverlay,
