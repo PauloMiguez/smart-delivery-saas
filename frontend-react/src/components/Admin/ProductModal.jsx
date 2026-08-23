@@ -22,13 +22,70 @@ import {
     RemoveImageButton
 } from '../Shared/Modal.styled';
 
+// ============================================================
+//  STYLED COMPONENTS PARA O SELETOR DE ACOMPANHAMENTO
+// ============================================================
+const AddonToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: ${props => props.$isChecked ? '#e8f5e9' : '#f8f9fa'};
+  border-radius: 8px;
+  border: 2px solid ${props => props.$isChecked ? '#2e7d32' : '#e0e0e0'};
+  transition: all 0.3s ease;
+  margin-top: 4px;
+`;
+
+const AddonToggleLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${props => props.$isChecked ? '#2e7d32' : '#555'};
+  flex: 1;
+  user-select: none;
+`;
+
+const AddonToggleInput = styled.input`
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #2e7d32;
+  flex-shrink: 0;
+`;
+
+const AddonToggleDescription = styled.span`
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+  display: block;
+  margin-top: 2px;
+`;
+
+const AddonBadge = styled.span`
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  background: ${props => props.$isAddon ? '#2e7d32' : '#e0e0e0'};
+  color: ${props => props.$isAddon ? '#fff' : '#888'};
+  margin-left: 8px;
+`;
+
+// ============================================================
+//  COMPONENTE PRINCIPAL
+// ============================================================
 const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         price: '',
         category: '',
-        active: true
+        active: true,
+        is_addon: false // ✅ CAMPO DE ACOMPANHAMENTO
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
@@ -42,7 +99,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                 description: product.description || '',
                 price: product.price || '',
                 category: product.category || '',
-                active: product.active === 1 || product.active === true
+                active: product.active === 1 || product.active === true,
+                is_addon: product.is_addon === 1 || product.is_addon === true // ✅ CARREGAR VALOR
             });
             setImagePreview(product.image_url || '');
         } else {
@@ -51,7 +109,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                 description: '',
                 price: '',
                 category: categories[0]?.name || '',
-                active: true
+                active: true,
+                is_addon: false
             });
             setImagePreview('');
             setImageFile(null);
@@ -131,7 +190,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                 ...formData,
                 price: parseFloat(formData.price),
                 image: imageUrl,
-                active: formData.active ? 1 : 0
+                active: formData.active ? 1 : 0,
+                is_addon: formData.is_addon ? 1 : 0 // ✅ ENVIAR PARA O BACKEND
             };
 
             delete productData._removeImage;
@@ -215,6 +275,34 @@ const ProductModal = ({ isOpen, onClose, onSave, product, categories }) => {
                             </Select>
                         </FormGroup>
                     </FormRow>
+
+                    {/* ✅ SELETOR DE ACOMPANHAMENTO */}
+                    <FormGroup>
+                        <label>Configuração do produto</label>
+                        <AddonToggleContainer $isChecked={formData.is_addon}>
+                            <AddonToggleLabel $isChecked={formData.is_addon}>
+                                <AddonToggleInput
+                                    type="checkbox"
+                                    name="is_addon"
+                                    checked={formData.is_addon}
+                                    onChange={handleChange}
+                                />
+                                <div>
+                                    <span>
+                                        {formData.is_addon ? '✅ É um acompanhamento' : '📦 É um produto principal'}
+                                        <AddonBadge $isAddon={formData.is_addon}>
+                                            {formData.is_addon ? 'Acompanhamento' : 'Principal'}
+                                        </AddonBadge>
+                                    </span>
+                                    <AddonToggleDescription>
+                                        {formData.is_addon 
+                                            ? 'Este produto aparecerá como opção de acompanhamento no modal' 
+                                            : 'Este produto aparecerá no cardápio principal'}
+                                    </AddonToggleDescription>
+                                </div>
+                            </AddonToggleLabel>
+                        </AddonToggleContainer>
+                    </FormGroup>
 
                     <FormGroup>
                         <label>Imagem do produto</label>
