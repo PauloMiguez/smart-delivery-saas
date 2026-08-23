@@ -1,3 +1,7 @@
+/* ============================================================
+   CATEGORY MODAL - ESTILOS COMPLETOS
+   ============================================================ */
+
 .modal-category {
     max-width: 450px;
 }
@@ -6,6 +10,39 @@
     color: #888;
     font-size: 12px;
     margin-top: 4px;
+}
+
+/* ✅ HINT COM PREVIEW */
+.hint-preview {
+    color: #2e7d32;
+    font-weight: 500;
+    font-style: italic;
+}
+
+/* ✅ CAMPO DE DESCRIÇÃO */
+.form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #E0E0E0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 60px;
+    background: #FFFFFF !important;
+    color: #2D3436 !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: #E67E22;
+    box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.15);
+}
+
+.form-textarea::placeholder {
+    color: #B2BEC3;
 }
 
 /* Reutiliza os estilos do ProductModal */
@@ -223,10 +260,10 @@
     }
 
     .form-group input,
-    .form-group select {
+    .form-group select,
+    .form-textarea {
         font-size: 16px;
         padding: 14px 16px;
-        /* Previne zoom automático no iOS */
         -webkit-appearance: none;
         appearance: none;
         border-radius: 8px;
@@ -276,7 +313,8 @@
     }
 
     .form-group input,
-    .form-group select {
+    .form-group select,
+    .form-textarea {
         font-size: 15px;
         padding: 12px 14px;
         border-radius: 8px;

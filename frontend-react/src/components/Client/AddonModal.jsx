@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { X, Plus, Minus, Check } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
+import { useTenant } from '../../contexts/TenantContext';
+import { useToast } from '../../contexts/ToastContext';
+import { api } from '../../services/api';
 
 // ============================================================
 //  FUNÇÃO PARA FORMATAR PREÇO
@@ -12,9 +15,9 @@ const formatPrice = (value) => {
 };
 
 // ============================================================
-//  DESCRIÇÕES POR CATEGORIA
+//  DESCRIÇÕES PADRÃO (FALLBACK)
 // ============================================================
-const groupDescriptions = {
+const DEFAULT_DESCRIPTIONS = {
     'Bebidas': 'Refrigerantes, sucos, águas e mais',
     'Acompanhamentos': 'Batatas, nuggets, anéis de cebola e mais',
     'Adicionais': 'Bacon, queijo, ovos e carnes extras',
@@ -327,13 +330,70 @@ const AddonBadge = styled.span`
   font-weight: 600;
 `;
 
+const Loading = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: #888;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: #888;
+`;
+
 // ============================================================
-//  COMPONENTE PRINCIPAL
+//  COMPONENTE PRINCIPAL - VERSÃO CORRIGIDA
 // ============================================================
-const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
+const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
+    const { tenant } = useTenant();
     const { addAddonToItem, removeAddonFromItem, updateAddonQuantity } = useCart();
+    const { showToast } = useToast();
     const [selectedAddons, setSelectedAddons] = useState({});
     const [totalPrice, setTotalPrice] = useState(0);
+    const [availableAddons, setAvailableAddons] = useState([]);
+    const [categories, setCategories] = useState([]); // ✅ PARA DESCRIÇÕES
+    const [loading, setLoading] = useState(false);
+
+    // ✅ Carregar addons E CATEGORIAS quando o modal abrir
+    useEffect(() => {
+        if (isOpen && item) {
+            console.log('🔍 [ADDON] Modal aberto para:', item.name);
+            loadData();
+        }
+    }, [isOpen, item]);
+
+    // ✅ Carregar addons e categorias
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const tenantId = tenant || 'fireburger';
+            console.log('📤 [ADDON] Buscando dados para tenant:', tenantId);
+
+            // Buscar addons
+            const addonsRes = await api.get(`/products/addons?tenant=${tenantId}`);
+            const addons = addonsRes.data.data || [];
+            console.log(`✅ [ADDON] ${addons.length} addons encontrados`);
+
+            // Filtrar para não mostrar o próprio item
+            const filtered = addons.filter(a => a.id !== item.id);
+            setAvailableAddons(filtered);
+
+            // ✅ Buscar categorias para descrições
+            const categoriesRes = await api.get(`/categories?tenant=${tenantId}`);
+            const categoriesData = categoriesRes.data.data || [];
+            setCategories(categoriesData);
+            console.log(`✅ [CATEGORIAS] ${categoriesData.length} categorias carregadas`);
+
+            if (filtered.length === 0) {
+                showToast('Nenhum acompanhamento disponível para este produto', 'info');
+            }
+        } catch (error) {
+            console.error('❌ [ADDON] Erro ao buscar dados:', error);
+            showToast('Erro ao carregar acompanhamentos', 'error');
+        }
+        setLoading(false);
+    };
 
     // ✅ Inicializar com os addons já selecionados
     useEffect(() => {
@@ -344,7 +404,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
             });
             setSelectedAddons(initial);
         } else {
-            // Se não tiver addons, resetar
             setSelectedAddons({});
         }
     }, [item]);
@@ -353,11 +412,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
     useEffect(() => {
         if (!item) return;
 
-        // Preço base do item
         let total = parseFloat(item.price) || 0;
         total = total * (item.qty || 1);
 
-        // Somar addons
         Object.keys(selectedAddons).forEach(addonId => {
             const qty = selectedAddons[addonId] || 0;
             const addon = availableAddons?.find(a => a.id === parseInt(addonId));
@@ -371,6 +428,17 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
 
     if (!isOpen || !item) return null;
 
+    // ✅ Função para obter descrição da categoria (dinâmica)
+    const getCategoryDescription = (categoryName) => {
+        // Buscar no backend primeiro
+        const category = categories.find(c => c.name === categoryName);
+        if (category?.description) {
+            return category.description;
+        }
+        // Fallback para descrições padrão
+        return DEFAULT_DESCRIPTIONS[categoryName] || '';
+    };
+
     const handleQuantityChange = (addonId, delta) => {
         const currentQty = selectedAddons[addonId] || 0;
         const newQty = Math.max(0, currentQty + delta);
@@ -380,17 +448,14 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
             [addonId]: newQty
         }));
 
-        // Atualizar no carrinho
         if (newQty === 0) {
             removeAddonFromItem(itemIndex, addonId);
         } else {
             const addon = availableAddons?.find(a => a.id === parseInt(addonId));
             if (addon) {
                 if (currentQty === 0) {
-                    // Adicionar novo addon
                     addAddonToItem(itemIndex, addon);
                 } else {
-                    // Atualizar quantidade
                     updateAddonQuantity(itemIndex, addonId, newQty);
                 }
             }
@@ -440,41 +505,50 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex, availableAddons }) => {
                     </ProductInfo>
 
                     <AddonsSection>
-                        {groupedAddons && Object.keys(groupedAddons).map(category => (
-                            <AddonGroup key={category}>
-                                <GroupHeader>
-                                    <GroupTitle>{category}</GroupTitle>
-                                    <GroupDescription>
-                                        {groupDescriptions[category] || ''}
-                                    </GroupDescription>
-                                </GroupHeader>
+                        {loading ? (
+                            <Loading>Carregando acompanhamentos...</Loading>
+                        ) : groupedAddons && Object.keys(groupedAddons).length > 0 ? (
+                            Object.keys(groupedAddons).map(category => (
+                                <AddonGroup key={category}>
+                                    <GroupHeader>
+                                        <GroupTitle>{category}</GroupTitle>
+                                        {/* ✅ DESCRIÇÃO DINÂMICA */}
+                                        <GroupDescription>
+                                            {getCategoryDescription(category)}
+                                        </GroupDescription>
+                                    </GroupHeader>
 
-                                {groupedAddons[category].map(addon => {
-                                    const qty = selectedAddons[addon.id] || 0;
-                                    return (
-                                        <AddonItem key={addon.id}>
-                                            <AddonInfo>
-                                                <AddonName>{addon.name}</AddonName>
-                                                <AddonPrice>R$ {formatPrice(addon.price)}</AddonPrice>
-                                            </AddonInfo>
+                                    {groupedAddons[category].map(addon => {
+                                        const qty = selectedAddons[addon.id] || 0;
+                                        return (
+                                            <AddonItem key={addon.id}>
+                                                <AddonInfo>
+                                                    <AddonName>{addon.name}</AddonName>
+                                                    <AddonPrice>R$ {formatPrice(addon.price)}</AddonPrice>
+                                                </AddonInfo>
 
-                                            <QuantityControls>
-                                                <QuantityButton
-                                                    onClick={() => handleQuantityChange(addon.id, -1)}
-                                                    disabled={qty === 0}
-                                                >
-                                                    <Minus size={16} />
-                                                </QuantityButton>
-                                                <Quantity>{qty}</Quantity>
-                                                <QuantityButton onClick={() => handleQuantityChange(addon.id, 1)}>
-                                                    <Plus size={16} />
-                                                </QuantityButton>
-                                            </QuantityControls>
-                                        </AddonItem>
-                                    );
-                                })}
-                            </AddonGroup>
-                        ))}
+                                                <QuantityControls>
+                                                    <QuantityButton
+                                                        onClick={() => handleQuantityChange(addon.id, -1)}
+                                                        disabled={qty === 0}
+                                                    >
+                                                        <Minus size={16} />
+                                                    </QuantityButton>
+                                                    <Quantity>{qty}</Quantity>
+                                                    <QuantityButton onClick={() => handleQuantityChange(addon.id, 1)}>
+                                                        <Plus size={16} />
+                                                    </QuantityButton>
+                                                </QuantityControls>
+                                            </AddonItem>
+                                        );
+                                    })}
+                                </AddonGroup>
+                            ))
+                        ) : (
+                            <EmptyState>
+                                {loading ? 'Carregando...' : 'Nenhum acompanhamento disponível para este produto'}
+                            </EmptyState>
+                        )}
                     </AddonsSection>
 
                     <Footer>

@@ -4,6 +4,7 @@ import './CategoryModal.css';
 const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
     const [formData, setFormData] = useState({
         name: '',
+        description: '', // ✅ ADICIONADO
         display_order: 1
     });
     const [loading, setLoading] = useState(false);
@@ -13,11 +14,13 @@ const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
         if (category) {
             setFormData({
                 name: category.name || '',
+                description: category.description || '', // ✅ CARREGAR DESCRIÇÃO
                 display_order: category.display_order || 1
             });
         } else {
             setFormData({
                 name: '',
+                description: '', // ✅ RESETAR
                 display_order: 1
             });
         }
@@ -78,6 +81,27 @@ const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
                             required
                             autoFocus
                         />
+                    </div>
+
+                    {/* ✅ CAMPO DE DESCRIÇÃO */}
+                    <div className="form-group">
+                        <label>Descrição da categoria</label>
+                        <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            placeholder="Ex: Refrigerantes, sucos, águas e mais"
+                            rows="2"
+                            className="form-textarea"
+                        />
+                        <small className="field-hint">
+                            Esta descrição aparecerá no modal de acompanhamentos.
+                            {formData.description && (
+                                <span className="hint-preview">
+                                    {' '}Preview: "{formData.description}"
+                                </span>
+                            )}
+                        </small>
                     </div>
 
                     <div className="form-group">
