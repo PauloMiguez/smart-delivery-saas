@@ -25,7 +25,6 @@ const isCustomDomain = () => {
 // ============================================================
 const getOrCreateDeviceToken = async (tenantId) => {
     try {
-        // Verificar se o Service Worker está disponível
         if (!('serviceWorker' in navigator)) {
             console.log('⚠️ Service Worker não disponível');
             return null;
@@ -34,7 +33,6 @@ const getOrCreateDeviceToken = async (tenantId) => {
         const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
         
-        // ✅ SE NÃO TIVER INSCRIÇÃO, TENTAR CRIAR (como CLIENTE)
         if (!subscription) {
             console.log('🔄 Nenhuma inscrição encontrada. Criando como CLIENTE...');
             
@@ -64,7 +62,6 @@ const getOrCreateDeviceToken = async (tenantId) => {
                 
                 console.log('✅ Nova inscrição criada!');
                 
-                // ✅ SALVAR COMO CLIENTE
                 const tenant = tenantId || 'fireburger';
                 await fetch('/api/notifications/subscribe', {
                     method: 'POST',
@@ -74,7 +71,7 @@ const getOrCreateDeviceToken = async (tenantId) => {
                     body: JSON.stringify({
                         subscription: subscription,
                         tenant: tenant,
-                        userType: 'client' // ✅ CLIENTE
+                        userType: 'client'
                     })
                 });
                 
@@ -150,6 +147,14 @@ const SummaryItem = styled.div`
     }
 `;
 
+const AddonSummary = styled.div`
+    font-size: 12px;
+    color: ${props => props.theme.colors.textMuted};
+    padding-left: 16px;
+    border-left: 2px solid #e74c3c;
+    margin: 2px 0 4px 0;
+`;
+
 const TotalRow = styled.div`
     display: flex;
     justify-content: space-between;
@@ -159,17 +164,6 @@ const TotalRow = styled.div`
     font-size: 18px;
     font-weight: 700;
     color: ${props => props.theme.colors.text};
-`;
-
-const DiscountBadge = styled.div`
-    background: #e8f5e9;
-    color: #2e7d32;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    display: inline-block;
-    border: 1px solid #a5d6a7;
 `;
 
 const Form = styled.form`
@@ -416,7 +410,7 @@ const openWhatsApp = (phoneNumber, message) => {
 const Checkout = () => {
     const navigate = useNavigate();
     const { tenant } = useTenant();
-    const { cart, subtotal, clearCart } = useCart();
+    const { cart, subtotal, clearCart, getItemTotal } = useCart();
     const { showToast } = useToast();
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -439,9 +433,6 @@ const Checkout = () => {
     const [isManualDelivery, setIsManualDelivery] = useState(false);
     const [deliveryMessage, setDeliveryMessage] = useState('');
 
-    // ============================================================
-    //  STATE PARA DESCONTO
-    // ============================================================
     const [discount, setDiscount] = useState(0);
     const [discountPercentage, setDiscountPercentage] = useState(0);
     const [discountReason, setDiscountReason] = useState('');
@@ -512,9 +503,6 @@ const Checkout = () => {
         };
     }, [config]);
 
-    // ============================================================
-    //  ATUALIZAR DESCONTO QUANDO MUDAR PAGAMENTO
-    // ============================================================
     useEffect(() => {
         if (config && subtotal > 0) {
             const result = calculateDiscount(paymentMethod, subtotal);
@@ -707,7 +695,7 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  NAVEGAÇÃO - CORRIGIDA PARA DOMÍNIOS PERSONALIZADOS
+    //  NAVEGAÇÃO
     // ============================================================
     const navigateTo = (path) => {
         const custom = isCustomDomain();
@@ -719,13 +707,13 @@ const Checkout = () => {
     };
 
     // ============================================================
-    //  CALCULAR TOTAL COM DESCONTO
+    //  CALCULAR TOTAL
     // ============================================================
     const totalWithDiscount = subtotal - discount;
     const finalTotal = totalWithDiscount + deliveryFee;
 
     // ============================================================
-    //  SUBMIT - CORRIGIDO COM DEVICE_TOKEN E user_type: 'client'
+    //  SUBMIT - COM ACOMPANHAMENTOS
     // ============================================================
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -752,31 +740,45 @@ const Checkout = () => {
                 ? formatScheduledTime(selectedSchedule.datetime)
                 : null;
 
-            // ✅ OBTER OU CRIAR DEVICE_TOKEN (como CLIENTE)
             const deviceToken = await getOrCreateDeviceToken(tenant);
             console.log('📱 Device token para o pedido:', deviceToken ? '✅ obtido' : '❌ não disponível');
+
+            // ✅ Calcular subtotal com acompanhamentos
+            const subtotalWithAddons = cart.reduce((sum, item) => {
+                return sum + getItemTotal(item);
+            }, 0);
+
+            // ✅ Preparar itens com acompanhamentos
+            const orderItems = cart.map(item => ({
+                id: item.id || 0,
+                name: item.name || 'Produto',
+                price: parseFloat(item.price) || 0,
+                qty: parseInt(item.qty) || 1,
+                // ✅ Incluir acompanhamentos
+                addons: (item.addons || []).map(addon => ({
+                    id: addon.id,
+                    name: addon.name,
+                    price: parseFloat(addon.price) || 0,
+                    quantity: parseInt(addon.quantity) || 1
+                }))
+            }));
 
             const orderData = {
                 customer_name: formData.name.trim(),
                 customer_phone: formData.phone.trim(),
                 customer_address: formData.address.trim(),
-                items: cart.map(item => ({
-                    id: item.id || 0,
-                    name: item.name || 'Produto',
-                    price: parseFloat(item.price) || 0,
-                    qty: parseInt(item.qty) || 1
-                })),
-                subtotal: subtotal,
+                items: orderItems,
+                subtotal: subtotalWithAddons,
                 delivery_fee: deliveryFee,
                 discount: discount,
                 discount_percentage: discountPercentage,
                 discount_reason: discountReason,
-                total: finalTotal,
+                total: subtotalWithAddons + deliveryFee - discount,
                 payment_method: paymentMethod,
                 delivery_type: 'delivery',
                 is_scheduled: isScheduled || !isStoreOpen ? true : false,
                 scheduled_time: scheduledTimeToSend,
-                device_token: deviceToken // ✅ ADICIONAR DEVICE_TOKEN
+                device_token: deviceToken
             };
 
             if (!isStoreOpen && !selectedSchedule) {
@@ -784,7 +786,7 @@ const Checkout = () => {
                 return;
             }
 
-            console.log('📦 Enviando pedido com desconto:', orderData);
+            console.log('📦 Enviando pedido com acompanhamentos:', orderData);
 
             const response = await api.post('/orders', orderData);
             console.log('✅ Pedido criado:', response.data);
@@ -827,6 +829,17 @@ const Checkout = () => {
                 ? `   *Desconto (${discountPercentage}%):* - R$ ${discount.toFixed(2)}\n`
                 : '';
 
+            // ✅ Itens com acompanhamentos
+            const itemsText = orderItems.map(item => {
+                let text = `  • ${item.qty}x ${item.name} = R$ ${(item.price * item.qty).toFixed(2)}`;
+                if (item.addons && item.addons.length > 0) {
+                    item.addons.forEach(addon => {
+                        text += `\n     + ${addon.quantity}x ${addon.name} (R$ ${(addon.price * addon.quantity).toFixed(2)})`;
+                    });
+                }
+                return text;
+            }).join('\n');
+
             const message =
                 `🍽️ *NOVO PEDIDO #${orderNumber}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -834,13 +847,13 @@ const Checkout = () => {
                 `📱 *Telefone:* ${formData.phone}\n` +
                 `📍 *Endereço:* ${formData.address}${scheduledText}\n\n` +
                 `🛒 *Itens:*\n` +
-                cart.map(i => `  • ${i.qty}x ${i.name} = R$ ${(i.price * i.qty).toFixed(2)}`).join('\n') +
+                itemsText +
                 `\n\n *Resumo:*\n` +
-                `  Subtotal: R$ ${subtotal.toFixed(2)}\n` +
+                `  Subtotal: R$ ${subtotalWithAddons.toFixed(2)}\n` +
                 `  ${deliveryFeeText}\n` +
                 `${discountText}` +
                 `  ─────────────────────\n` +
-                `  *TOTAL: R$ ${finalTotal.toFixed(2)}*\n\n` +
+                `  *TOTAL: R$ ${(subtotalWithAddons + deliveryFee - discount).toFixed(2)}*\n\n` +
                 `💳 *Pagamento:* ${paymentMethod}\n` +
                 `━━━━━━━━━━━━━━━━━━━━━\n` +
                 `🔗 *Acompanhe seu pedido:*\n` +
@@ -959,23 +972,46 @@ const Checkout = () => {
                 </FormGroup>
 
                 {/* ============================================================
-                    RESUMO DO PEDIDO COM DESCONTO - SIMPLIFICADO
+                    RESUMO DO PEDIDO COM ACOMPANHAMENTOS
                     ============================================================ */}
                 <SummaryCard>
                     <h3 style={{ fontSize: 16, color: '#555', marginBottom: 12 }}>📋 Resumo do pedido</h3>
-                    {cart.map(item => (
-                        <SummaryItem key={item.id}>
-                            <span className="name">{item.qty}x {item.name}</span>
-                            <span>R$ {(item.price * item.qty).toFixed(2)}</span>
-                        </SummaryItem>
-                    ))}
                     
-                    <SummaryItem>
+                    {cart.map(item => {
+                        const itemTotal = getItemTotal(item);
+                        const hasAddons = item.addons && item.addons.length > 0;
+                        
+                        return (
+                            <div key={item.id}>
+                                <SummaryItem>
+                                    <span className="name">{item.qty}x {item.name}</span>
+                                    <span>R$ {(item.price * item.qty).toFixed(2)}</span>
+                                </SummaryItem>
+                                
+                                {/* ✅ EXIBIR ACOMPANHAMENTOS NO RESUMO */}
+                                {hasAddons && item.addons.map((addon, idx) => (
+                                    <AddonSummary key={idx}>
+                                        <span>+ {addon.quantity}x {addon.name}</span>
+                                        <span>R$ {(addon.price * addon.quantity).toFixed(2)}</span>
+                                    </AddonSummary>
+                                ))}
+                                
+                                {/* ✅ TOTAL DO ITEM COM ACOMPANHAMENTOS */}
+                                {hasAddons && (
+                                    <SummaryItem style={{ fontSize: '12px', color: '#888', borderTop: '1px dashed #eee', paddingTop: '4px', marginTop: '2px' }}>
+                                        <span className="name">Total do item</span>
+                                        <span>R$ {itemTotal.toFixed(2)}</span>
+                                    </SummaryItem>
+                                )}
+                            </div>
+                        );
+                    })}
+                    
+                    <SummaryItem style={{ borderTop: '1px solid #eee', paddingTop: '12px', marginTop: '8px' }}>
                         <span className="name">Subtotal</span>
                         <span>R$ {subtotal.toFixed(2)}</span>
                     </SummaryItem>
 
-                    {/* ✅ DESCONTO - UMA ÚNICA LINHA */}
                     {isDiscountApplied && discount > 0 && (
                         <SummaryItem style={{ color: '#2e7d32', fontWeight: '500' }}>
                             <span className="name">Desconto ({discountPercentage}% para pagamento em {paymentMethod})</span>
@@ -996,10 +1032,9 @@ const Checkout = () => {
 
                     <TotalRow>
                         <span>Total {isDiscountApplied && <span style={{ fontSize: '14px', color: '#2e7d32' }}>(com desconto)</span>}</span>
-                        <span>R$ {finalTotal.toFixed(2)}</span>
+                        <span>R$ {(subtotal + deliveryFee - discount).toFixed(2)}</span>
                     </TotalRow>
 
-                    {/* ✅ BADGE DE DESCONTO - UMA ÚNICA VEZ */}
                     {isDiscountApplied && discount > 0 && (
                         <div style={{
                             marginTop: '10px',
@@ -1150,7 +1185,7 @@ const Checkout = () => {
                     primary
                     disabled={loading || (!isStoreOpen && !selectedSchedule)}
                 >
-                    {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${finalTotal.toFixed(2)}`}
+                    {loading ? 'Enviando...' : `✅ Confirmar Pedido - R$ ${(subtotal + deliveryFee - discount).toFixed(2)}`}
                 </SubmitButton>
 
                 {!isStoreOpen && !selectedSchedule && !loading && (

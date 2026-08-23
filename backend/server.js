@@ -922,19 +922,57 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
+// ============================================================
+//  ROTA PARA BUSCAR ACOMPANHAMENTOS (ADDONS)
+// ============================================================
+
+app.get('/api/products/addons', async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        if (!tenantId) {
+            return res.status(404).json({
+                success: false,
+                error: 'Tenant não encontrado'
+            });
+        }
+
+        console.log(`📊 Buscando acompanhamentos para tenant: ${tenantId}`);
+
+        const [products] = await pool.query(
+            `SELECT id, name, description, price, category, image_url 
+             FROM products 
+             WHERE tenant_id = ? 
+               AND is_addon = 1 
+               AND active = 1
+             ORDER BY category, name`,
+            [tenantId]
+        );
+
+        console.log(`✅ ${products.length} acompanhamentos encontrados`);
+        res.json({ success: true, data: products });
+
+    } catch (error) {
+        console.error('❌ Erro ao buscar acompanhamentos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar acompanhamentos: ' + error.message
+        });
+    }
+});
+
 app.post('/api/products', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const { name, description, price, category, active = true, image } = req.body;
+        const { name, description, price, category, active = true, image, is_addon = 0 } = req.body;
 
         if (!name || !price) {
             return res.status(400).json({ success: false, error: 'Nome e preço são obrigatórios' });
         }
 
         const [result] = await pool.query(
-            `INSERT INTO products (tenant_id, name, description, price, category, active, image_url) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [tenantId, name, description || null, price, category || null, active ? 1 : 0, image || null]
+            `INSERT INTO products (tenant_id, name, description, price, category, active, image_url, is_addon) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [tenantId, name, description || null, price, category || null, active ? 1 : 0, image || null, is_addon ? 1 : 0]
         );
 
         res.status(201).json({
@@ -952,7 +990,7 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const productId = req.params.id;
-        const { name, description, price, category, active, image } = req.body;
+        const { name, description, price, category, active, image, is_addon } = req.body;
 
         if (!name || !price) {
             return res.status(400).json({ success: false, error: 'Nome e preço são obrigatórios' });
@@ -960,9 +998,11 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
 
         const [result] = await pool.query(
             `UPDATE products 
-             SET name = ?, description = ?, price = ?, category = ?, active = ?, image_url = ?
+             SET name = ?, description = ?, price = ?, category = ?, active = ?, image_url = ?,
+                 is_addon = ?
              WHERE id = ? AND tenant_id = ?`,
-            [name, description || null, price, category || null, active ? 1 : 0, image || null, productId, tenantId]
+            [name, description || null, price, category || null, active ? 1 : 0, image || null,
+                is_addon ? 1 : 0, productId, tenantId]
         );
 
         if (result.affectedRows === 0) {

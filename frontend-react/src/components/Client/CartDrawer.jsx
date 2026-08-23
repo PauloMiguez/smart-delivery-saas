@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useCart } from '../../contexts/CartContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { tokens } from '../../styles/tokens';
+import AddonModal from './AddonModal';
 
 // ============================================================
 //  FUNÇÃO PARA FORMATAR PREÇO
@@ -93,6 +94,14 @@ const CartItems = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${tokens.spacing.md};
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${tokens.colors.border};
+    border-radius: ${tokens.radius.sm};
+  }
 `;
 
 const EmptyCart = styled.div`
@@ -128,7 +137,7 @@ const CartItem = styled.div`
   gap: ${tokens.spacing.md};
   padding: ${tokens.spacing.sm} 0;
   border-bottom: 1px solid ${tokens.colors.border};
-  align-items: center;
+  align-items: flex-start;
 
   &:last-child {
     border-bottom: none;
@@ -164,6 +173,7 @@ const ItemImagePlaceholder = styled.div`
 
 const ItemInfo = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const ItemName = styled.p`
@@ -180,11 +190,54 @@ const ItemPrice = styled.p`
   margin: 0;
 `;
 
+// ✅ ESTILOS PARA ACOMPANHAMENTOS
+const AddonsList = styled.div`
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid ${tokens.colors.accent};
+`;
+
+const AddonItem = styled.div`
+  font-size: ${tokens.typography.fontSize.xs};
+  color: ${tokens.colors.textMuted};
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+`;
+
+// ✅ BOTÃO DE ACOMPANHAMENTOS
+const AddonButton = styled.button`
+  background: none;
+  border: 1px dashed ${tokens.colors.border};
+  color: ${tokens.colors.accent};
+  font-size: ${tokens.typography.fontSize.xs};
+  padding: 2px 10px;
+  border-radius: ${tokens.radius.sm};
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ${tokens.typography.fontFamily};
+
+  &:hover {
+    border-color: ${tokens.colors.accent};
+    background: ${tokens.colors.accentLight};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${tokens.colors.accent};
+    outline-offset: 2px;
+  }
+`;
+
 const ItemControls = styled.div`
   display: flex;
   align-items: center;
   gap: ${tokens.spacing.sm};
   margin-top: ${tokens.spacing.xs};
+  flex-wrap: wrap;
 `;
 
 const QtyButton = styled.button`
@@ -247,6 +300,15 @@ const RemoveButton = styled.button`
   }
 `;
 
+const ItemTotal = styled.div`
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: ${tokens.typography.fontWeight.semibold};
+  color: ${tokens.colors.accent};
+  align-self: flex-start;
+  margin-top: ${tokens.spacing.xs};
+  flex-shrink: 0;
+`;
+
 const Footer = styled.div`
   padding: ${tokens.spacing.md} ${tokens.spacing.lg};
   border-top: 1px solid ${tokens.colors.border};
@@ -304,11 +366,33 @@ const CheckoutButton = styled.button`
 const CartDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { tenant } = useTenant();
-  const { cart, subtotal, updateQty, removeFromCart } = useCart();
+  const { 
+    cart, 
+    subtotal, 
+    updateQty, 
+    removeItem,
+    getItemTotal,
+    hasAddons 
+  } = useCart();
+
+  const [selectedItemIndex, setSelectedItemIndex] = useState(null);
+  const [showAddonModal, setShowAddonModal] = useState(false);
 
   const handleCheckout = () => {
     onClose();
     navigate(`/checkout?tenant=${tenant}`);
+  };
+
+  // ✅ Abrir modal de acompanhamentos
+  const handleOpenAddons = (index) => {
+    setSelectedItemIndex(index);
+    setShowAddonModal(true);
+  };
+
+  // ✅ Fechar modal de acompanhamentos
+  const handleCloseAddons = () => {
+    setShowAddonModal(false);
+    setSelectedItemIndex(null);
   };
 
   const safeSubtotal = parseFloat(subtotal) || 0;
@@ -333,12 +417,12 @@ const CartDrawer = ({ isOpen, onClose }) => {
               <p>Adicione itens do cardápio para começar.</p>
             </EmptyCart>
           ) : (
-            cart.map(item => {
-              const price = parseFloat(item.price) || 0;
-              const itemTotal = price * (item.qty || 1);
+            cart.map((item, index) => {
+              const itemTotal = getItemTotal(item);
+              const hasAddonsSelected = hasAddons(item);
 
               return (
-                <CartItem key={item.id}>
+                <CartItem key={item.id || index}>
                   {item.image_url ? (
                     <ItemImage>
                       <img src={item.image_url} alt={item.name} />
@@ -349,7 +433,24 @@ const CartDrawer = ({ isOpen, onClose }) => {
 
                   <ItemInfo>
                     <ItemName>{item.name}</ItemName>
-                    <ItemPrice>R$ {formatPrice(price)}</ItemPrice>
+                    <ItemPrice>R$ {formatPrice(item.price)}</ItemPrice>
+
+                    {/* ✅ EXIBIR ACOMPANHAMENTOS SELECIONADOS */}
+                    {hasAddonsSelected && item.addons && item.addons.length > 0 && (
+                      <AddonsList>
+                        {item.addons.map((addon, idx) => (
+                          <AddonItem key={idx}>
+                            <span>+ {addon.name}</span>
+                            <span>{addon.quantity}x R$ {formatPrice(addon.price)}</span>
+                          </AddonItem>
+                        ))}
+                      </AddonsList>
+                    )}
+
+                    {/* ✅ BOTÃO PARA ADICIONAR/EDITAR ACOMPANHAMENTOS */}
+                    <AddonButton onClick={() => handleOpenAddons(index)}>
+                      {hasAddonsSelected ? '✏️ Editar acompanhamentos' : '➕ Adicionar acompanhamentos'}
+                    </AddonButton>
 
                     <ItemControls>
                       <QtyButton
@@ -366,7 +467,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
                         +
                       </QtyButton>
                       <RemoveButton
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeItem(index)}
                         aria-label="Remover item"
                       >
                         ✕
@@ -374,15 +475,9 @@ const CartDrawer = ({ isOpen, onClose }) => {
                     </ItemControls>
                   </ItemInfo>
 
-                  <div style={{
-                    fontSize: tokens.typography.fontSize.sm,
-                    fontWeight: tokens.typography.fontWeight.semibold,
-                    color: tokens.colors.accent,
-                    alignSelf: 'flex-start',
-                    marginTop: tokens.spacing.xs
-                  }}>
+                  <ItemTotal>
                     R$ {formatPrice(itemTotal)}
-                  </div>
+                  </ItemTotal>
                 </CartItem>
               );
             })
@@ -391,7 +486,6 @@ const CartDrawer = ({ isOpen, onClose }) => {
 
         {cart.length > 0 && (
           <Footer>
-            {/* ✅ CORRIGIDO: Subtotal (sem taxa de entrega) */}
             <SubtotalRow>
               <span>Subtotal</span>
               <span>R$ {formatPrice(safeSubtotal)}</span>
@@ -412,6 +506,16 @@ const CartDrawer = ({ isOpen, onClose }) => {
           </Footer>
         )}
       </Drawer>
+
+      {/* ✅ MODAL DE ACOMPANHAMENTOS */}
+      {showAddonModal && selectedItemIndex !== null && cart[selectedItemIndex] && (
+        <AddonModal
+          isOpen={showAddonModal}
+          onClose={handleCloseAddons}
+          item={cart[selectedItemIndex]}
+          itemIndex={selectedItemIndex}
+        />
+      )}
     </>
   );
 };
