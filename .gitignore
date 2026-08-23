@@ -32,3 +32,4 @@ check-*.txt
 # Arquivos temporários
 *.tmp
 *.temp
+backup-addons-*/
