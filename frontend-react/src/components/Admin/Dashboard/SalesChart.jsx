@@ -139,33 +139,33 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
             <ChartTitle>{title}</ChartTitle>
             <ChartWrapper height={280} mobileHeight={220} smallHeight={180}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data} margin={{ 
-                        top: 5, 
-                        right: isMobile ? 5 : 20, 
-                        left: isMobile ? 0 : 10, 
-                        bottom: 5 
+                    <LineChart data={data} margin={{
+                        top: 5,
+                        right: isMobile ? 5 : 20,
+                        left: isMobile ? 0 : 10,
+                        bottom: 5
                     }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                            dataKey="date" 
+                        <XAxis
+                            dataKey="date"
                             tickFormatter={formatDate}
-                            stroke="#888" 
+                            stroke="#888"
                             fontSize={isMobile ? 9 : 12}
                             interval={isMobile ? 2 : 0}
                             tick={{ fontSize: isMobile ? 9 : 12 }}
                             height={isMobile ? 30 : 40}
                         />
-                        <YAxis 
+                        <YAxis
                             yAxisId="left"
-                            stroke="#888" 
+                            stroke="#888"
                             fontSize={isMobile ? 9 : 12}
                             tickFormatter={(value) => isMobile ? `R$ ${value.toFixed(0)}` : `R$ ${value.toFixed(0)}`}
                             width={isMobile ? 35 : 50}
                         />
-                        <YAxis 
+                        <YAxis
                             yAxisId="right"
                             orientation="right"
-                            stroke="#3498db" 
+                            stroke="#3498db"
                             fontSize={isMobile ? 9 : 12}
                             tickFormatter={(value) => `${value}`}
                             width={isMobile ? 25 : 40}
@@ -193,8 +193,8 @@ export const SalesLineChart = ({ data, title = '📈 Vendas Diárias' }) => {
                                 zIndex: 100
                             }}
                         />
-                        <Legend 
-                            verticalAlign="top" 
+                        <Legend
+                            verticalAlign="top"
                             height={isMobile ? 30 : 36}
                             wrapperStyle={{
                                 fontSize: isMobile ? '11px' : '14px',
@@ -337,15 +337,15 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                             fill="#8884d8"
                             paddingAngle={2}
                             dataKey="value"
-                            label={({ name, percent }) => 
+                            label={({ name, percent }) =>
                                 percent > 0.1 ? `${capitalizeStatus(name)} ${(percent * 100).toFixed(0)}%` : ''
                             }
                             labelLine={false}
-                            label={{ fontSize: isMobile ? 10 : 12, position: "outside" }}
+                            label={isMobile ? { fontSize: 10 } : { fontSize: 12, position: "outside" }}
                         >
                             {cleanData.map((entry, index) => (
-                                <Cell 
-                                    key={`cell-${index}`} 
+                                <Cell
+                                    key={`cell-${index}`}
                                     fill={getStatusColor(entry.name)}
                                 />
                             ))}
@@ -363,7 +363,7 @@ export const OrderStatusPieChart = ({ data, title = 'Status dos Pedidos' }) => {
                                 fontSize: isMobile ? '12px' : '14px'
                             }}
                         />
-                        <Legend 
+                        <Legend
                             content={renderLegend}
                             wrapperStyle={{
                                 fontSize: isMobile ? '11px' : '13px',
@@ -426,9 +426,9 @@ export const TopProductsChart = ({ data, title = 'Produtos Mais Vendidos' }) => 
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         {isMobile ? (
                             <>
-                                <XAxis 
-                                    dataKey="name" 
-                                    stroke="#888" 
+                                <XAxis
+                                    dataKey="name"
+                                    stroke="#888"
                                     fontSize={10}
                                     interval={0}
                                     angle={-45}
@@ -436,9 +436,9 @@ export const TopProductsChart = ({ data, title = 'Produtos Mais Vendidos' }) => 
                                     height={60}
                                     tick={{ fontSize: 10 }}
                                 />
-                                <YAxis 
-                                    type="number" 
-                                    stroke="#888" 
+                                <YAxis
+                                    type="number"
+                                    stroke="#888"
                                     fontSize={10}
                                     tickFormatter={(value) => `${value}`}
                                     width={25}
@@ -446,10 +446,10 @@ export const TopProductsChart = ({ data, title = 'Produtos Mais Vendidos' }) => 
                             </>
                         ) : (
                             <>
-                                <XAxis 
-                                    type="number" 
-                                    stroke="#888" 
-                                    fontSize={12} 
+                                <XAxis
+                                    type="number"
+                                    stroke="#888"
+                                    fontSize={12}
                                 />
                                 <YAxis
                                     type="category"
@@ -470,9 +470,9 @@ export const TopProductsChart = ({ data, title = 'Produtos Mais Vendidos' }) => 
                                 fontSize: isMobile ? '12px' : '14px'
                             }}
                         />
-                        <Bar 
-                            dataKey="quantity" 
-                            fill="#e67e22" 
+                        <Bar
+                            dataKey="quantity"
+                            fill="#e67e22"
                             radius={isMobile ? [4, 4, 0, 0] : [0, 4, 4, 0]}
                             barSize={isMobile ? 20 : 30}
                         />
