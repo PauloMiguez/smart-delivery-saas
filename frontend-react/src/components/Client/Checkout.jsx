@@ -21,7 +21,7 @@ const isCustomDomain = () => {
 };
 
 // ============================================================
-//  FUNÇÃO PARA OBTER OU CRIAR INSCRIÇÃO PUSH (CLIENTE)
+//  FUNÇÃO PARA OBTER OU CRIAR INSCRIÇÃO PUSH (CLIENTE) 
 // ============================================================
 const getOrCreateDeviceToken = async (tenantId) => {
     try {
@@ -30,67 +30,88 @@ const getOrCreateDeviceToken = async (tenantId) => {
             return null;
         }
 
+        // ✅ Aguardar o SW estar pronto
         const registration = await navigator.serviceWorker.ready;
+        console.log('📱 Service Worker pronto para inscrição');
+
+        // ✅ Verificar se já existe inscrição
         let subscription = await registration.pushManager.getSubscription();
-        
-        if (!subscription) {
-            console.log('🔄 Nenhuma inscrição encontrada. Criando como CLIENTE...');
-            
-            try {
-                const response = await fetch('/api/notifications/vapid-public-key');
-                const data = await response.json();
-                
-                if (!data.publicKey) {
-                    console.error('❌ VAPID key não disponível');
-                    return null;
-                }
-                
-                const applicationServerKey = (key) => {
-                    const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
-                    const rawData = atob(base64);
-                    const outputArray = new Uint8Array(rawData.length);
-                    for (let i = 0; i < rawData.length; ++i) {
-                        outputArray[i] = rawData.charCodeAt(i);
-                    }
-                    return outputArray;
-                };
-                
-                subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: applicationServerKey(data.publicKey)
-                });
-                
-                console.log('✅ Nova inscrição criada!');
-                
-                const tenant = tenantId || 'fireburger';
-                await fetch('/api/notifications/subscribe', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        subscription: subscription,
-                        tenant: tenant,
-                        userType: 'client'
-                    })
-                });
-                
-                console.log('✅ Inscrição salva no backend como CLIENTE');
-                
-            } catch (subscribeError) {
-                console.error('❌ Erro ao criar inscrição:', subscribeError);
-                return null;
-            }
-        }
         
         if (subscription) {
             const endpoint = subscription.endpoint;
-            console.log('📱 Device token obtido:', endpoint.substring(0, 50) + '...');
+            console.log('✅ Inscrição já existe:', endpoint.substring(0, 50) + '...');
             return endpoint;
-        } else {
-            console.log('⚠️ Nenhuma inscrição push disponível');
+        }
+
+        // ✅ Se não tiver inscrição, NÃO tentar criar automaticamente no checkout
+        // O usuário precisa ativar as notificações primeiro
+        console.log('ℹ️ Nenhuma inscrição encontrada. O usuário precisa ativar as notificações.');
+        
+        // ✅ Tentar solicitar permissão se estiver em 'default'
+        if (Notification.permission === 'default') {
+            console.log('📱 Solicitando permissão de notificação...');
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                // Recursivamente tentar novamente
+                console.log('✅ Permissão concedida, tentando inscrever novamente...');
+                return getOrCreateDeviceToken(tenantId);
+            } else {
+                console.log('❌ Permissão negada pelo usuário');
+                return null;
+            }
+        }
+
+        if (Notification.permission === 'denied') {
+            console.log('❌ Permissão de notificação negada permanentemente');
             return null;
         }
+
+        // ✅ Se chegou aqui, tem permissão mas não tem inscrição (caso raro)
+        console.log('🔄 Criando nova inscrição para o cliente...');
+        
+        const response = await fetch('/api/notifications/vapid-public-key');
+        const data = await response.json();
+        
+        if (!data.publicKey) {
+            console.error('❌ VAPID key não disponível');
+            return null;
+        }
+
+        const applicationServerKey = (key) => {
+            const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        };
+
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey(data.publicKey)
+        });
+
+        console.log('✅ Inscrição criada com sucesso!');
+
+        const saveResponse = await fetch('/api/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subscription: subscription,
+                tenant: tenantId,
+                userType: 'client'
+            })
+        });
+
+        if (!saveResponse.ok) {
+            console.error('❌ Erro ao salvar inscrição no backend');
+            return null;
+        }
+
+        console.log('✅ Inscrição salva no backend como CLIENTE');
+        return subscription.endpoint;
+
     } catch (error) {
         console.error('❌ Erro ao obter/criar device_token:', error);
         return null;
