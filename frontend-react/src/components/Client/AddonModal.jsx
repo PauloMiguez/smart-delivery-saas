@@ -24,23 +24,17 @@ const modalTheme = {
 };
 
 // ============================================================
-//  FUNÇÃO PARA FORMATAR PREÇO
+//  FUNÇÕES AUXILIARES
 // ============================================================
 const formatPrice = (value) => {
   const num = parseFloat(value);
   return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
 };
 
-// ============================================================
-//  PLURALIZAÇÃO
-// ============================================================
 const getAddonLabel = (count) => {
   return count === 1 ? 'acompanhamento' : 'acompanhamentos';
 };
 
-// ============================================================
-//  DESCRIÇÕES PADRÃO
-// ============================================================
 const DEFAULT_DESCRIPTIONS = {
   'Bebidas': 'Refrigerantes, sucos, águas e mais',
   'Acompanhamentos': 'Batatas, nuggets, anéis de cebola e mais',
@@ -48,9 +42,6 @@ const DEFAULT_DESCRIPTIONS = {
   'Sobremesas': 'Doces e sobremesas para finalizar'
 };
 
-// ============================================================
-//  ÍCONES POR CATEGORIA
-// ============================================================
 const CATEGORY_ICONS = {
   'Bebidas': '🥤',
   'Acompanhamentos': '🍟',
@@ -59,7 +50,7 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS - LAYOUT INSPIRADO NA IMAGEM
+//  STYLED COMPONENTS
 // ============================================================
 
 const Overlay = styled.div`
@@ -96,7 +87,7 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  padding: 20px 20px 16px 20px;
+  padding: 16px 16px 12px 16px;
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -104,34 +95,20 @@ const ModalContent = styled.div`
 `;
 
 // ============================================================
-//  HEADER
+//  HEADER (apenas botão fechar, sem título fixo)
 // ============================================================
 const Header = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-`;
-
-const TitleSection = styled.div`
-  flex: 1;
-`;
-
-const Title = styled.h2`
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 2px 0;
-  color: ${props => props.theme.colors.textMain};
-`;
-
-const Subtitle = styled.p`
-  font-size: 13px;
-  color: ${props => props.theme.colors.textMuted};
-  margin: 0;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
 `;
 
 const CloseButton = styled.button`
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
   border: none;
   border-radius: 50%;
   width: 36px;
@@ -141,33 +118,46 @@ const CloseButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  flex-shrink: 0;
-  color: #999;
+  color: #666;
   font-size: 22px;
   &:hover {
-    background: #f0f0f0;
+    background: rgba(0, 0, 0, 0.1);
     color: #333;
   }
 `;
 
 // ============================================================
-//  PRODUCT CARD - IMAGEM GRANDE, NOME E PREÇO
+//  CONTAINER COM SCROLL (onde a imagem e os addons ficam)
+// ============================================================
+const ScrollContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 -16px;
+  padding: 0 16px 16px 16px;
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 4px;
+  }
+`;
+
+// ============================================================
+//  PRODUCT CARD (imagem, nome, preço, descrição) - primeiro item
 // ============================================================
 const ProductCard = styled.div`
-  background: ${props => props.theme.colors.background};
+  margin-bottom: 20px;
   border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 16px;
+  overflow: hidden;
+  background: ${props => props.theme.colors.surface};
   border: 1px solid ${props => props.theme.colors.border};
 `;
 
 const ProductImage = styled.div`
   width: 100%;
-  height: 180px;
-  border-radius: 12px;
-  overflow: hidden;
+  height: 220px;
   background: #f0f0f0;
-  margin-bottom: 12px;
 
   img {
     width: 100%;
@@ -176,7 +166,7 @@ const ProductImage = styled.div`
   }
 
   @media (max-width: 400px) {
-    height: 140px;
+    height: 160px;
   }
 `;
 
@@ -190,57 +180,37 @@ const ProductImagePlaceholder = styled.div`
   color: #ccc;
 `;
 
-const ProductInfoRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
+const ProductInfo = styled.div`
+  padding: 12px 16px 16px 16px;
 `;
 
 const ProductName = styled.h3`
   font-size: 18px;
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 4px 0;
   color: ${props => props.theme.colors.textMain};
-  flex: 1;
 `;
 
 const ProductPrice = styled.span`
   font-size: 18px;
   font-weight: 700;
   color: ${props => props.theme.colors.primary};
-  white-space: nowrap;
+  display: inline-block;
+  margin-bottom: 6px;
 `;
 
 const ProductDescription = styled.p`
   font-size: 14px;
   color: ${props => props.theme.colors.textMuted};
-  margin: 8px 0 0 0;
+  margin: 0;
   line-height: 1.5;
 `;
 
 // ============================================================
-//  LISTAGEM DE ACOMPANHAMENTOS
+//  GRUPOS DE ACOMPANHAMENTOS (com cabeçalho sticky)
 // ============================================================
-const AddonsSection = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 12px;
-  padding-right: 4px;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 4px;
-  }
-`;
-
 const AddonGroup = styled.div`
   margin-bottom: 20px;
-
   &:last-child {
     margin-bottom: 0;
   }
@@ -250,9 +220,17 @@ const GroupHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-  padding-bottom: 4px;
+  padding: 8px 4px 6px 4px;
   border-bottom: 2px solid ${props => props.theme.colors.border};
+  background: white;
+  position: sticky;
+  top: 0;                  /* fixa no topo do scroll */
+  z-index: 3;
+  margin: 0 -4px;
+`;
+
+const CategoryIcon = styled.span`
+  font-size: 18px;
 `;
 
 const GroupTitle = styled.h4`
@@ -269,26 +247,15 @@ const GroupDescription = styled.span`
   margin-left: 4px;
 `;
 
-const CategoryIcon = styled.span`
-  font-size: 18px;
-`;
-
 const AddonItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 8px 10px 0;
   border-bottom: 1px solid ${props => props.theme.colors.border};
-  transition: background 0.15s ease;
 
   &:last-child {
     border-bottom: none;
-  }
-
-  &:hover {
-    background: ${props => props.theme.colors.primaryLight};
-    border-radius: 8px;
-    padding-left: 8px;
   }
 `;
 
@@ -329,7 +296,6 @@ const QtyButton = styled.button`
   transition: all 0.2s;
   color: ${props => props.disabled ? '#ccc' : '#333'};
   font-size: 16px;
-
   &:hover {
     border-color: ${props => props.disabled ? '#e0e0e0' : props.theme.colors.primary};
     color: ${props => props.disabled ? '#ccc' : props.theme.colors.primary};
@@ -351,6 +317,9 @@ const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
   padding-top: 14px;
   flex-shrink: 0;
+  background: white;
+  margin: 0 -16px;
+  padding: 14px 16px 0 16px;
 `;
 
 const TotalSection = styled.div`
@@ -389,7 +358,6 @@ const ActionButton = styled.button`
   align-items: center;
   justify-content: center;
   gap: 8px;
-
   &:active {
     transform: scale(0.96);
   }
@@ -536,38 +504,32 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-
-            {/* HEADER */}
+            {/* HEADER com apenas o botão fechar */}
             <Header>
-              <TitleSection>
-                <Title>🍔 Turbine seu pedido</Title>
-                <Subtitle>Escolha os acompanhamentos</Subtitle>
-              </TitleSection>
               <CloseButton onClick={onClose}>✕</CloseButton>
             </Header>
 
-            {/* PRODUCT CARD - IMAGEM GRANDE + INFORMAÇÕES */}
-            <ProductCard>
-              {item.image_url ? (
-                <ProductImage>
-                  <img src={item.image_url} alt={item.name} loading="lazy" />
-                </ProductImage>
-              ) : (
-                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
-              )}
+            {/* CONTAINER COM SCROLL (imagem + lista de categorias) */}
+            <ScrollContainer>
+              {/* PRODUCT CARD - imagem ocupa o topo e some ao rolar */}
+              <ProductCard>
+                {item.image_url ? (
+                  <ProductImage>
+                    <img src={item.image_url} alt={item.name} loading="lazy" />
+                  </ProductImage>
+                ) : (
+                  <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+                )}
+                <ProductInfo>
+                  <ProductName>{item.name}</ProductName>
+                  <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
+                  {item.description && (
+                    <ProductDescription>{item.description}</ProductDescription>
+                  )}
+                </ProductInfo>
+              </ProductCard>
 
-              <ProductInfoRow>
-                <ProductName>{item.name}</ProductName>
-                <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
-              </ProductInfoRow>
-
-              {item.description && (
-                <ProductDescription>{item.description}</ProductDescription>
-              )}
-            </ProductCard>
-
-            {/* LISTAGEM DE ACOMPANHAMENTOS */}
-            <AddonsSection>
+              {/* LISTA DE ACOMPANHAMENTOS COM CABEÇALHOS STICKY */}
               {loading ? (
                 <Loading>Carregando acompanhamentos...</Loading>
               ) : groupedAddons && Object.keys(groupedAddons).length > 0 ? (
@@ -608,9 +570,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                   {loading ? 'Carregando...' : 'Nenhum acompanhamento disponível para este produto'}
                 </EmptyState>
               )}
-            </AddonsSection>
+            </ScrollContainer>
 
-            {/* FOOTER */}
+            {/* FOOTER FIXO */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
@@ -628,7 +590,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                 </ConfirmBtn>
               </Actions>
             </Footer>
-
           </ModalContent>
         </Modal>
       </Overlay>
