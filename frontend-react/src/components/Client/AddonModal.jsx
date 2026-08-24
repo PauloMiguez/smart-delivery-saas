@@ -14,6 +14,16 @@ const formatPrice = (value) => {
     return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
 };
 
+// ✅ FUNÇÃO DE PLURALIZAÇÃO
+const getAddonLabel = (count) => {
+    return count === 1 ? 'acompanhamento' : 'acompanhamentos';
+};
+
+const getAddonLabelSelected = (count) => {
+    if (count === 0) return 'Nenhum acompanhamento selecionado';
+    return count === 1 ? '1 acompanhamento selecionado' : `${count} acompanhamentos selecionados`;
+};
+
 // ============================================================
 //  DESCRIÇÕES PADRÃO (FALLBACK)
 // ============================================================
@@ -343,7 +353,7 @@ const EmptyState = styled.div`
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL - VERSÃO CORRIGIDA
+//  COMPONENTE PRINCIPAL - CORRIGIDO COM PLURALIZAÇÃO
 // ============================================================
 const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     const { tenant } = useTenant();
@@ -352,7 +362,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     const [selectedAddons, setSelectedAddons] = useState({});
     const [totalPrice, setTotalPrice] = useState(0);
     const [availableAddons, setAvailableAddons] = useState([]);
-    const [categories, setCategories] = useState([]); // ✅ PARA DESCRIÇÕES
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // ✅ Carregar addons E CATEGORIAS quando o modal abrir
@@ -370,16 +380,13 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
             const tenantId = tenant || 'fireburger';
             console.log('📤 [ADDON] Buscando dados para tenant:', tenantId);
 
-            // Buscar addons
             const addonsRes = await api.get(`/products/addons?tenant=${tenantId}`);
             const addons = addonsRes.data.data || [];
             console.log(`✅ [ADDON] ${addons.length} addons encontrados`);
 
-            // Filtrar para não mostrar o próprio item
             const filtered = addons.filter(a => a.id !== item.id);
             setAvailableAddons(filtered);
 
-            // ✅ Buscar categorias para descrições
             const categoriesRes = await api.get(`/categories?tenant=${tenantId}`);
             const categoriesData = categoriesRes.data.data || [];
             setCategories(categoriesData);
@@ -430,12 +437,10 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
     // ✅ Função para obter descrição da categoria (dinâmica)
     const getCategoryDescription = (categoryName) => {
-        // Buscar no backend primeiro
         const category = categories.find(c => c.name === categoryName);
         if (category?.description) {
             return category.description;
         }
-        // Fallback para descrições padrão
         return DEFAULT_DESCRIPTIONS[categoryName] || '';
     };
 
@@ -475,6 +480,8 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
         return groups;
     }, {});
 
+    const totalAddonsCount = getTotalAddonsCount();
+
     return (
         <Overlay onClick={onClose}>
             <Modal onClick={e => e.stopPropagation()}>
@@ -496,9 +503,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                         <ProductDetails>
                             <ProductName>
                                 {item.name}
-                                <AddonBadge>
-                                    {getTotalAddonsCount()} acompanhamentos
-                                </AddonBadge>
+                                {/* ✅ BADGE COM PLURALIZAÇÃO CORRETA */}
+                                {totalAddonsCount > 0 && (
+                                    <AddonBadge>
+                                        {totalAddonsCount} {getAddonLabel(totalAddonsCount)}
+                                    </AddonBadge>
+                                )}
                             </ProductName>
                             <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
                         </ProductDetails>
@@ -512,7 +522,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                                 <AddonGroup key={category}>
                                     <GroupHeader>
                                         <GroupTitle>{category}</GroupTitle>
-                                        {/* ✅ DESCRIÇÃO DINÂMICA */}
                                         <GroupDescription>
                                             {getCategoryDescription(category)}
                                         </GroupDescription>
@@ -553,10 +562,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
                     <Footer>
                         <TotalSection>
+                            {/* ✅ TOTAL LABEL COM PLURALIZAÇÃO CORRETA */}
                             <TotalLabel>
-                                {getTotalAddonsCount() > 0
-                                    ? `${getTotalAddonsCount()} acompanhamento(s) selecionado(s)`
-                                    : 'Nenhum acompanhamento selecionado'}
+                                {totalAddonsCount === 0
+                                    ? 'Nenhum acompanhamento selecionado'
+                                    : `${totalAddonsCount} ${totalAddonsCount === 1 ? 'acompanhamento selecionado' : 'acompanhamentos selecionados'}`
+                                }
                             </TotalLabel>
                             <TotalPrice>R$ {formatPrice(totalPrice)}</TotalPrice>
                         </TotalSection>
