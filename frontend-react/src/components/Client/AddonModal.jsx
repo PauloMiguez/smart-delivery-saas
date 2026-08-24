@@ -59,7 +59,7 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS - COMPACTOS
+//  STYLED COMPONENTS - LAYOUT INSPIRADO NA IMAGEM
 // ============================================================
 
 const Overlay = styled.div`
@@ -96,7 +96,7 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  padding: 16px 16px 12px 16px;
+  padding: 20px 20px 16px 20px;
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -104,14 +104,13 @@ const ModalContent = styled.div`
 `;
 
 // ============================================================
-//  HEADER COMPACTO
+//  HEADER
 // ============================================================
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  margin-bottom: 12px;
 `;
 
 const TitleSection = styled.div`
@@ -119,7 +118,7 @@ const TitleSection = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0 0 2px 0;
   color: ${props => props.theme.colors.textMain};
@@ -135,8 +134,8 @@ const CloseButton = styled.button`
   background: transparent;
   border: none;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -144,7 +143,7 @@ const CloseButton = styled.button`
   transition: all 0.2s;
   flex-shrink: 0;
   color: #999;
-  font-size: 20px;
+  font-size: 22px;
   &:hover {
     background: #f0f0f0;
     color: #333;
@@ -152,65 +151,83 @@ const CloseButton = styled.button`
 `;
 
 // ============================================================
-//  PRODUCT INFO - COMPACTO E SEM IMAGEM (TEXTO APENAS)
+//  PRODUCT CARD - IMAGEM GRANDE, NOME E PREÇO
 // ============================================================
-const ProductInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+const ProductCard = styled.div`
   background: ${props => props.theme.colors.background};
-  border-radius: 12px;
-  margin-bottom: 12px;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
   border: 1px solid ${props => props.theme.colors.border};
-  flex-shrink: 0;
 `;
 
-const ProductDetails = styled.div`
-  flex: 1;
+const ProductImage = styled.div`
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+  margin-bottom: 12px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (max-width: 400px) {
+    height: 140px;
+  }
+`;
+
+const ProductImagePlaceholder = styled.div`
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  min-width: 0;
+  justify-content: center;
+  font-size: 48px;
+  color: #ccc;
+`;
+
+const ProductInfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 `;
 
 const ProductName = styled.h3`
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   margin: 0;
   color: ${props => props.theme.colors.textMain};
-  word-break: break-word;
-`;
-
-const AddonBadge = styled.span`
-  font-size: 12px;
-  color: #fff;
-  background: ${props => props.theme.colors.primary};
-  padding: 2px 12px;
-  border-radius: 20px;
-  font-weight: 600;
-  display: inline-block;
-  white-space: nowrap;
+  flex: 1;
 `;
 
 const ProductPrice = styled.span`
-  font-size: 14px;
-  color: ${props => props.theme.colors.primary};
+  font-size: 18px;
   font-weight: 700;
-  margin-left: auto;
+  color: ${props => props.theme.colors.primary};
   white-space: nowrap;
 `;
 
+const ProductDescription = styled.p`
+  font-size: 14px;
+  color: ${props => props.theme.colors.textMuted};
+  margin: 8px 0 0 0;
+  line-height: 1.5;
+`;
+
 // ============================================================
-//  LISTAGEM DE ACOMPANHAMENTOS - PRIORIDADE MÁXIMA
+//  LISTAGEM DE ACOMPANHAMENTOS
 // ============================================================
 const AddonsSection = styled.div`
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   padding-right: 4px;
-  min-height: 100px;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -222,11 +239,8 @@ const AddonsSection = styled.div`
 `;
 
 const AddonGroup = styled.div`
-  margin-bottom: 16px;
-  background: ${props => props.theme.colors.background};
-  border-radius: 10px;
-  padding: 6px 4px 8px 4px;
-  border: 1px solid ${props => props.theme.colors.border};
+  margin-bottom: 20px;
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -236,66 +250,62 @@ const GroupHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px 4px 14px;
-  margin-bottom: 4px;
-  border-left: 3px solid ${props => props.theme.colors.primary};
-  background: transparent;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid ${props => props.theme.colors.border};
 `;
 
 const GroupTitle = styled.h4`
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   margin: 0;
   color: ${props => props.theme.colors.textMain};
 `;
 
-const GroupDescription = styled.p`
-  font-size: 12px;
+const GroupDescription = styled.span`
+  font-size: 13px;
   color: ${props => props.theme.colors.textMuted};
-  margin: 0;
   font-weight: 400;
+  margin-left: 4px;
 `;
 
 const CategoryIcon = styled.span`
-  font-size: 16px;
-  margin-right: 4px;
+  font-size: 18px;
 `;
 
 const AddonItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 8px 8px 16px;
-  border-radius: 6px;
-  margin-bottom: 1px;
+  padding: 10px 8px 10px 0;
+  border-bottom: 1px solid ${props => props.theme.colors.border};
   transition: background 0.15s ease;
-  border-left: 2px solid transparent;
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
     background: ${props => props.theme.colors.primaryLight};
-    border-left-color: ${props => props.theme.colors.primary};
-  }
-  &:last-child {
-    margin-bottom: 0;
+    border-radius: 8px;
+    padding-left: 8px;
   }
 `;
 
 const AddonInfo = styled.div`
   flex: 1;
   min-width: 100px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
 `;
 
 const AddonName = styled.span`
   font-size: 14px;
   font-weight: 500;
+  display: block;
   color: ${props => props.theme.colors.textMain};
 `;
 
 const AddonPrice = styled.span`
-  font-size: 12px;
+  font-size: 13px;
   color: ${props => props.theme.colors.textMuted};
 `;
 
@@ -307,8 +317,8 @@ const QuantityControls = styled.div`
 `;
 
 const QtyButton = styled.button`
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: 1px solid ${props => props.disabled ? '#e0e0e0' : '#ddd'};
   border-radius: 6px;
   background: white;
@@ -318,6 +328,8 @@ const QtyButton = styled.button`
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
   color: ${props => props.disabled ? '#ccc' : '#333'};
+  font-size: 16px;
+
   &:hover {
     border-color: ${props => props.disabled ? '#e0e0e0' : props.theme.colors.primary};
     color: ${props => props.disabled ? '#ccc' : props.theme.colors.primary};
@@ -327,18 +339,17 @@ const QtyButton = styled.button`
 const Quantity = styled.span`
   font-size: 15px;
   font-weight: 600;
-  min-width: 24px;
+  min-width: 28px;
   text-align: center;
   color: ${props => props.theme.colors.textMain};
 `;
 
 // ============================================================
-//  FOOTER COMPACTO
+//  FOOTER
 // ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
-  padding-top: 10px;
-  margin-top: 4px;
+  padding-top: 14px;
   flex-shrink: 0;
 `;
 
@@ -346,39 +357,39 @@ const TotalSection = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  margin-bottom: 10px;
 `;
 
 const TotalLabel = styled.span`
-  font-size: 14px;
+  font-size: 15px;
   color: ${props => props.theme.colors.textMuted};
 `;
 
 const TotalPrice = styled.span`
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: ${props => props.theme.colors.primary};
 `;
 
 const Actions = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 12px;
 `;
 
 const ActionButton = styled.button`
   flex: 1;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 10px;
-  font-size: 15px;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+
   &:active {
     transform: scale(0.96);
   }
@@ -526,24 +537,36 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
 
-            {/* HEADER COMPACTO */}
+            {/* HEADER */}
             <Header>
               <TitleSection>
-                <Title>🍔 Acompanhamentos</Title>
-                <Subtitle>Personalize seu pedido</Subtitle>
+                <Title>🍔 Turbine seu pedido</Title>
+                <Subtitle>Escolha os acompanhamentos</Subtitle>
               </TitleSection>
               <CloseButton onClick={onClose}>✕</CloseButton>
             </Header>
 
-            {/* INFO DO PRODUTO - COMPACTO (SEM IMAGEM) */}
-            <ProductInfo>
-              <ProductDetails>
+            {/* PRODUCT CARD - IMAGEM GRANDE + INFORMAÇÕES */}
+            <ProductCard>
+              {item.image_url ? (
+                <ProductImage>
+                  <img src={item.image_url} alt={item.name} loading="lazy" />
+                </ProductImage>
+              ) : (
+                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+              )}
+
+              <ProductInfoRow>
                 <ProductName>{item.name}</ProductName>
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
-              </ProductDetails>
-            </ProductInfo>
+              </ProductInfoRow>
 
-            {/* LISTAGEM DE ACOMPANHAMENTOS - PRIORIDADE */}
+              {item.description && (
+                <ProductDescription>{item.description}</ProductDescription>
+              )}
+            </ProductCard>
+
+            {/* LISTAGEM DE ACOMPANHAMENTOS */}
             <AddonsSection>
               {loading ? (
                 <Loading>Carregando acompanhamentos...</Loading>
@@ -552,10 +575,8 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                   <AddonGroup key={category}>
                     <GroupHeader>
                       <CategoryIcon>{getCategoryIcon(category)}</CategoryIcon>
-                      <div>
-                        <GroupTitle>{category}</GroupTitle>
-                        <GroupDescription>{getCategoryDescription(category)}</GroupDescription>
-                      </div>
+                      <GroupTitle>{category}</GroupTitle>
+                      <GroupDescription>{getCategoryDescription(category)}</GroupDescription>
                     </GroupHeader>
                     {groupedAddons[category].map(addon => {
                       const qty = selectedAddons[addon.id] || 0;
@@ -566,7 +587,10 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                             <AddonPrice>R$ {formatPrice(addon.price)}</AddonPrice>
                           </AddonInfo>
                           <QuantityControls>
-                            <QtyButton onClick={() => handleQuantityChange(addon.id, -1)} disabled={qty === 0}>
+                            <QtyButton
+                              onClick={() => handleQuantityChange(addon.id, -1)}
+                              disabled={qty === 0}
+                            >
                               <Minus size={14} />
                             </QtyButton>
                             <Quantity>{qty}</Quantity>
@@ -586,7 +610,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </AddonsSection>
 
-            {/* FOOTER COMPACTO */}
+            {/* FOOTER */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
@@ -599,7 +623,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               </TotalSection>
               <Actions>
                 <CancelBtn onClick={onClose}>Fechar</CancelBtn>
-                <ConfirmBtn onClick={onClose}><Check size={18} /> Concluir</ConfirmBtn>
+                <ConfirmBtn onClick={onClose}>
+                  <Check size={18} /> Concluir
+                </ConfirmBtn>
               </Actions>
             </Footer>
 
