@@ -99,76 +99,20 @@ const ModalContent = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  position: relative; /* para posicionar o botão fechar */
   padding: 0;
+  background: white;
 `;
 
 // ============================================================
-//  BOTÃO FECHAR - FIXO NO TOPO DIREITO
-// ============================================================
-const CloseButton = styled.button`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 10;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 22px;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.7);
-  }
-
-  @media (max-width: 768px) {
-    top: 16px;
-    right: 16px;
-    width: 44px;
-    height: 44px;
-    font-size: 24px;
-  }
-`;
-
-// ============================================================
-//  SCROLL CONTAINER - tudo dentro dele (imagem + conteúdo)
-// ============================================================
-const ScrollContainer = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 16px 16px 16px;
-
-  @media (max-width: 768px) {
-    padding: 0 16px 16px 16px;
-  }
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 4px;
-  }
-`;
-
-// ============================================================
-//  IMAGEM DO PRODUTO - primeiro elemento do scroll
+//  IMAGEM DO PRODUTO - FULLSCREEN NO TOPO
+//  (nenhum padding, sem fundo branco atrás)
 // ============================================================
 const ProductImage = styled.div`
   width: 100%;
   height: 240px;
   background: #f0f0f0;
-  border-radius: 0;
+  flex-shrink: 0;
   overflow: hidden;
-  margin-bottom: 12px;
 
   img {
     width: 100%;
@@ -184,8 +128,7 @@ const ProductImage = styled.div`
   }
 
   @media (min-width: 769px) {
-    border-radius: 16px 16px 0 0;
-    margin-bottom: 0;
+    border-radius: 24px 24px 0 0;
   }
 `;
 
@@ -201,20 +144,31 @@ const ProductImagePlaceholder = styled.div`
 `;
 
 // ============================================================
+//  SCROLL CONTAINER - NOME, PREÇO, DESCRIÇÃO E ADDONS
+// ============================================================
+const ScrollContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 16px 16px;
+
+  @media (max-width: 768px) {
+    padding: 16px 16px 16px 16px;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 4px;
+  }
+`;
+
+// ============================================================
 //  INFORMAÇÕES DO PRODUTO (nome, preço, descrição)
 // ============================================================
 const ProductInfo = styled.div`
-  padding: 12px 0 16px 0;
-
-  @media (min-width: 769px) {
-    padding: 16px 16px 16px 16px;
-    background: white;
-    border-radius: 0 0 16px 16px;
-    border-left: 1px solid ${props => props.theme.colors.border};
-    border-right: 1px solid ${props => props.theme.colors.border};
-    border-bottom: 1px solid ${props => props.theme.colors.border};
-    margin-bottom: 16px;
-  }
+  margin-bottom: 20px;
 `;
 
 const ProductName = styled.h3`
@@ -240,10 +194,10 @@ const ProductDescription = styled.p`
 `;
 
 // ============================================================
-//  GRUPOS DE ACOMPANHAMENTOS (sticky)
+//  GRUPOS DE ACOMPANHAMENTOS (com sticky nos títulos)
 // ============================================================
 const AddonGroup = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   &:last-child {
     margin-bottom: 0;
   }
@@ -253,18 +207,12 @@ const GroupHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 4px 6px 4px;
+  padding: 8px 0 6px 0;
   border-bottom: 2px solid ${props => props.theme.colors.border};
   background: white;
   position: sticky;
   top: 0;
   z-index: 3;
-  margin: 0 -4px;
-
-  @media (max-width: 768px) {
-    padding: 10px 0 6px 0;
-    margin: 0;
-  }
 `;
 
 const CategoryIcon = styled.span`
@@ -349,7 +297,7 @@ const Quantity = styled.span`
 `;
 
 // ============================================================
-//  FOOTER FIXO
+//  FOOTER FIXO (com botões "Fechar" e "Concluir")
 // ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
@@ -359,7 +307,6 @@ const Footer = styled.div`
 
   @media (min-width: 769px) {
     padding: 14px 0 0 0;
-    margin: 0;
   }
 `;
 
@@ -545,21 +492,17 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* BOTÃO FECHAR - FIXO */}
-            <CloseButton onClick={onClose}>✕</CloseButton>
+            {/* ✅ IMAGEM FULLSCREEN NO TOPO – sem nenhum elemento antes dela */}
+            {item.image_url ? (
+              <ProductImage>
+                <img src={item.image_url} alt={item.name} loading="lazy" />
+              </ProductImage>
+            ) : (
+              <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+            )}
 
-            {/* SCROLL CONTAINER - TUDO DENTRO DELE */}
+            {/* CONTEÚDO COM SCROLL (nome, preço, addons) */}
             <ScrollContainer>
-              {/* IMAGEM DO PRODUTO - PRIMEIRO ELEMENTO */}
-              {item.image_url ? (
-                <ProductImage>
-                  <img src={item.image_url} alt={item.name} loading="lazy" />
-                </ProductImage>
-              ) : (
-                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
-              )}
-
-              {/* INFORMAÇÕES DO PRODUTO */}
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
@@ -568,7 +511,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                 )}
               </ProductInfo>
 
-              {/* LISTA DE ACOMPANHAMENTOS COM CABEÇALHOS STICKY */}
               {loading ? (
                 <Loading>Carregando acompanhamentos...</Loading>
               ) : groupedAddons && Object.keys(groupedAddons).length > 0 ? (
@@ -611,7 +553,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </ScrollContainer>
 
-            {/* FOOTER FIXO */}
+            {/* ✅ RODAPÉ COM BOTÕES (único "Fechar" do modal) */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
