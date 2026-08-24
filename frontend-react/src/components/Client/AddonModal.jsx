@@ -110,7 +110,7 @@ const ModalContent = styled.div`
 `;
 
 // ============================================================
-//  IMAGEM – SEM PADDING (ocupa toda a largura)
+//  IMAGEM – OCUPA TODA A LARGURA, SEM PADDING
 // ============================================================
 const ProductImage = styled.div`
   width: 100%;
@@ -149,16 +149,16 @@ const ProductImagePlaceholder = styled.div`
 `;
 
 // ============================================================
-//  SCROLL CONTAINER – com padding lateral e inferior
+//  SCROLL CONTAINER – SEM PADDING TOP, APENAS LATERAL E INFERIOR
 // ============================================================
 const ScrollContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 16px 16px 16px 16px; /* top, laterais, bottom */
+  padding: 0 16px 16px 16px; /* top = 0, laterais e bottom = 16px */
   min-height: 0;
 
   @media (max-width: 768px) {
-    padding: 16px 16px 16px 16px;
+    padding: 0 16px 16px 16px;
   }
 
   &::-webkit-scrollbar {
@@ -171,10 +171,11 @@ const ScrollContainer = styled.div`
 `;
 
 // ============================================================
-//  INFORMAÇÕES DO PRODUTO
+//  INFORMAÇÕES DO PRODUTO – COM MARGEM TOP 0
 // ============================================================
 const ProductInfo = styled.div`
   margin-bottom: 20px;
+  padding-top: 16px; /* pequeno espaçamento entre a imagem e o texto */
 `;
 
 const ProductName = styled.h3`
@@ -200,7 +201,7 @@ const ProductDescription = styled.p`
 `;
 
 // ============================================================
-//  GRUPOS DE ACOMPANHAMENTOS (títulos sticky)
+//  GRUPOS DE ACOMPANHAMENTOS – STICKY LOGO APÓS A IMAGEM
 // ============================================================
 const AddonGroup = styled.div`
   margin-bottom: 24px;
@@ -217,7 +218,7 @@ const GroupHeader = styled.div`
   border-bottom: 2px solid ${props => props.theme.colors.border};
   background: white;
   position: sticky;
-  top: 0;
+  top: 0; /* fixa no topo do ScrollContainer, que começa imediatamente após a imagem */
   z-index: 3;
 `;
 
@@ -303,7 +304,7 @@ const Quantity = styled.span`
 `;
 
 // ============================================================
-//  FOOTER – com padding lateral consistente
+//  FOOTER
 // ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
@@ -312,7 +313,7 @@ const Footer = styled.div`
   background: white;
 
   @media (min-width: 769px) {
-    padding: 14px 16px 16px 16px; /* mesmo padding em desktop */
+    padding: 14px 16px 16px 16px;
   }
 `;
 
@@ -513,7 +514,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* IMAGEM – SEM PADDING, OCUPA TODA A LARGURA */}
+            {/* IMAGEM – TOPO, SEM PADDING */}
             {item.image_url ? (
               <ProductImage>
                 <img src={item.image_url} alt={item.name} loading="lazy" />
@@ -522,7 +523,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
             )}
 
-            {/* SCROLL CONTAINER – COM PADDING LATERAL E INFERIOR */}
+            {/* SCROLL CONTAINER – COMEÇA LOGO APÓS A IMAGEM */}
             <ScrollContainer>
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
@@ -537,6 +538,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               ) : groupedAddons && Object.keys(groupedAddons).length > 0 ? (
                 Object.keys(groupedAddons).map(category => (
                   <AddonGroup key={category}>
+                    {/* CABEÇALHO STICKY – FIXO NO TOPO DO SCROLL */}
                     <GroupHeader>
                       <CategoryIcon>{getCategoryIcon(category)}</CategoryIcon>
                       <GroupTitle>{category}</GroupTitle>
@@ -574,7 +576,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </ScrollContainer>
 
-            {/* FOOTER – COM PADDING LATERAL CONSISTENTE */}
+            {/* FOOTER */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
