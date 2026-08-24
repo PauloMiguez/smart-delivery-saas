@@ -77,8 +77,9 @@ const Modal = styled.div`
   max-width: 500px;
   max-height: 92vh;
   border-radius: 24px 24px 0 0;
-  padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slideUp 0.3s ease;
 
   @media (max-width: 768px) {
@@ -99,33 +100,17 @@ const ModalContent = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-height: 92vh;
   padding: 0;
   background: white;
-`;
-
-// ============================================================
-//  SCROLL CONTAINER - TUDO DENTRO DELE (imagem + conteúdo)
-// ============================================================
-const ScrollContainer = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 16px 16px 16px;
 
   @media (max-width: 768px) {
-    padding: 0 16px 16px 16px;
-  }
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 4px;
+    max-height: 100vh;
   }
 `;
 
 // ============================================================
-//  IMAGEM DO PRODUTO - PRIMEIRO ELEMENTO DO SCROLL
+//  IMAGEM DO PRODUTO – primeiro elemento do scroll
 // ============================================================
 const ProductImage = styled.div`
   width: 100%;
@@ -149,7 +134,7 @@ const ProductImage = styled.div`
   }
 
   @media (min-width: 769px) {
-    border-radius: 24px 24px 0 0;
+    border-radius: 16px;
   }
 `;
 
@@ -165,7 +150,29 @@ const ProductImagePlaceholder = styled.div`
 `;
 
 // ============================================================
-//  INFORMAÇÕES DO PRODUTO (nome, preço, descrição)
+//  SCROLL CONTAINER – contém nome, preço, descrição e addons
+// ============================================================
+const ScrollContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px 16px;
+  min-height: 0;
+
+  @media (max-width: 768px) {
+    padding: 0 16px 16px 16px;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 4px;
+  }
+`;
+
+// ============================================================
+//  INFORMAÇÕES DO PRODUTO
 // ============================================================
 const ProductInfo = styled.div`
   margin-bottom: 20px;
@@ -392,6 +399,24 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ============================================================
+  //  BLOQUEAR SCROLL DO BODY QUANDO O MODAL ESTIVER ABERTO
+  // ============================================================
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  // ============================================================
+  //  CARREGAR DADOS
+  // ============================================================
   useEffect(() => {
     if (isOpen && item) loadData();
   }, [isOpen, item]);
@@ -418,6 +443,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     setLoading(false);
   };
 
+  // ============================================================
+  //  INICIALIZAR ADDONS SELECIONADOS
+  // ============================================================
   useEffect(() => {
     if (item && item.addons) {
       const initial = {};
@@ -430,6 +458,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     }
   }, [item]);
 
+  // ============================================================
+  //  CALCULAR TOTAL
+  // ============================================================
   useEffect(() => {
     if (!item) return;
     let total = parseFloat(item.price) || 0;
@@ -446,6 +477,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   if (!isOpen || !item) return null;
 
+  // ============================================================
+  //  FUNÇÕES AUXILIARES DO COMPONENTE
+  // ============================================================
   const getCategoryDescription = (categoryName) => {
     const category = categories.find(c => c.name === categoryName);
     return category?.description || DEFAULT_DESCRIPTIONS[categoryName] || '';
@@ -487,22 +521,25 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   const totalAddonsCount = getTotalAddonsCount();
 
+  // ============================================================
+  //  RENDER
+  // ============================================================
   return (
     <ThemeProvider theme={modalTheme}>
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* ✅ SCROLL CONTAINER – TUDO DENTRO (imagem, info, addons) */}
-            <ScrollContainer>
-              {/* IMAGEM – PRIMEIRO ELEMENTO, ROLA COM O CONTEÚDO */}
-              {item.image_url ? (
-                <ProductImage>
-                  <img src={item.image_url} alt={item.name} loading="lazy" />
-                </ProductImage>
-              ) : (
-                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
-              )}
+            {/* ✅ IMAGEM – ROLA JUNTO COM O CONTEÚDO (primeiro elemento) */}
+            {item.image_url ? (
+              <ProductImage>
+                <img src={item.image_url} alt={item.name} loading="lazy" />
+              </ProductImage>
+            ) : (
+              <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+            )}
 
+            {/* ✅ SCROLL CONTAINER – nome, preço, descrição, addons */}
+            <ScrollContainer>
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
@@ -553,7 +590,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </ScrollContainer>
 
-            {/* ✅ RODAPÉ FIXO */}
+            {/* ✅ FOOTER FIXO (único local com "Fechar") */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
