@@ -32,14 +32,14 @@ const formatPrice = (value) => {
 };
 
 // ============================================================
-//  FUNÇÕES DE PLURALIZAÇÃO
+//  PLURALIZAÇÃO
 // ============================================================
 const getAddonLabel = (count) => {
   return count === 1 ? 'acompanhamento' : 'acompanhamentos';
 };
 
 // ============================================================
-//  DESCRIÇÕES PADRÃO (FALLBACK)
+//  DESCRIÇÕES PADRÃO
 // ============================================================
 const DEFAULT_DESCRIPTIONS = {
   'Bebidas': 'Refrigerantes, sucos, águas e mais',
@@ -59,8 +59,9 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS - RESPONSIVOS
+//  STYLED COMPONENTS - COMPACTOS
 // ============================================================
+
 const Overlay = styled.div`
   position: fixed;
   top: 0;
@@ -73,7 +74,6 @@ const Overlay = styled.div`
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn 0.3s ease;
-
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -84,12 +84,11 @@ const Modal = styled.div`
   background: white;
   width: 100%;
   max-width: 500px;
-  max-height: 85vh;
+  max-height: 92vh;
   border-radius: 24px 24px 0 0;
   padding: 0;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-
   @keyframes slideUp {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
@@ -97,17 +96,22 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  padding: 24px 20px 20px 20px;
-  max-height: 85vh;
+  padding: 16px 16px 12px 16px;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
+  height: 100%;
 `;
 
+// ============================================================
+//  HEADER COMPACTO
+// ============================================================
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  padding: 0 4px;
 `;
 
 const TitleSection = styled.div`
@@ -115,143 +119,102 @@ const TitleSection = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   color: ${props => props.theme.colors.textMain};
 `;
 
 const Subtitle = styled.p`
-  font-size: 14px;
+  font-size: 13px;
   color: ${props => props.theme.colors.textMuted};
   margin: 0;
 `;
 
 const CloseButton = styled.button`
-  background: #f5f5f5;
+  background: transparent;
   border: none;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
   flex-shrink: 0;
-
+  color: #999;
+  font-size: 20px;
   &:hover {
-    background: #ebebeb;
+    background: #f0f0f0;
+    color: #333;
   }
 `;
 
 // ============================================================
-//  ✅ PRODUCT INFO - LAYOUT RESPONSIVO (3 LINHAS)
+//  PRODUCT INFO - COMPACTO E SEM IMAGEM (TEXTO APENAS)
 // ============================================================
 const ProductInfo = styled.div`
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
   background: ${props => props.theme.colors.background};
-  border-radius: 16px;
-  margin-bottom: 20px;
-  border: 1px solid ${props => props.theme.colors.border};
-
-  @media (max-width: 400px) {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
-  }
-`;
-
-const ProductImage = styled.img`
-  width: 60px;
-  height: 60px;
   border-radius: 12px;
-  object-fit: cover;
+  margin-bottom: 12px;
+  border: 1px solid ${props => props.theme.colors.border};
   flex-shrink: 0;
-
-  @media (max-width: 400px) {
-    width: 80px;
-    height: 80px;
-  }
 `;
 
-// ✅ DETAILS - EMPILHA OS ELEMENTOS VERTICALMENTE
 const ProductDetails = styled.div`
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
   min-width: 0;
 `;
 
-// ✅ LINHA DO NOME
-const ProductNameRow = styled.div`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
-`;
-
 const ProductName = styled.h3`
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
   color: ${props => props.theme.colors.textMain};
   word-break: break-word;
 `;
 
-// ✅ BADGE - AGORA EM SUA PRÓPRIA LINHA (SEGUNDA LINHA)
 const AddonBadge = styled.span`
-  font-size: 13px;
+  font-size: 12px;
   color: #fff;
   background: ${props => props.theme.colors.primary};
-  padding: 4px 14px;
+  padding: 2px 12px;
   border-radius: 20px;
   font-weight: 600;
   display: inline-block;
   white-space: nowrap;
-  align-self: flex-start;
-
-  @media (max-width: 400px) {
-    align-self: center;
-    font-size: 14px;
-    padding: 6px 16px;
-  }
 `;
 
-// ✅ PREÇO - TERCEIRA LINHA
 const ProductPrice = styled.span`
-  font-size: 16px;
+  font-size: 14px;
   color: ${props => props.theme.colors.primary};
   font-weight: 700;
-  display: block;
-  margin-top: 2px;
-
-  @media (max-width: 400px) {
-    font-size: 18px;
-  }
+  margin-left: auto;
+  white-space: nowrap;
 `;
 
+// ============================================================
+//  LISTAGEM DE ACOMPANHAMENTOS - PRIORIDADE MÁXIMA
+// ============================================================
 const AddonsSection = styled.div`
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   padding-right: 4px;
+  min-height: 100px;
 
   &::-webkit-scrollbar {
     width: 4px;
   }
-
-  &::-webkit-scrollbar-track {
-    background: #f5f5f5;
-    border-radius: 4px;
-  }
-
   &::-webkit-scrollbar-thumb {
     background: #ddd;
     border-radius: 4px;
@@ -259,13 +222,11 @@ const AddonsSection = styled.div`
 `;
 
 const AddonGroup = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   background: ${props => props.theme.colors.background};
-  border-radius: 12px;
-  padding: 8px 4px 12px 4px;
+  border-radius: 10px;
+  padding: 6px 4px 8px 4px;
   border: 1px solid ${props => props.theme.colors.border};
-  transition: all 0.2s ease;
-  
   &:last-child {
     margin-bottom: 0;
   }
@@ -274,95 +235,82 @@ const AddonGroup = styled.div`
 const GroupHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px 8px 16px;
-  margin-bottom: 8px;
-  border-left: 4px solid ${props => props.theme.colors.primary};
-  background: ${props => props.theme.colors.surface};
-  border-radius: 8px;
-  position: relative;
+  gap: 8px;
+  padding: 4px 12px 4px 14px;
+  margin-bottom: 4px;
+  border-left: 3px solid ${props => props.theme.colors.primary};
+  background: transparent;
 `;
 
 const GroupTitle = styled.h4`
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   color: ${props => props.theme.colors.textMain};
-  letter-spacing: -0.01em;
 `;
 
 const GroupDescription = styled.p`
-  font-size: 13px;
+  font-size: 12px;
   color: ${props => props.theme.colors.textMuted};
-  margin: 2px 0 0 0;
+  margin: 0;
   font-weight: 400;
 `;
 
 const CategoryIcon = styled.span`
-  font-size: 18px;
+  font-size: 16px;
   margin-right: 4px;
-  opacity: 0.8;
 `;
 
 const AddonItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px 10px 20px;
-  border-radius: 8px;
-  margin-bottom: 2px;
-  transition: background 0.2s ease;
+  padding: 8px 8px 8px 16px;
+  border-radius: 6px;
+  margin-bottom: 1px;
+  transition: background 0.15s ease;
   border-left: 2px solid transparent;
 
   &:hover {
     background: ${props => props.theme.colors.primaryLight};
     border-left-color: ${props => props.theme.colors.primary};
   }
-
   &:last-child {
     margin-bottom: 0;
-  }
-
-  @media (max-width: 400px) {
-    padding: 12px 8px;
-    flex-wrap: wrap;
-    gap: 8px;
   }
 `;
 
 const AddonInfo = styled.div`
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 `;
 
 const AddonName = styled.span`
   font-size: 14px;
   font-weight: 500;
-  display: block;
   color: ${props => props.theme.colors.textMain};
 `;
 
 const AddonPrice = styled.span`
-  font-size: 13px;
+  font-size: 12px;
   color: ${props => props.theme.colors.textMuted};
 `;
 
 const QuantityControls = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
-
-  @media (max-width: 400px) {
-    gap: 12px;
-  }
 `;
 
-const QuantityButton = styled.button`
-  width: 32px;
-  height: 32px;
+const QtyButton = styled.button`
+  width: 28px;
+  height: 28px;
   border: 1px solid ${props => props.disabled ? '#e0e0e0' : '#ddd'};
-  border-radius: 8px;
+  border-radius: 6px;
   background: white;
   display: flex;
   align-items: center;
@@ -370,123 +318,83 @@ const QuantityButton = styled.button`
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
   color: ${props => props.disabled ? '#ccc' : '#333'};
-
   &:hover {
     border-color: ${props => props.disabled ? '#e0e0e0' : props.theme.colors.primary};
     color: ${props => props.disabled ? '#ccc' : props.theme.colors.primary};
   }
-
-  @media (max-width: 400px) {
-    width: 38px;
-    height: 38px;
-    font-size: 18px;
-  }
 `;
 
 const Quantity = styled.span`
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  min-width: 28px;
+  min-width: 24px;
   text-align: center;
   color: ${props => props.theme.colors.textMain};
-
-  @media (max-width: 400px) {
-    font-size: 18px;
-    min-width: 32px;
-  }
 `;
 
+// ============================================================
+//  FOOTER COMPACTO
+// ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
-  padding-top: 16px;
+  padding-top: 10px;
   margin-top: 4px;
+  flex-shrink: 0;
 `;
 
 const TotalSection = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-
-  @media (max-width: 400px) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
+  margin-bottom: 8px;
+  padding: 0 4px;
 `;
 
 const TotalLabel = styled.span`
-  font-size: 15px;
+  font-size: 14px;
   color: ${props => props.theme.colors.textMuted};
-
-  @media (max-width: 400px) {
-    text-align: center;
-    font-size: 14px;
-  }
 `;
 
 const TotalPrice = styled.span`
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: ${props => props.theme.colors.primary};
-
-  @media (max-width: 400px) {
-    text-align: center;
-    font-size: 24px;
-  }
 `;
 
 const Actions = styled.div`
   display: flex;
-  gap: 12px;
-
-  @media (max-width: 400px) {
-    flex-direction: column;
-    gap: 10px;
-  }
+  gap: 10px;
 `;
 
-const Button = styled.button`
+const ActionButton = styled.button`
   flex: 1;
-  padding: 14px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-
-  &:hover {
-    transform: scale(1.02);
-  }
-
+  gap: 6px;
   &:active {
-    transform: scale(0.98);
-  }
-
-  @media (max-width: 400px) {
-    padding: 16px;
-    font-size: 18px;
+    transform: scale(0.96);
   }
 `;
 
-const CancelButton = styled(Button)`
-  background: #f5f5f5;
+const CancelBtn = styled(ActionButton)`
+  background: #f0f0f0;
   color: #666;
-
   &:hover {
-    background: #ebebeb;
+    background: #e5e5e5;
   }
 `;
 
-const ConfirmButton = styled(Button)`
+const ConfirmBtn = styled(ActionButton)`
   background: ${props => props.theme.colors.primary};
   color: white;
-
   &:hover {
     background: #c0392b;
   }
@@ -494,13 +402,13 @@ const ConfirmButton = styled(Button)`
 
 const Loading = styled.div`
   text-align: center;
-  padding: 20px;
+  padding: 30px 0;
   color: ${props => props.theme.colors.textMuted};
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 20px;
+  padding: 30px 0;
   color: ${props => props.theme.colors.textMuted};
 `;
 
@@ -517,11 +425,8 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Carregar addons e categorias
   useEffect(() => {
-    if (isOpen && item) {
-      loadData();
-    }
+    if (isOpen && item) loadData();
   }, [isOpen, item]);
 
   const loadData = async () => {
@@ -540,13 +445,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
         showToast('Nenhum acompanhamento disponível para este produto', 'info');
       }
     } catch (error) {
-      console.error('❌ [ADDON] Erro ao buscar dados:', error);
+      console.error('❌ [ADDON] Erro:', error);
       showToast('Erro ao carregar acompanhamentos', 'error');
     }
     setLoading(false);
   };
 
-  // Inicializar addons selecionados
   useEffect(() => {
     if (item && item.addons) {
       const initial = {};
@@ -559,13 +463,10 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     }
   }, [item]);
 
-  // Calcular total
   useEffect(() => {
     if (!item) return;
-
     let total = parseFloat(item.price) || 0;
     total = total * (item.qty || 1);
-
     Object.keys(selectedAddons).forEach(addonId => {
       const qty = selectedAddons[addonId] || 0;
       const addon = availableAddons?.find(a => a.id === parseInt(addonId));
@@ -578,7 +479,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   if (!isOpen || !item) return null;
 
-  // Funções auxiliares
   const getCategoryDescription = (categoryName) => {
     const category = categories.find(c => c.name === categoryName);
     return category?.description || DEFAULT_DESCRIPTIONS[categoryName] || '';
@@ -591,11 +491,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
   const handleQuantityChange = (addonId, delta) => {
     const currentQty = selectedAddons[addonId] || 0;
     const newQty = Math.max(0, currentQty + delta);
-
-    setSelectedAddons(prev => ({
-      ...prev,
-      [addonId]: newQty
-    }));
+    setSelectedAddons(prev => ({ ...prev, [addonId]: newQty }));
 
     if (newQty === 0) {
       removeAddonFromItem(itemIndex, addonId);
@@ -629,39 +525,28 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
+
+            {/* HEADER COMPACTO */}
             <Header>
               <TitleSection>
                 <Title>🍔 Acompanhamentos</Title>
                 <Subtitle>Personalize seu pedido</Subtitle>
               </TitleSection>
-              <CloseButton onClick={onClose}>
-                <X size={20} />
-              </CloseButton>
+              <CloseButton onClick={onClose}>✕</CloseButton>
             </Header>
 
-            {/* ✅ PRODUCT INFO - 3 LINHAS */}
+            {/* INFO DO PRODUTO - COMPACTO (SEM IMAGEM) */}
             <ProductInfo>
-              {item.image_url && (
-                <ProductImage src={item.image_url} alt={item.name} />
-              )}
               <ProductDetails>
-                {/* LINHA 1: Nome do produto */}
-                <ProductNameRow>
-                  <ProductName>{item.name}</ProductName>
-                </ProductNameRow>
-
-                {/* LINHA 2: Badge com quantidade */}
+                <ProductName>{item.name}</ProductName>
                 {totalAddonsCount > 0 && (
-                  <AddonBadge>
-                    {totalAddonsCount} {getAddonLabel(totalAddonsCount)}
-                  </AddonBadge>
+                  <AddonBadge>{totalAddonsCount} {getAddonLabel(totalAddonsCount)}</AddonBadge>
                 )}
-
-                {/* LINHA 3: Preço */}
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
               </ProductDetails>
             </ProductInfo>
 
+            {/* LISTAGEM DE ACOMPANHAMENTOS - PRIORIDADE */}
             <AddonsSection>
               {loading ? (
                 <Loading>Carregando acompanhamentos...</Loading>
@@ -672,12 +557,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                       <CategoryIcon>{getCategoryIcon(category)}</CategoryIcon>
                       <div>
                         <GroupTitle>{category}</GroupTitle>
-                        <GroupDescription>
-                          {getCategoryDescription(category)}
-                        </GroupDescription>
+                        <GroupDescription>{getCategoryDescription(category)}</GroupDescription>
                       </div>
                     </GroupHeader>
-
                     {groupedAddons[category].map(addon => {
                       const qty = selectedAddons[addon.id] || 0;
                       return (
@@ -686,18 +568,14 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                             <AddonName>{addon.name}</AddonName>
                             <AddonPrice>R$ {formatPrice(addon.price)}</AddonPrice>
                           </AddonInfo>
-
                           <QuantityControls>
-                            <QuantityButton
-                              onClick={() => handleQuantityChange(addon.id, -1)}
-                              disabled={qty === 0}
-                            >
-                              <Minus size={16} />
-                            </QuantityButton>
+                            <QtyButton onClick={() => handleQuantityChange(addon.id, -1)} disabled={qty === 0}>
+                              <Minus size={14} />
+                            </QtyButton>
                             <Quantity>{qty}</Quantity>
-                            <QuantityButton onClick={() => handleQuantityChange(addon.id, 1)}>
-                              <Plus size={16} />
-                            </QuantityButton>
+                            <QtyButton onClick={() => handleQuantityChange(addon.id, 1)}>
+                              <Plus size={14} />
+                            </QtyButton>
                           </QuantityControls>
                         </AddonItem>
                       );
@@ -711,6 +589,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </AddonsSection>
 
+            {/* FOOTER COMPACTO */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
@@ -721,17 +600,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
                 </TotalLabel>
                 <TotalPrice>R$ {formatPrice(totalPrice)}</TotalPrice>
               </TotalSection>
-
               <Actions>
-                <CancelButton onClick={onClose}>
-                  Fechar
-                </CancelButton>
-                <ConfirmButton onClick={onClose}>
-                  <Check size={18} />
-                  Concluir
-                </ConfirmButton>
+                <CancelBtn onClick={onClose}>Fechar</CancelBtn>
+                <ConfirmBtn onClick={onClose}><Check size={18} /> Concluir</ConfirmBtn>
               </Actions>
             </Footer>
+
           </ModalContent>
         </Modal>
       </Overlay>
