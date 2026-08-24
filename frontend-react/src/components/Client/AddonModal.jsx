@@ -539,9 +539,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
             <ProductInfo>
               <ProductDetails>
                 <ProductName>{item.name}</ProductName>
-                {totalAddonsCount > 0 && (
-                  <AddonBadge>{totalAddonsCount} {getAddonLabel(totalAddonsCount)}</AddonBadge>
-                )}
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
               </ProductDetails>
             </ProductInfo>
