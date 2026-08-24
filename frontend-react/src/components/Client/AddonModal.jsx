@@ -104,8 +104,28 @@ const ModalContent = styled.div`
 `;
 
 // ============================================================
-//  IMAGEM DO PRODUTO - FULLSCREEN NO TOPO
-//  (nenhum padding, sem fundo branco atrás)
+//  SCROLL CONTAINER - TUDO DENTRO DELE (imagem + conteúdo)
+// ============================================================
+const ScrollContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px 16px;
+
+  @media (max-width: 768px) {
+    padding: 0 16px 16px 16px;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 4px;
+  }
+`;
+
+// ============================================================
+//  IMAGEM DO PRODUTO - PRIMEIRO ELEMENTO DO SCROLL
 // ============================================================
 const ProductImage = styled.div`
   width: 100%;
@@ -113,6 +133,7 @@ const ProductImage = styled.div`
   background: #f0f0f0;
   flex-shrink: 0;
   overflow: hidden;
+  margin-bottom: 16px;
 
   img {
     width: 100%;
@@ -141,27 +162,6 @@ const ProductImagePlaceholder = styled.div`
   font-size: 48px;
   color: #ccc;
   background: #f5f5f5;
-`;
-
-// ============================================================
-//  SCROLL CONTAINER - NOME, PREÇO, DESCRIÇÃO E ADDONS
-// ============================================================
-const ScrollContainer = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 16px 16px 16px;
-
-  @media (max-width: 768px) {
-    padding: 16px 16px 16px 16px;
-  }
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 4px;
-  }
 `;
 
 // ============================================================
@@ -492,17 +492,17 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* ✅ IMAGEM FULLSCREEN NO TOPO – sem nenhum elemento antes dela */}
-            {item.image_url ? (
-              <ProductImage>
-                <img src={item.image_url} alt={item.name} loading="lazy" />
-              </ProductImage>
-            ) : (
-              <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
-            )}
-
-            {/* CONTEÚDO COM SCROLL (nome, preço, addons) */}
+            {/* ✅ SCROLL CONTAINER – TUDO DENTRO (imagem, info, addons) */}
             <ScrollContainer>
+              {/* IMAGEM – PRIMEIRO ELEMENTO, ROLA COM O CONTEÚDO */}
+              {item.image_url ? (
+                <ProductImage>
+                  <img src={item.image_url} alt={item.name} loading="lazy" />
+                </ProductImage>
+              ) : (
+                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+              )}
+
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
@@ -553,7 +553,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </ScrollContainer>
 
-            {/* ✅ RODAPÉ COM BOTÕES (único "Fechar" do modal) */}
+            {/* ✅ RODAPÉ FIXO */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
