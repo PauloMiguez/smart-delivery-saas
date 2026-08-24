@@ -50,7 +50,7 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS - ADAPTADOS PARA MOBILE FULLSCREEN
+//  STYLED COMPONENTS
 // ============================================================
 
 const Overlay = styled.div`
@@ -99,29 +99,18 @@ const ModalContent = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative; /* para posicionar o botão fechar */
   padding: 0;
-
-  @media (min-width: 769px) {
-    padding: 16px 16px 12px 16px;
-  }
 `;
 
 // ============================================================
-//  HEADER (apenas botão fechar, sobreposto à imagem)
+//  BOTÃO FECHAR - FIXO NO TOPO DIREITO
 // ============================================================
-const CloseButtonWrapper = styled.div`
+const CloseButton = styled.button`
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 10;
-
-  @media (max-width: 768px) {
-    top: 16px;
-    right: 16px;
-  }
-`;
-
-const CloseButton = styled.button`
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   border: none;
@@ -141,6 +130,8 @@ const CloseButton = styled.button`
   }
 
   @media (max-width: 768px) {
+    top: 16px;
+    right: 16px;
     width: 44px;
     height: 44px;
     font-size: 24px;
@@ -148,7 +139,7 @@ const CloseButton = styled.button`
 `;
 
 // ============================================================
-//  SCROLL CONTAINER (ocupa o resto, com scroll)
+//  SCROLL CONTAINER - tudo dentro dele (imagem + conteúdo)
 // ============================================================
 const ScrollContainer = styled.div`
   flex: 1;
@@ -169,26 +160,15 @@ const ScrollContainer = styled.div`
 `;
 
 // ============================================================
-//  PRODUCT CARD - imagem ocupa todo o topo (sem fundo branco)
+//  IMAGEM DO PRODUTO - primeiro elemento do scroll
 // ============================================================
-const ProductCard = styled.div`
-  margin-bottom: 20px;
-  border-radius: 0;
-  overflow: hidden;
-  background: transparent;
-
-  @media (min-width: 769px) {
-    border-radius: 16px;
-    border: 1px solid ${props => props.theme.colors.border};
-    background: ${props => props.theme.colors.surface};
-  }
-`;
-
 const ProductImage = styled.div`
   width: 100%;
   height: 240px;
   background: #f0f0f0;
-  position: relative;
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: 12px;
 
   img {
     width: 100%;
@@ -200,6 +180,12 @@ const ProductImage = styled.div`
     height: 45vh;
     min-height: 200px;
     max-height: 400px;
+    border-radius: 0;
+  }
+
+  @media (min-width: 769px) {
+    border-radius: 16px 16px 0 0;
+    margin-bottom: 0;
   }
 `;
 
@@ -214,11 +200,20 @@ const ProductImagePlaceholder = styled.div`
   background: #f5f5f5;
 `;
 
+// ============================================================
+//  INFORMAÇÕES DO PRODUTO (nome, preço, descrição)
+// ============================================================
 const ProductInfo = styled.div`
-  padding: 12px 16px 16px 16px;
+  padding: 12px 0 16px 0;
 
-  @media (max-width: 768px) {
-    padding: 16px 0 12px 0;
+  @media (min-width: 769px) {
+    padding: 16px 16px 16px 16px;
+    background: white;
+    border-radius: 0 0 16px 16px;
+    border-left: 1px solid ${props => props.theme.colors.border};
+    border-right: 1px solid ${props => props.theme.colors.border};
+    border-bottom: 1px solid ${props => props.theme.colors.border};
+    margin-bottom: 16px;
   }
 `;
 
@@ -550,8 +545,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* IMAGEM EM DESTAQUE NO TOPO - sem fundo branco ao redor */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
+            {/* BOTÃO FECHAR - FIXO */}
+            <CloseButton onClick={onClose}>✕</CloseButton>
+
+            {/* SCROLL CONTAINER - TUDO DENTRO DELE */}
+            <ScrollContainer>
+              {/* IMAGEM DO PRODUTO - PRIMEIRO ELEMENTO */}
               {item.image_url ? (
                 <ProductImage>
                   <img src={item.image_url} alt={item.name} loading="lazy" />
@@ -559,13 +558,8 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               ) : (
                 <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
               )}
-              <CloseButtonWrapper>
-                <CloseButton onClick={onClose}>✕</CloseButton>
-              </CloseButtonWrapper>
-            </div>
 
-            <ScrollContainer>
-              {/* INFORMAÇÕES DO PRODUTO (nome, preço, descrição) */}
+              {/* INFORMAÇÕES DO PRODUTO */}
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
