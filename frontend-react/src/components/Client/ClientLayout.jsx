@@ -9,9 +9,9 @@ import { Badge } from '../Shared/Container';
 import ProductCard from './ProductCard';
 import CartDrawer from './CartDrawer';
 import ImageModal from './ImageModal';
-
 import OrdersHistory from './OrdersHistory';
 import TrackOrder from './TrackOrder';
+import { setFavicon } from '../../utils/favicon';
 
 // ============================================================
 //  DESIGN SYSTEM / THEME (Delivery & Automation Warm Theme)
@@ -426,8 +426,15 @@ const ClientLayout = () => {
                 const categoriesData = categoriesRes.data.data || [];
 
                 setConfig(configRes.data.data);
+                // Atualizar favicon com a logo do tenant
+                if (configRes.data.data?.logo_image) {
+                    setFavicon(configRes.data.data.logo_image);
+                }
+
                 setStoreStatus(statusRes.data.data);
                 setOperatingHours(hoursRes.data.data || []);
+
+
 
                 // ✅ Armazenar categorias com tipo
                 setCategoriesWithType(categoriesData);
@@ -677,7 +684,7 @@ const ClientLayout = () => {
                 <CartDrawer
                     isOpen={isCartOpen}
                     onClose={() => setIsCartOpen(false)}
-                    categories={categoriesWithType}  
+                    categories={categoriesWithType}
                 />
             </AppContainer>
 
