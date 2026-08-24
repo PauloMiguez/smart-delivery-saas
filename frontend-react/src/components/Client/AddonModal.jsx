@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
 // ============================================================
-//  TEMA DO MODAL (para consistência visual)
+//  TEMA DO MODAL
 // ============================================================
 const modalTheme = {
   colors: {
@@ -38,13 +38,6 @@ const getAddonLabel = (count) => {
   return count === 1 ? 'acompanhamento' : 'acompanhamentos';
 };
 
-const getAddonLabelSelected = (count) => {
-  if (count === 0) return 'Nenhum acompanhamento selecionado';
-  return count === 1 
-    ? '1 acompanhamento selecionado' 
-    : `${count} acompanhamentos selecionados`;
-};
-
 // ============================================================
 //  DESCRIÇÕES PADRÃO (FALLBACK)
 // ============================================================
@@ -56,7 +49,7 @@ const DEFAULT_DESCRIPTIONS = {
 };
 
 // ============================================================
-//  ÍCONES POR CATEGORIA (opcional, para enriquecer visual)
+//  ÍCONES POR CATEGORIA
 // ============================================================
 const CATEGORY_ICONS = {
   'Bebidas': '🥤',
@@ -66,7 +59,7 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS - COM DESTAQUE PARA CATEGORIAS
+//  STYLED COMPONENTS - RESPONSIVOS
 // ============================================================
 const Overlay = styled.div`
   position: fixed;
@@ -152,15 +145,25 @@ const CloseButton = styled.button`
   }
 `;
 
+// ============================================================
+//  ✅ PRODUCT INFO - LAYOUT RESPONSIVO (3 LINHAS)
+// ============================================================
 const ProductInfo = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px;
   background: ${props => props.theme.colors.background};
   border-radius: 16px;
   margin-bottom: 20px;
   border: 1px solid ${props => props.theme.colors.border};
+
+  @media (max-width: 400px) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+  }
 `;
 
 const ProductImage = styled.img`
@@ -168,23 +171,70 @@ const ProductImage = styled.img`
   height: 60px;
   border-radius: 12px;
   object-fit: cover;
+  flex-shrink: 0;
+
+  @media (max-width: 400px) {
+    width: 80px;
+    height: 80px;
+  }
 `;
 
+// ✅ DETAILS - EMPILHA OS ELEMENTOS VERTICALMENTE
 const ProductDetails = styled.div`
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+`;
+
+// ✅ LINHA DO NOME
+const ProductNameRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 `;
 
 const ProductName = styled.h3`
   font-size: 15px;
   font-weight: 600;
-  margin: 0 0 2px 0;
+  margin: 0;
   color: ${props => props.theme.colors.textMain};
+  word-break: break-word;
 `;
 
-const ProductPrice = styled.span`
-  font-size: 14px;
-  color: ${props => props.theme.colors.primary};
+// ✅ BADGE - AGORA EM SUA PRÓPRIA LINHA (SEGUNDA LINHA)
+const AddonBadge = styled.span`
+  font-size: 13px;
+  color: #fff;
+  background: ${props => props.theme.colors.primary};
+  padding: 4px 14px;
+  border-radius: 20px;
   font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
+  align-self: flex-start;
+
+  @media (max-width: 400px) {
+    align-self: center;
+    font-size: 14px;
+    padding: 6px 16px;
+  }
+`;
+
+// ✅ PREÇO - TERCEIRA LINHA
+const ProductPrice = styled.span`
+  font-size: 16px;
+  color: ${props => props.theme.colors.primary};
+  font-weight: 700;
+  display: block;
+  margin-top: 2px;
+
+  @media (max-width: 400px) {
+    font-size: 18px;
+  }
 `;
 
 const AddonsSection = styled.div`
@@ -208,7 +258,6 @@ const AddonsSection = styled.div`
   }
 `;
 
-// ✅ GRUPO DE CADA CATEGORIA - COM SEPARADOR E FUNDO SUAVE
 const AddonGroup = styled.div`
   margin-bottom: 24px;
   background: ${props => props.theme.colors.background};
@@ -222,7 +271,6 @@ const AddonGroup = styled.div`
   }
 `;
 
-// ✅ CABEÇALHO DA CATEGORIA - COM MARCAÇÃO VISUAL
 const GroupHeader = styled.div`
   display: flex;
   align-items: center;
@@ -235,7 +283,6 @@ const GroupHeader = styled.div`
   position: relative;
 `;
 
-// ✅ TÍTULO DA CATEGORIA - DESTACADO
 const GroupTitle = styled.h4`
   font-size: 16px;
   font-weight: 700;
@@ -244,7 +291,6 @@ const GroupTitle = styled.h4`
   letter-spacing: -0.01em;
 `;
 
-// ✅ DESCRIÇÃO DA CATEGORIA - COM COR MAIS SUAVE
 const GroupDescription = styled.p`
   font-size: 13px;
   color: ${props => props.theme.colors.textMuted};
@@ -252,14 +298,12 @@ const GroupDescription = styled.p`
   font-weight: 400;
 `;
 
-// ✅ ÍCONE DA CATEGORIA
 const CategoryIcon = styled.span`
   font-size: 18px;
   margin-right: 4px;
   opacity: 0.8;
 `;
 
-// ✅ ITEM DE ACOMPANHAMENTO - COM INDENTAÇÃO E HOVER
 const AddonItem = styled.div`
   display: flex;
   align-items: center;
@@ -278,10 +322,17 @@ const AddonItem = styled.div`
   &:last-child {
     margin-bottom: 0;
   }
+
+  @media (max-width: 400px) {
+    padding: 12px 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 `;
 
 const AddonInfo = styled.div`
   flex: 1;
+  min-width: 120px;
 `;
 
 const AddonName = styled.span`
@@ -300,6 +351,11 @@ const QuantityControls = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+
+  @media (max-width: 400px) {
+    gap: 12px;
+  }
 `;
 
 const QuantityButton = styled.button`
@@ -319,14 +375,25 @@ const QuantityButton = styled.button`
     border-color: ${props => props.disabled ? '#e0e0e0' : props.theme.colors.primary};
     color: ${props => props.disabled ? '#ccc' : props.theme.colors.primary};
   }
+
+  @media (max-width: 400px) {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
 `;
 
 const Quantity = styled.span`
   font-size: 16px;
   font-weight: 600;
-  min-width: 24px;
+  min-width: 28px;
   text-align: center;
   color: ${props => props.theme.colors.textMain};
+
+  @media (max-width: 400px) {
+    font-size: 18px;
+    min-width: 32px;
+  }
 `;
 
 const Footer = styled.div`
@@ -340,22 +407,43 @@ const TotalSection = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+
+  @media (max-width: 400px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
 `;
 
 const TotalLabel = styled.span`
   font-size: 15px;
   color: ${props => props.theme.colors.textMuted};
+
+  @media (max-width: 400px) {
+    text-align: center;
+    font-size: 14px;
+  }
 `;
 
 const TotalPrice = styled.span`
   font-size: 20px;
   font-weight: 700;
   color: ${props => props.theme.colors.primary};
+
+  @media (max-width: 400px) {
+    text-align: center;
+    font-size: 24px;
+  }
 `;
 
 const Actions = styled.div`
   display: flex;
   gap: 12px;
+
+  @media (max-width: 400px) {
+    flex-direction: column;
+    gap: 10px;
+  }
 `;
 
 const Button = styled.button`
@@ -379,6 +467,11 @@ const Button = styled.button`
   &:active {
     transform: scale(0.98);
   }
+
+  @media (max-width: 400px) {
+    padding: 16px;
+    font-size: 18px;
+  }
 `;
 
 const CancelButton = styled(Button)`
@@ -397,16 +490,6 @@ const ConfirmButton = styled(Button)`
   &:hover {
     background: #c0392b;
   }
-`;
-
-const AddonBadge = styled.span`
-  font-size: 11px;
-  color: #fff;
-  background: ${props => props.theme.colors.primary};
-  padding: 2px 10px;
-  border-radius: 12px;
-  margin-left: 8px;
-  font-weight: 600;
 `;
 
 const Loading = styled.div`
@@ -434,10 +517,9 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Carregar addons e categorias quando o modal abrir
+  // Carregar addons e categorias
   useEffect(() => {
     if (isOpen && item) {
-      console.log('🔍 [ADDON] Modal aberto para:', item.name);
       loadData();
     }
   }, [isOpen, item]);
@@ -446,19 +528,13 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     setLoading(true);
     try {
       const tenantId = tenant || 'fireburger';
-      console.log('📤 [ADDON] Buscando dados para tenant:', tenantId);
-
       const addonsRes = await api.get(`/products/addons?tenant=${tenantId}`);
       const addons = addonsRes.data.data || [];
-      console.log(`✅ [ADDON] ${addons.length} addons encontrados`);
-
       const filtered = addons.filter(a => a.id !== item.id);
       setAvailableAddons(filtered);
 
       const categoriesRes = await api.get(`/categories?tenant=${tenantId}`);
-      const categoriesData = categoriesRes.data.data || [];
-      setCategories(categoriesData);
-      console.log(`✅ [CATEGORIAS] ${categoriesData.length} categorias carregadas`);
+      setCategories(categoriesRes.data.data || []);
 
       if (filtered.length === 0) {
         showToast('Nenhum acompanhamento disponível para este produto', 'info');
@@ -470,7 +546,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     setLoading(false);
   };
 
-  // Inicializar com addons já selecionados
+  // Inicializar addons selecionados
   useEffect(() => {
     if (item && item.addons) {
       const initial = {};
@@ -483,7 +559,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     }
   }, [item]);
 
-  // Calcular total (preço base + addons)
+  // Calcular total
   useEffect(() => {
     if (!item) return;
 
@@ -502,16 +578,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   if (!isOpen || !item) return null;
 
-  // Obter descrição da categoria (dinâmica)
+  // Funções auxiliares
   const getCategoryDescription = (categoryName) => {
     const category = categories.find(c => c.name === categoryName);
-    if (category?.description) {
-      return category.description;
-    }
-    return DEFAULT_DESCRIPTIONS[categoryName] || '';
+    return category?.description || DEFAULT_DESCRIPTIONS[categoryName] || '';
   };
 
-  // Obter ícone da categoria (se disponível)
   const getCategoryIcon = (categoryName) => {
     return CATEGORY_ICONS[categoryName] || '📌';
   };
@@ -545,9 +617,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   const groupedAddons = availableAddons?.reduce((groups, addon) => {
     const category = addon.category || 'Adicionais';
-    if (!groups[category]) {
-      groups[category] = [];
-    }
+    if (!groups[category]) groups[category] = [];
     groups[category].push(addon);
     return groups;
   }, {});
@@ -569,19 +639,25 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               </CloseButton>
             </Header>
 
+            {/* ✅ PRODUCT INFO - 3 LINHAS */}
             <ProductInfo>
               {item.image_url && (
                 <ProductImage src={item.image_url} alt={item.name} />
               )}
               <ProductDetails>
-                <ProductName>
-                  {item.name}
-                  {totalAddonsCount > 0 && (
-                    <AddonBadge>
-                      {totalAddonsCount} {getAddonLabel(totalAddonsCount)}
-                    </AddonBadge>
-                  )}
-                </ProductName>
+                {/* LINHA 1: Nome do produto */}
+                <ProductNameRow>
+                  <ProductName>{item.name}</ProductName>
+                </ProductNameRow>
+
+                {/* LINHA 2: Badge com quantidade */}
+                {totalAddonsCount > 0 && (
+                  <AddonBadge>
+                    {totalAddonsCount} {getAddonLabel(totalAddonsCount)}
+                  </AddonBadge>
+                )}
+
+                {/* LINHA 3: Preço */}
                 <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
               </ProductDetails>
             </ProductInfo>
