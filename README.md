@@ -2,7 +2,7 @@
 
 Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se cadastrar, gerenciar seu cardápio e receber pedidos. Cada restaurante tem seu próprio subdomínio e dados isolados.
 
-![Smart Delivery SaaS](https://img.shields.io/badge/version-2.0.0-blue)
+![Smart Delivery SaaS](https://img.shields.io/badge/version-2.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![React](https://img.shields.io/badge/React-18.2.0-61dafb)
 ![Node.js](https://img.shields.io/badge/Node.js-18.x-339933)
@@ -14,7 +14,8 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 
 ### 🛒 Cliente
 - ✅ Cardápio online com categorias e produtos
-- ✅ Carrinho de compras flutuante com drawer
+- ✅ **Acompanhamentos opcionais** – personalize seu pedido com adicionais (bebidas, batatas, molhos, etc.)
+- ✅ Carrinho de compras flutuante com drawer e botão "Adicionar acompanhamentos" (apenas para produtos principais)
 - ✅ Checkout completo com CEP automático (ViaCEP)
 - ✅ Status "Aberto/Fechado" baseado no horário local
 - ✅ Design responsivo para dispositivos móveis
@@ -22,12 +23,28 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ Histórico de pedidos com verificação de nome/telefone
 - ✅ Acompanhamento de pedidos em tempo real com link único
 - ✅ Notificações via WhatsApp com resumo do pedido
+- ✅ Imagens clicáveis com modal de expansão
+- ✅ Desconto configurável para Dinheiro e Pix
+
+### 🛠️ Acompanhamentos
+- ✅ Modal dedicado para seleção de acompanhamentos
+- ✅ Listagem agrupada por categorias com descrições dinâmicas
+- ✅ Controles de quantidade (+ / -) para cada item
+- ✅ Cálculo automático do total com adicionais
+- ✅ Badge com contagem de acompanhamentos selecionados
+- ✅ Layout responsivo (mobile fullscreen, imagem rolável, títulos sticky)
+- ✅ Descrições de categorias personalizáveis por tenant
+
+### 🏷️ Categorias (3 Tipos)
+- ✅ **Produto Principal** – aparece no cardápio e pode receber acompanhamentos
+- ✅ **Acompanhamento Independente** – aparece no cardápio e pode ser comprado sozinho
+- ✅ **Adicional Dependente** – não aparece no cardápio, só via modal de acompanhamentos
 
 ### ⚙️ Painel Administrativo
 - ✅ Dashboard com métricas e gráficos (vendas, status, produtos)
 - ✅ Filtros por período (hoje/semana/mês/todos)
 - ✅ CRUD de produtos com upload de imagens (Cloudinary)
-- ✅ CRUD de categorias com ordenação
+- ✅ CRUD de categorias com ordenação e **seletor de tipo** (principal/independente/dependente)
 - ✅ Gerenciamento de pedidos com atualização de status
 - ✅ Modal de acompanhamento do pedido com detalhes e impressão PDF
 - ✅ Configurações da loja (nome, horário, endereço)
@@ -56,6 +73,7 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ Notificações em tempo real via WebSocket
 - ✅ Link único seguro para acompanhamento (token + validação)
 - ✅ Histórico de pedidos por cliente
+- ✅ Acompanhamentos exibidos em todos os locais (histórico, tracking, admin, PDF)
 
 ### 🚚 Taxa de Entrega
 - ✅ **Fixa:** Valor único para todos os pedidos
@@ -79,13 +97,15 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - ✅ Redirecionamento condicional (ignora rotas /admin)
 
 ### 🔔 Notificações Push (PWA)
-- ✅ Service Worker registrado e ativo
+- ✅ Service Worker registrado e ativo (multi-tenant)
 - ✅ Permissão de notificação solicitada automaticamente
 - ✅ Inscrição push salva no banco por dispositivo
+- ✅ Separação de inscrições por tipo de usuário (admin / client)
 - ✅ Notificações específicas por dispositivo (device_token)
-- ✅ Envio automático por mudança de status
+- ✅ Envio automático para admin em novos pedidos
+- ✅ Envio automático para cliente em mudanças de status
 - ✅ Mensagens personalizadas por status
-- ✅ Redirecionamento para página de tracking ao clicar
+- ✅ Redirecionamento para página correta (admin / tracking)
 - ✅ Suporte a múltiplos dispositivos
 - ✅ Componente de permissão apenas em rotas públicas
 
@@ -109,6 +129,7 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 - **Recharts** - Gráficos e visualizações
 - **Axios** - Requisições HTTP
 - **Socket.io-client** - Comunicação em tempo real
+- **Lucide React** - Ícones vetoriais
 
 ### Infraestrutura
 - **Render.com** - Hospedagem (gratuito)
@@ -122,24 +143,26 @@ Sistema de delivery multi-tenant (SaaS) onde múltiplos restaurantes podem se ca
 ```
 smart-delivery-saas/
 ├── backend/
-│   ├── server.js # API principal com WebSocket
-│   ├── upload.js # Configuração do Cloudinary
+│   ├── server.js          # API principal com WebSocket
+│   ├── upload.js          # Configuração do Cloudinary
+│   ├── migrations/        # Scripts SQL de migração
 │   ├── package.json
 │   └── .env
 ├── frontend-react/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Client/ # Cardápio, checkout, pedidos, tracking
-│   │   │   ├── Admin/ # Dashboard, produtos, categorias, pedidos
-│   │   │   └── Shared/ # Componentes reutilizáveis
-│   │   ├── contexts/ # Context API (Tenant, Cart, Toast, Modal)
-│   │   ├── services/ # API, axios, socket
-│   │   ├── styles/ # Tema global, tokens, styled components
+│   │   │   ├── Client/    # Cardápio, checkout, pedidos, tracking, AddonModal
+│   │   │   ├── Admin/     # Dashboard, produtos, categorias, pedidos, CategoryModal
+│   │   │   └── Shared/    # Componentes reutilizáveis
+│   │   ├── contexts/      # Context API (Tenant, Cart, Toast, Modal)
+│   │   ├── hooks/         # Hooks customizados
+│   │   ├── services/      # API, axios, socket
+│   │   ├── styles/        # Tema global, tokens, styled components
 │   │   └── App.jsx
 │   ├── public/
-│   │   ├── service-worker.js # Service Worker PWA
-│   │   ├── manifest.json # Manifest PWA
-│   │   └── offline.html # Página offline
+│   │   ├── service-worker.js   # Service Worker PWA (multi-tenant)
+│   │   ├── manifest.json       # Manifest PWA (dinâmico)
+│   │   └── offline.html        # Página offline
 │   ├── package.json
 │   └── vite.config.js
 └── README.md
@@ -224,12 +247,13 @@ Start Command: cd backend && node server.js
 | POST | `/api/products` | Criar produto |
 | PUT | `/api/products/:id` | Atualizar produto |
 | DELETE | `/api/products/:id` | Remover produto |
-| GET | `/api/categories` | Listar categorias |
+| GET | `/api/products/addons` | Listar produtos marcados como acompanhamentos |
+| GET | `/api/categories` | Listar categorias (inclui `category_type`) |
 | POST | `/api/categories` | Criar categoria |
 | PUT | `/api/categories/:id` | Atualizar categoria |
 | DELETE | `/api/categories/:id` | Remover categoria |
 | GET | `/api/orders` | Listar pedidos |
-| POST | `/api/orders` | Criar pedido |
+| POST | `/api/orders` | Criar pedido (com addons e device_token) |
 | GET | `/api/orders/:id` | Buscar pedido por ID (com token) |
 | PUT | `/api/orders/:id/status` | Atualizar status do pedido |
 | GET | `/api/config` | Obter configurações |
@@ -265,19 +289,25 @@ Start Command: cd backend && node server.js
    ↓
 2. Restaurante configura a loja (horário, taxa, imagens)
    ↓
-3. Restaurante adiciona categorias e produtos
+3. Restaurante adiciona categorias (definindo tipo: principal/independente/dependente)
    ↓
-4. Cliente acessa o cardápio e faz um pedido
+4. Restaurante adiciona produtos e marca quais são acompanhamentos
    ↓
-5. Restaurante recebe notificação em tempo real
+5. Cliente acessa o cardápio e escolhe um produto principal
    ↓
-6. Restaurante confirma e prepara o pedido
+6. Cliente adiciona ao carrinho e pode adicionar acompanhamentos via modal
    ↓
-7. Restaurante despacha para entrega
+7. Cliente finaliza o pedido (com agendamento, se desejar)
    ↓
-8. Cliente acompanha o pedido pelo link único
+8. Restaurante recebe notificação em tempo real (push e WebSocket)
    ↓
-9. Pedido é entregue e finalizado
+9. Restaurante confirma e prepara o pedido
+   ↓
+10. Restaurante despacha para entrega (cliente recebe notificação push)
+   ↓
+11. Cliente acompanha o pedido pelo link único (com addons visíveis)
+   ↓
+12. Pedido é entregue e finalizado (cliente recebe notificação)
 ```
 
 ---
@@ -337,6 +367,4 @@ Este projeto está sob a licença MIT.
 
 🔗 **Demo:** https://smart-delivery-saas.onrender.com/?tenant=fireburger  
 🌐 **Domínio Personalizado:** https://fireburgerpetropolis.com.br  
-📧 **Contato:** seu-email@dominio.com
-```
-
+📧 **Contato:** paulo.migueoli@gmail.com
