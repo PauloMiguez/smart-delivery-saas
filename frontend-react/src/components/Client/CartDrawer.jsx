@@ -15,7 +15,7 @@ const formatPrice = (value) => {
 };
 
 // ============================================================
-//  STYLED COMPONENTS
+//  STYLED COMPONENTS (LAYOUT REESTRUTURADO ESTILO IFOOD)
 // ============================================================
 const Overlay = styled.div`
   position: fixed;
@@ -23,7 +23,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 999;
   opacity: ${props => props.$isOpen ? 1 : 0};
   visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
@@ -36,7 +36,7 @@ const Drawer = styled.div`
   top: 0;
   right: 0;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   height: 100%;
   background: ${tokens.colors.surface};
   z-index: 1000;
@@ -54,36 +54,43 @@ const Header = styled.div`
   align-items: center;
   padding: ${tokens.spacing.md} ${tokens.spacing.lg};
   border-bottom: 1px solid ${tokens.colors.border};
+  background: ${tokens.colors.surface};
   flex-shrink: 0;
 `;
 
 const HeaderTitle = styled.h2`
   font-size: ${tokens.typography.fontSize.lg};
-  font-weight: ${tokens.typography.fontWeight.semibold};
+  font-weight: ${tokens.typography.fontWeight.bold};
   color: ${tokens.colors.text};
   margin: 0;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: ${tokens.spacing.xs};
 `;
 
 const CloseButton = styled.button`
-  background: none;
+  background: ${tokens.colors.background || '#f3f4f6'};
   border: none;
-  font-size: ${tokens.typography.fontSize['2xl']};
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: ${tokens.typography.fontSize.base};
   cursor: pointer;
   color: ${tokens.colors.textMuted};
-  padding: ${tokens.spacing.xs};
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease-in-out;
-  line-height: 1;
 
   &:hover {
+    background: ${tokens.colors.border};
     color: ${tokens.colors.text};
-    transform: rotate(90deg);
   }
 
   &:focus-visible {
     outline: 2px solid ${tokens.colors.accent};
     outline-offset: 2px;
-    border-radius: ${tokens.radius.sm};
   }
 `;
 
@@ -94,6 +101,7 @@ const CartItems = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${tokens.spacing.md};
+  background: ${tokens.colors.background || '#f8f9fa'};
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -112,9 +120,10 @@ const EmptyCart = styled.div`
   justify-content: center;
   color: ${tokens.colors.textMuted};
   padding: ${tokens.spacing.xl};
+  background: ${tokens.colors.surface};
 
   .icon {
-    font-size: 56px;
+    font-size: 64px;
     margin-bottom: ${tokens.spacing.md};
   }
 
@@ -129,28 +138,40 @@ const EmptyCart = styled.div`
     font-size: ${tokens.typography.fontSize.sm};
     margin: 0;
     color: ${tokens.colors.textMuted};
+    text-align: center;
   }
 `;
 
 const CartItem = styled.div`
+  background: ${tokens.colors.surface};
+  border-radius: ${tokens.radius.md};
+  border: 1px solid ${tokens.colors.border};
+  padding: ${tokens.spacing.md};
   display: flex;
-  gap: ${tokens.spacing.md};
-  padding: ${tokens.spacing.sm} 0;
-  border-bottom: 1px solid ${tokens.colors.border};
-  align-items: flex-start;
+  flex-direction: column;
+  gap: ${tokens.spacing.sm};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s;
 
-  &:last-child {
-    border-bottom: none;
+  &:hover {
+    border-color: ${tokens.colors.accent};
   }
 `;
 
+const ItemMainRow = styled.div`
+  display: flex;
+  gap: ${tokens.spacing.md};
+  align-items: flex-start;
+`;
+
 const ItemImage = styled.div`
-  width: 56px;
-  height: 56px;
-  border-radius: ${tokens.radius.sm};
+  width: 60px;
+  height: 60px;
+  border-radius: ${tokens.radius.md};
   background: ${tokens.colors.background};
   overflow: hidden;
   flex-shrink: 0;
+  border: 1px solid ${tokens.colors.border};
 
   img {
     width: 100%;
@@ -160,15 +181,16 @@ const ItemImage = styled.div`
 `;
 
 const ItemImagePlaceholder = styled.div`
-  width: 56px;
-  height: 56px;
-  border-radius: ${tokens.radius.sm};
+  width: 60px;
+  height: 60px;
+  border-radius: ${tokens.radius.md};
   background: ${tokens.colors.accentLight};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 26px;
   color: ${tokens.colors.accent};
+  flex-shrink: 0;
 `;
 
 const ItemInfo = styled.div`
@@ -176,25 +198,36 @@ const ItemInfo = styled.div`
   min-width: 0;
 `;
 
-const ItemName = styled.p`
+const ItemName = styled.h4`
   font-size: ${tokens.typography.fontSize.sm};
-  font-weight: ${tokens.typography.fontWeight.medium};
-  color: ${tokens.colors.text};
-  margin: 0 0 2px 0;
-`;
-
-const ItemPrice = styled.p`
-  font-size: ${tokens.typography.fontSize.sm};
-  color: ${tokens.colors.accent};
   font-weight: ${tokens.typography.fontWeight.semibold};
-  margin: 0;
+  color: ${tokens.colors.text};
+  margin: 0 0 4px 0;
+  line-height: 1.3;
 `;
 
-// ✅ ESTILOS PARA ACOMPANHAMENTOS
+const ItemPriceBase = styled.span`
+  font-size: ${tokens.typography.fontSize.xs};
+  color: ${tokens.colors.textMuted};
+`;
+
+const ItemTotal = styled.div`
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: ${tokens.typography.fontWeight.bold};
+  color: ${tokens.colors.text};
+  text-align: right;
+  flex-shrink: 0;
+`;
+
 const AddonsList = styled.div`
-  margin-top: 4px;
-  padding-left: 8px;
-  border-left: 2px solid ${tokens.colors.accent};
+  margin-top: ${tokens.spacing.xs};
+  padding: ${tokens.spacing.xs} ${tokens.spacing.sm};
+  background: ${tokens.colors.background || '#f9fafb'};
+  border-radius: ${tokens.radius.sm};
+  border-left: 3px solid ${tokens.colors.accent};
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 `;
 
 const AddonItem = styled.div`
@@ -202,27 +235,25 @@ const AddonItem = styled.div`
   color: ${tokens.colors.textMuted};
   display: flex;
   justify-content: space-between;
-  padding: 1px 0;
 `;
 
-// ✅ BOTÃO DE ACOMPANHAMENTOS (SERÁ CONDICIONAL)
 const AddonButton = styled.button`
   background: none;
-  border: 1px dashed ${tokens.colors.border};
+  border: 1px dashed ${tokens.colors.accent};
   color: ${tokens.colors.accent};
   font-size: ${tokens.typography.fontSize.xs};
-  padding: 2px 10px;
+  padding: 4px 10px;
   border-radius: ${tokens.radius.sm};
   cursor: pointer;
-  margin-top: 4px;
+  margin-top: ${tokens.spacing.xs};
   transition: all 0.2s ease-in-out;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-family: ${tokens.typography.fontFamily};
+  font-weight: 500;
 
   &:hover {
-    border-color: ${tokens.colors.accent};
     background: ${tokens.colors.accentLight};
   }
 
@@ -232,23 +263,30 @@ const AddonButton = styled.button`
   }
 `;
 
+const ItemFooterRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid ${tokens.colors.border};
+  padding-top: ${tokens.spacing.xs};
+  margin-top: 2px;
+`;
+
 const ItemControls = styled.div`
   display: flex;
   align-items: center;
   gap: ${tokens.spacing.sm};
-  margin-top: ${tokens.spacing.xs};
-  flex-wrap: wrap;
 `;
 
 const QtyButton = styled.button`
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: ${tokens.radius.sm};
-  border: 1.5px solid ${tokens.colors.border};
+  border: 1px solid ${tokens.colors.border};
   background: ${tokens.colors.surface};
   color: ${tokens.colors.text};
-  font-size: ${tokens.typography.fontSize.base};
-  font-weight: ${tokens.typography.fontWeight.medium};
+  font-size: ${tokens.typography.fontSize.sm};
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   display: flex;
@@ -265,18 +303,13 @@ const QtyButton = styled.button`
   &:active {
     transform: scale(0.92);
   }
-
-  &:focus-visible {
-    outline: 2px solid ${tokens.colors.accent};
-    outline-offset: 2px;
-  }
 `;
 
 const QtyDisplay = styled.span`
   font-size: ${tokens.typography.fontSize.sm};
   font-weight: ${tokens.typography.fontWeight.semibold};
   color: ${tokens.colors.text};
-  min-width: 24px;
+  min-width: 20px;
   text-align: center;
 `;
 
@@ -285,28 +318,17 @@ const RemoveButton = styled.button`
   border: none;
   color: ${tokens.colors.textMuted};
   cursor: pointer;
-  font-size: ${tokens.typography.fontSize.sm};
+  font-size: ${tokens.typography.fontSize.xs};
   padding: ${tokens.spacing.xs};
+  display: flex;
+  align-items: center;
+  gap: 4px;
   transition: all 0.2s ease-in-out;
+  font-weight: 500;
 
   &:hover {
-    color: ${tokens.colors.error};
+    color: ${tokens.colors.error || '#ef4444'};
   }
-
-  &:focus-visible {
-    outline: 2px solid ${tokens.colors.accent};
-    outline-offset: 2px;
-    border-radius: ${tokens.radius.sm};
-  }
-`;
-
-const ItemTotal = styled.div`
-  font-size: ${tokens.typography.fontSize.sm};
-  font-weight: ${tokens.typography.fontWeight.semibold};
-  color: ${tokens.colors.accent};
-  align-self: flex-start;
-  margin-top: ${tokens.spacing.xs};
-  flex-shrink: 0;
 `;
 
 const Footer = styled.div`
@@ -314,34 +336,45 @@ const Footer = styled.div`
   border-top: 1px solid ${tokens.colors.border};
   flex-shrink: 0;
   background: ${tokens.colors.surface};
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
 `;
 
 const SubtotalRow = styled.div`
   display: flex;
   justify-content: space-between;
-  font-size: ${tokens.typography.fontSize.lg};
-  font-weight: ${tokens.typography.fontWeight.bold};
-  color: ${tokens.colors.text};
-  padding: ${tokens.spacing.sm} 0;
+  align-items: center;
+  font-size: ${tokens.typography.fontSize.base};
+  color: ${tokens.colors.textMuted};
+  margin-bottom: 4px;
+
+  span:last-child {
+    font-weight: ${tokens.typography.fontWeight.bold};
+    color: ${tokens.colors.text};
+    font-size: ${tokens.typography.fontSize.lg};
+  }
 `;
 
 const CheckoutButton = styled.button`
   width: 100%;
-  padding: ${tokens.spacing.md};
+  padding: 14px;
   background: ${tokens.colors.accent};
   color: ${tokens.colors.surface};
   border: none;
   border-radius: ${tokens.radius.md};
   font-size: ${tokens.typography.fontSize.base};
-  font-weight: ${tokens.typography.fontWeight.semibold};
+  font-weight: ${tokens.typography.fontWeight.bold};
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  margin-top: ${tokens.spacing.md};
+  margin-top: ${tokens.spacing.sm};
   font-family: ${tokens.typography.fontFamily};
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: ${tokens.spacing.xs};
 
   &:hover:not(:disabled) {
     background: ${tokens.colors.accentHover};
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: ${tokens.shadows.md};
   }
 
@@ -353,15 +386,10 @@ const CheckoutButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
-
-  &:focus-visible {
-    outline: 2px solid ${tokens.colors.accent};
-    outline-offset: 2px;
-  }
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL - CORRIGIDO
+//  COMPONENTE PRINCIPAL
 // ============================================================
 const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
   const navigate = useNavigate();
@@ -383,19 +411,16 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
     navigate(`/checkout?tenant=${tenant}`);
   };
 
-  // ✅ Abrir modal de acompanhamentos
   const handleOpenAddons = (index) => {
     setSelectedItemIndex(index);
     setShowAddonModal(true);
   };
 
-  // ✅ Fechar modal de acompanhamentos
   const handleCloseAddons = () => {
     setShowAddonModal(false);
     setSelectedItemIndex(null);
   };
 
-  // ✅ VERIFICAR SE O ITEM É DE CATEGORIA PRINCIPAL
   const isPrincipalProduct = (item) => {
     if (!item || !item.category) return false;
     const category = categories.find(c => c.name === item.category);
@@ -410,7 +435,7 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
 
       <Drawer $isOpen={isOpen}>
         <Header>
-          <HeaderTitle>🛒 Seu Carrinho</HeaderTitle>
+          <HeaderTitle>🛒 Sacola de Compras</HeaderTitle>
           <CloseButton onClick={onClose} aria-label="Fechar carrinho">
             ✕
           </CloseButton>
@@ -419,9 +444,9 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
         <CartItems>
           {cart.length === 0 ? (
             <EmptyCart>
-              <div className="icon">🛒</div>
-              <h3>Carrinho vazio</h3>
-              <p>Adicione itens do cardápio para começar.</p>
+              <div className="icon">🛍️</div>
+              <h3>Sua sacola está vazia</h3>
+              <p>Explore o cardápio e adicione itens deliciosos para realizar o seu pedido.</p>
             </EmptyCart>
           ) : (
             cart.map((item, index) => {
@@ -431,37 +456,48 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
 
               return (
                 <CartItem key={item.id || index}>
-                  {item.image_url ? (
-                    <ItemImage>
-                      <img src={item.image_url} alt={item.name} />
-                    </ItemImage>
-                  ) : (
-                    <ItemImagePlaceholder>🍔</ItemImagePlaceholder>
-                  )}
-
-                  <ItemInfo>
-                    <ItemName>{item.name}</ItemName>
-                    <ItemPrice>R$ {formatPrice(item.price)}</ItemPrice>
-
-                    {/* ✅ EXIBIR ACOMPANHAMENTOS SELECIONADOS */}
-                    {hasAddonsSelected && item.addons && item.addons.length > 0 && (
-                      <AddonsList>
-                        {item.addons.map((addon, idx) => (
-                          <AddonItem key={idx}>
-                            <span>+ {addon.name}</span>
-                            <span>{addon.quantity}x R$ {formatPrice(addon.price)}</span>
-                          </AddonItem>
-                        ))}
-                      </AddonsList>
+                  <ItemMainRow>
+                    {item.image_url ? (
+                      <ItemImage>
+                        <img src={item.image_url} alt={item.name} />
+                      </ItemImage>
+                    ) : (
+                      <ItemImagePlaceholder>🍔</ItemImagePlaceholder>
                     )}
 
-                    {/* ✅ BOTÃO PARA ADICIONAR/EDITAR ACOMPANHAMENTOS - APENAS PARA PRODUTOS PRINCIPAIS */}
-                    {isPrincipal && (
+                    <ItemInfo>
+                      <ItemName>{item.name}</ItemName>
+                      <ItemPriceBase>R$ {formatPrice(item.price)} un</ItemPriceBase>
+                    </ItemInfo>
+
+                    <ItemTotal>
+                      R$ {formatPrice(itemTotal)}
+                    </ItemTotal>
+                  </ItemMainRow>
+
+                  {/* ACOMPANHAMENTOS SELECIONADOS */}
+                  {hasAddonsSelected && item.addons && item.addons.length > 0 && (
+                    <AddonsList>
+                      {item.addons.map((addon, idx) => (
+                        <AddonItem key={idx}>
+                          <span>+ {addon.name}</span>
+                          <span>{addon.quantity}x R$ {formatPrice(addon.price)}</span>
+                        </AddonItem>
+                      ))}
+                    </AddonsList>
+                  )}
+
+                  {/* BOTÃO DE ADICIONAR/EDITAR ACOMPANHAMENTOS */}
+                  {isPrincipal && (
+                    <div>
                       <AddonButton onClick={() => handleOpenAddons(index)}>
                         {hasAddonsSelected ? '✏️ Editar acompanhamentos' : '➕ Adicionar acompanhamentos'}
                       </AddonButton>
-                    )}
+                    </div>
+                  )}
 
+                  {/* CONTROLES DE QUANTIDADE E REMOÇÃO */}
+                  <ItemFooterRow>
                     <ItemControls>
                       <QtyButton
                         onClick={() => updateQty(item.id, (item.qty || 1) - 1)}
@@ -476,18 +512,15 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
                       >
                         +
                       </QtyButton>
-                      <RemoveButton
-                        onClick={() => removeItem(index)}
-                        aria-label="Remover item"
-                      >
-                        ✕
-                      </RemoveButton>
                     </ItemControls>
-                  </ItemInfo>
 
-                  <ItemTotal>
-                    R$ {formatPrice(itemTotal)}
-                  </ItemTotal>
+                    <RemoveButton
+                      onClick={() => removeItem(index)}
+                      aria-label="Remover item"
+                    >
+                      🗑️ Remover
+                    </RemoveButton>
+                  </ItemFooterRow>
                 </CartItem>
               );
             })
@@ -505,19 +538,19 @@ const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
               fontSize: tokens.typography.fontSize.xs,
               color: tokens.colors.textMuted,
               textAlign: 'center',
-              marginTop: tokens.spacing.xs
+              marginBottom: tokens.spacing.sm
             }}>
-              Taxa de entrega calculada no checkout
+              Taxa de entrega calculada na etapa final
             </div>
 
             <CheckoutButton onClick={handleCheckout}>
-              Finalizar Pedido
+              <span>Avançar para o Checkout</span>
+              <span>→</span>
             </CheckoutButton>
           </Footer>
         )}
       </Drawer>
 
-      {/* ✅ MODAL DE ACOMPANHAMENTOS */}
       {showAddonModal && selectedItemIndex !== null && cart[selectedItemIndex] && (
         <AddonModal
           isOpen={showAddonModal}
