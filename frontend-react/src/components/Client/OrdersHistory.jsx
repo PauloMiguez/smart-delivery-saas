@@ -79,7 +79,7 @@ const OrderStatus = styled.span`
     font-size: 12px;
     font-weight: 600;
     background: ${props => {
-        switch(props.status) {
+        switch (props.status) {
             case 'pending': return '#fef9e7';
             case 'confirmado': return '#d5f5e3';
             case 'preparando': return '#fdebd0';
@@ -89,7 +89,7 @@ const OrderStatus = styled.span`
         }
     }};
     color: ${props => {
-        switch(props.status) {
+        switch (props.status) {
             case 'pending': return '#f39c12';
             case 'confirmado': return '#27ae60';
             case 'preparando': return '#e67e22';
@@ -160,10 +160,10 @@ const formatCreatedAt = (dateString) => {
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
-        
+
         // ✅ CORREÇÃO: Subtrair 3 horas para converter UTC → UTC-3 (Brasil)
         const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-        
+
         return localDate.toLocaleString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
@@ -190,14 +190,14 @@ const formatScheduledTime = (dateString) => {
             const [, year, month, day, hour, minute] = isoMatch;
             return `${day}/${month}/${year}, ${hour}:${minute}`;
         }
-        
+
         // Tenta extrair do formato MySQL (YYYY-MM-DD HH:MM:SS)
         const mysqlMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
         if (mysqlMatch) {
             const [, year, month, day, hour, minute] = mysqlMatch;
             return `${day}/${month}/${year}, ${hour}:${minute}`;
         }
-        
+
         return '-';
     } catch {
         return '-';
@@ -260,27 +260,27 @@ const OrdersHistory = () => {
             try {
                 setLoading(true);
                 console.log('📋 Buscando pedidos para:', finalName, finalPhone);
-                
+
                 // Buscar todos os pedidos do tenant
                 const response = await api.get('/orders');
-                
+
                 if (response.data.success) {
                     // Filtrar pedidos do cliente
                     const allOrders = response.data.data || [];
                     const cleanPhone = finalPhone.replace(/\D/g, '');
-                    
+
                     const customerOrders = allOrders.filter(order => {
                         const orderPhone = order.customer_phone?.replace(/\D/g, '') || '';
                         const orderName = order.customer_name?.toLowerCase() || '';
                         const searchName = finalName.toLowerCase();
-                        
+
                         // Verificar se o nome e telefone correspondem
                         const nameMatch = orderName === searchName || orderName.includes(searchName);
                         const phoneMatch = orderPhone === cleanPhone;
-                        
+
                         return nameMatch && phoneMatch;
                     });
-                    
+
                     console.log(`✅ Encontrados ${customerOrders.length} pedidos para ${finalName}`);
                     setOrders(customerOrders);
                 }
@@ -325,7 +325,7 @@ const OrdersHistory = () => {
             <CustomerInfo>
                 <span>👤 <strong>{customerName}</strong></span>
                 <span>📱 {customerPhone}</span>
-                <button 
+                <button
                     onClick={handleVerifyAgain}
                     style={{
                         background: 'none',
@@ -353,7 +353,7 @@ const OrdersHistory = () => {
                 orders.map(order => {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                     const hasToken = !!order.access_token;
-                    
+
                     return (
                         <OrderCard key={order.id}>
                             <OrderHeader>
@@ -363,15 +363,15 @@ const OrdersHistory = () => {
                                     {formatCreatedAt(order.created_at)}
                                 </OrderDate>
                             </OrderHeader>
-                            
+
                             <OrderStatus status={order.status}>
                                 {statusLabels[order.status] || order.status}
                             </OrderStatus>
-                            
+
                             {/* Se for agendado, mostrar a data agendada como informação adicional */}
                             {order.is_scheduled && order.scheduled_time && (
-                                <div style={{ 
-                                    fontSize: '12px', 
+                                <div style={{
+                                    fontSize: '12px',
                                     color: '#e67e22',
                                     marginTop: '4px',
                                     fontWeight: '600'
@@ -379,19 +379,29 @@ const OrdersHistory = () => {
                                     📅 Agendado para: {formatScheduledTime(order.scheduled_time)}
                                 </div>
                             )}
-                            
+
                             <OrderItems>
-                                {items.slice(0, 3).map((item, idx) => (
-                                    <span key={idx}>
-                                        {idx > 0 && ', '}
-                                        {item.qty}x {item.name}
-                                    </span>
-                                ))}
+                                {items.slice(0, 3).map((item, idx) => {
+                                    const hasAddons = item.addons && item.addons.length > 0;
+                                    return (
+                                        <div key={idx}>
+                                            <span>{item.qty}x {item.name}</span>
+                                            {hasAddons && (
+                                                <div style={{ paddingLeft: '16px', fontSize: '12px', color: '#888', borderLeft: '2px solid #e74c3c' }}>
+                                                    {item.addons.map((addon, aidx) => (
+                                                        <div key={aidx}>+ {addon.quantity}x {addon.name}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {idx < items.length - 1 && ', '}
+                                        </div>
+                                    );
+                                })}
                                 {items.length > 3 && ` +${items.length - 3} outros`}
                             </OrderItems>
-                            
+
                             <OrderTotal>Total: R$ {parseFloat(order.total).toFixed(2)}</OrderTotal>
-                            
+
                             {hasToken ? (
                                 <TrackLink to={`/track/${order.id}?token=${order.access_token}&from=orders`}>
                                     🔍 Acompanhar pedido

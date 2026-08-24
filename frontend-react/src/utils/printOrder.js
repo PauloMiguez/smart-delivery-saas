@@ -30,11 +30,9 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
             }
 
             // ✅ CORREÇÃO: Para created_at, subtrair 3 horas (UTC-3)
-            // O banco salva em UTC, precisamos ajustar para o horário do Brasil
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return '-';
             
-            // Subtrair 3 horas para converter de UTC para UTC-3 (Brasil)
             const localDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
             
             return localDate.toLocaleString('pt-BR', {
@@ -84,6 +82,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
         'pending': '🟡 Pendente',
         'confirmado': '🟢 Confirmado',
         'preparando': '🟠 Em preparo',
+        'despachado': '🏍️ Despachado',
         'entregue': '✅ Entregue',
         'cancelado': '❌ Cancelado',
         'scheduled': '📅 Agendado'
@@ -101,6 +100,16 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
         if (!order.is_scheduled || !order.scheduled_time) return '';
         return `📅 Agendado: ${formatDate(order.scheduled_time, true)}`;
     };
+
+    // ✅ Calcular totais com acompanhamentos
+    const subtotalWithAddons = items.reduce((sum, item) => {
+        const itemTotal = (item.price * item.qty) + (item.addons || []).reduce((s, a) => s + (a.price * a.quantity), 0);
+        return sum + itemTotal;
+    }, 0);
+
+    // ✅ Verificar se tem desconto
+    const hasDiscount = order.discount > 0 || order.discount_percentage > 0;
+    const discountText = order.discount_reason || `${order.discount_percentage || 0}% de desconto`;
 
     // Construir HTML
     const html = `
@@ -204,6 +213,35 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                     text-align: right;
                     font-weight: 500;
                 }
+                .items-table .addon-row td {
+                    padding: 2px 12px 2px 24px;
+                    font-size: 12px;
+                    color: #888;
+                    border-bottom: none;
+                    border-left: 3px solid #d9531e;
+                }
+                .items-table .addon-row .addon-name {
+                    padding-left: 8px;
+                }
+                .items-table .addon-row .addon-price {
+                    text-align: right;
+                    color: #888;
+                }
+                .items-table .item-total-row td {
+                    padding: 4px 12px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    border-top: 1px dashed #ddd;
+                    border-bottom: 1px solid #f0f0f0;
+                }
+                .items-table .item-total-row .total-label {
+                    text-align: right;
+                    color: #1f2421;
+                }
+                .items-table .item-total-row .total-value {
+                    text-align: right;
+                    color: #d9531e;
+                }
                 .total-row {
                     display: flex;
                     justify-content: space-between;
@@ -218,6 +256,14 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 }
                 .total-row .total-value {
                     color: #d9531e;
+                }
+                .discount-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 4px 0;
+                    font-size: 14px;
+                    color: #2e7d32;
+                    font-weight: 600;
                 }
                 .delivery-row {
                     display: flex;
@@ -234,6 +280,14 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 .delivery-row .delivery-value {
                     font-weight: 600;
                     color: ${deliveryFeeColor};
+                }
+                .subtotal-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 4px 0;
+                    font-size: 14px;
+                    color: #60696b;
+                    border-bottom: 1px solid #e8ebeb;
                 }
                 .footer {
                     margin-top: 40px;
@@ -280,11 +334,13 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                     background: ${order.status === 'scheduled' ? '#fdf3ef' : 
                                order.status === 'confirmado' ? '#e8f5e9' :
                                order.status === 'preparando' ? '#fff3e0' :
+                               order.status === 'despachado' ? '#e3f2fd' :
                                order.status === 'entregue' ? '#e8f5e9' :
                                order.status === 'cancelado' ? '#ffebee' : '#f5f5f5'};
                     color: ${order.status === 'scheduled' ? '#d9531e' :
                             order.status === 'confirmado' ? '#2e7d32' :
                             order.status === 'preparando' ? '#e65100' :
+                            order.status === 'despachado' ? '#0d47a1' :
                             order.status === 'entregue' ? '#2e7d32' :
                             order.status === 'cancelado' ? '#c62828' : '#1f2421'};
                 ">
@@ -318,7 +374,7 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                 </div>
             </div>
 
-            <!-- ITENS -->
+            <!-- ITENS COM ACOMPANHAMENTOS -->
             <div class="section">
                 <div class="section-title">🛒 Itens do Pedido</div>
                 <table class="items-table">
@@ -331,26 +387,66 @@ export const printOrderPDF = (order, storeName = 'Smart Delivery') => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map(item => `
-                            <tr>
-                                <td class="item-name">${item.name}</td>
-                                <td class="item-qty">${item.qty}</td>
-                                <td class="item-price">R$ ${(item.price || 0).toFixed(2).replace('.', ',')}</td>
-                                <td class="item-price">R$ ${((item.price || 0) * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
-                            </tr>
-                        `).join('')}
+                        ${items.map(item => {
+                            const hasAddons = item.addons && item.addons.length > 0;
+                            const itemTotal = (item.price * item.qty) + (item.addons || []).reduce((sum, a) => sum + (a.price * a.quantity), 0);
+                            
+                            return `
+                                <tr>
+                                    <td class="item-name">${item.name}</td>
+                                    <td class="item-qty">${item.qty}</td>
+                                    <td class="item-price">R$ ${(item.price || 0).toFixed(2).replace('.', ',')}</td>
+                                    <td class="item-price">R$ ${((item.price || 0) * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                                ${hasAddons ? item.addons.map(addon => `
+                                    <tr class="addon-row">
+                                        <td colspan="1">
+                                            <span style="padding-left: 16px;">+ ${addon.quantity}x ${addon.name}</span>
+                                        </td>
+                                        <td class="item-qty"></td>
+                                        <td class="item-price" style="color: #888;">
+                                            R$ ${(addon.price || 0).toFixed(2).replace('.', ',')}
+                                        </td>
+                                        <td class="item-price" style="color: #888;">
+                                            R$ ${((addon.price || 0) * (addon.quantity || 1)).toFixed(2).replace('.', ',')}
+                                        </td>
+                                    </tr>
+                                `).join('') : ''}
+                                ${hasAddons ? `
+                                    <tr class="item-total-row">
+                                        <td colspan="3" class="total-label">Total do item</td>
+                                        <td class="total-value">R$ ${itemTotal.toFixed(2).replace('.', ',')}</td>
+                                    </tr>
+                                ` : ''}
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
 
-                <!-- TOTAIS -->
-                <div class="total-row">
-                    <span class="total-label">TOTAL DO PEDIDO</span>
-                    <span class="total-value">${formatMoney(order.total)}</span>
+                <!-- SUBTOTAL COM ACOMPANHAMENTOS -->
+                <div class="subtotal-row">
+                    <span>Subtotal</span>
+                    <span>${formatMoney(subtotalWithAddons)}</span>
                 </div>
-                
+
+                <!-- DESCONTO -->
+                ${hasDiscount ? `
+                    <div class="discount-row">
+                        <span>💰 ${discountText}</span>
+                        <span>- ${formatMoney(order.discount)}</span>
+                    </div>
+                ` : ''}
+
+                <!-- TAXA DE ENTREGA -->
                 <div class="delivery-row">
                     <span class="delivery-label">🚚 Taxa de entrega</span>
                     <span class="delivery-value">${deliveryFeeDisplay}</span>
+                </div>
+
+                <!-- TOTAL -->
+                <div class="total-row">
+                    <span class="total-label">TOTAL DO PEDIDO</span>
+                    <span class="total-value">${formatMoney(order.total)}</span>
                 </div>
             </div>
 

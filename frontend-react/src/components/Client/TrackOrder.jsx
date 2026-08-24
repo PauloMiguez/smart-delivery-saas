@@ -408,7 +408,7 @@ const TrackOrder = () => {
         console.log(`📦 Pedido ID: ${orderId}, Tenant: ${orderTenant}`);
 
         const tokenAuth = localStorage.getItem('token');
-        
+
         // Conectar socket
         const socketInstance = connectSocket(tokenAuth);
         socketRef.current = socketInstance;
@@ -421,11 +421,11 @@ const TrackOrder = () => {
             socketInstance.on('connect', () => {
                 console.log('✅ Socket conectado para tracking');
                 console.log(`📡 Socket ID: ${socketInstance.id}`);
-                
+
                 // Entrar na sala do pedido
-                socketInstance.emit('join-order-room', { 
+                socketInstance.emit('join-order-room', {
                     orderId: parseInt(orderId),
-                    tenant: orderTenant 
+                    tenant: orderTenant
                 });
                 console.log(`📦 Solicitando entrada na sala order-${orderId}`);
             });
@@ -442,18 +442,18 @@ const TrackOrder = () => {
             // ============================================================
             socketInstance.on('order-updated', (data) => {
                 console.log('📦 Atualização do pedido recebida:', data);
-                
+
                 // Verificar se é o pedido atual
                 if (data.order && data.order.id === parseInt(orderId)) {
                     console.log(`✅ Pedido #${orderId} atualizado para: ${data.order.status}`);
-                    
+
                     // Atualizar o estado
                     setOrder(prev => ({
                         ...prev,
                         status: data.order.status,
                         updated_at: data.timestamp || new Date().toISOString()
                     }));
-                    
+
                     // Mostrar toast de notificação
                     const statusEmoji = {
                         'pending': '📋',
@@ -464,7 +464,7 @@ const TrackOrder = () => {
                         'cancelado': '❌',
                         'scheduled': '📅'
                     };
-                    
+
                     const statusLabelsMap = {
                         'pending': 'Aguardando confirmação',
                         'confirmado': 'Confirmado',
@@ -474,7 +474,7 @@ const TrackOrder = () => {
                         'cancelado': 'Cancelado',
                         'scheduled': 'Agendado'
                     };
-                    
+
                     showToast(
                         `${statusEmoji[data.order.status] || '📦'} Status atualizado: ${statusLabelsMap[data.order.status] || data.order.status}`,
                         'info'
@@ -718,18 +718,39 @@ const TrackOrder = () => {
                 <OrderDetails>
                     <div style={{ marginBottom: 12 }}>
                         <strong style={{ color: '#555' }}>🛒 Itens:</strong>
-                        {items.map((item, index) => (
-                            <div key={index} style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                padding: '4px 0',
-                                fontSize: '14px',
-                                borderBottom: '1px solid #f5f5f5'
-                            }}>
-                                <span>{item.qty}x {item.name}</span>
-                                <span>{formatMoney(item.price * item.qty)}</span>
-                            </div>
-                        ))}
+                        {items.map((item, index) => {
+                            const hasAddons = item.addons && item.addons.length > 0;
+                            const itemTotal = (item.price * item.qty) + (item.addons || []).reduce((sum, a) => sum + (a.price * a.quantity), 0);
+
+                            return (
+                                <div key={index}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        padding: '4px 0',
+                                        fontSize: '14px',
+                                        borderBottom: hasAddons ? 'none' : '1px solid #f5f5f5'
+                                    }}>
+                                        <span>{item.qty}x {item.name}</span>
+                                        <span>{formatMoney(item.price * item.qty)}</span>
+                                    </div>
+                                    {hasAddons && (
+                                        <div style={{ paddingLeft: '16px', fontSize: '13px', color: '#888', borderLeft: '2px solid #e74c3c', marginBottom: '4px' }}>
+                                            {item.addons.map((addon, aidx) => (
+                                                <div key={aidx} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                                                    <span>+ {addon.quantity}x {addon.name}</span>
+                                                    <span>{formatMoney(addon.price * addon.quantity)}</span>
+                                                </div>
+                                            ))}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderTop: '1px dashed #ddd', marginTop: '2px', fontWeight: '600' }}>
+                                                <span>Total do item</span>
+                                                <span>{formatMoney(itemTotal)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
 
                         <div style={{
                             display: 'flex',

@@ -307,7 +307,7 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
             'preparando': 'Em preparo',
             'entregue': 'Entregue',
             'cancelado': 'Cancelado',
-            'scheduled': 'Agendado'  
+            'scheduled': 'Agendado'
         };
         return labels[status] || status;
     };
@@ -480,14 +480,35 @@ const OrderTrackingModal = ({ isOpen, onClose, orderId, token, storeName }) => {
                             <strong style={{ color: tokens.colors.text, display: 'block', marginBottom: tokens.spacing.xs, fontSize: tokens.typography.fontSize.sm }}>
                                 🛒 Itens:
                             </strong>
-                            {items.map((item, index) => (
-                                <DetailRow key={index} style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
-                                    <span>{item.qty}x {item.name}</span>
-                                    <span style={{ fontWeight: tokens.typography.fontWeight.medium }}>
-                                        {formatMoney(item.price * item.qty)}
-                                    </span>
-                                </DetailRow>
-                            ))}
+                            {items.map((item, index) => {
+                                const hasAddons = item.addons && item.addons.length > 0;
+                                const itemTotal = (item.price * item.qty) + (item.addons || []).reduce((sum, a) => sum + (a.price * a.quantity), 0);
+
+                                return (
+                                    <div key={index}>
+                                        <DetailRow style={{ borderBottom: hasAddons ? 'none' : `1px solid ${tokens.colors.border}` }}>
+                                            <span>{item.qty}x {item.name}</span>
+                                            <span style={{ fontWeight: tokens.typography.fontWeight.medium }}>
+                                                {formatMoney(item.price * item.qty)}
+                                            </span>
+                                        </DetailRow>
+                                        {hasAddons && (
+                                            <div style={{ paddingLeft: '16px', fontSize: '13px', color: '#888', borderLeft: `2px solid ${tokens.colors.accent}`, marginBottom: '4px' }}>
+                                                {item.addons.map((addon, aidx) => (
+                                                    <DetailRow key={aidx} style={{ borderBottom: 'none', padding: '2px 0' }}>
+                                                        <span>+ {addon.quantity}x {addon.name}</span>
+                                                        <span>{formatMoney(addon.price * addon.quantity)}</span>
+                                                    </DetailRow>
+                                                ))}
+                                                <DetailRow style={{ borderBottom: 'none', padding: '2px 0', fontWeight: 'bold', borderTop: `1px dashed ${tokens.colors.border}`, marginTop: '2px' }}>
+                                                    <span>Total do item</span>
+                                                    <span>{formatMoney(itemTotal)}</span>
+                                                </DetailRow>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
 
                             <DetailRow style={{ borderBottom: `1px solid ${tokens.colors.border}` }}>
                                 <span>Subtotal</span>

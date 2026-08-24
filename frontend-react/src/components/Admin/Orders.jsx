@@ -148,7 +148,7 @@ const StatusBadge = styled(Badge)`
     font-size: ${tokens.typography.fontSize.xs};
 
     ${props => {
-        switch(props.$status) {
+        switch (props.$status) {
             case 'pending':
                 return `
                     background: ${tokens.colors.warningLight};
@@ -346,18 +346,18 @@ const Orders = ({
     };
 
     const hasOrderScheduledTime = (order) => {
-        return order.scheduled_time && 
-               order.scheduled_time !== '0' && 
-               order.scheduled_time !== 'null' &&
-               order.scheduled_time !== '' &&
-               order.scheduled_time !== 0;
+        return order.scheduled_time &&
+            order.scheduled_time !== '0' &&
+            order.scheduled_time !== 'null' &&
+            order.scheduled_time !== '' &&
+            order.scheduled_time !== 0;
     };
 
     // ============================================================
     //  RENDERIZAR AÇÕES POR STATUS - COMPLETO COM DESPACHADO
     // ============================================================
     const renderActions = (statusClass, order) => {
-        switch(statusClass) {
+        switch (statusClass) {
             case 'scheduled':
                 return (
                     <>
@@ -505,7 +505,7 @@ const Orders = ({
                                     const hasDisc = hasDiscount(o);
                                     const discountText = getDiscountText(o);
                                     const isDispatched = statusClass === 'dispatched';
-                                    
+
                                     // ✅ CORREÇÃO: Verificar se é agendado corretamente
                                     const isScheduled = isOrderScheduled(o);
                                     const hasScheduledTime = hasOrderScheduledTime(o);
@@ -519,20 +519,20 @@ const Orders = ({
                                                 >
                                                     #{o.order_number || o.id}
                                                 </OrderNumber>
-                                                
+
                                                 {/* ✅ Só exibir se for agendado */}
                                                 {isScheduled && (
                                                     <ScheduledBadge>📅</ScheduledBadge>
                                                 )}
-                                                
+
                                                 {hasDisc && (
                                                     <DiscountBadge>💰</DiscountBadge>
                                                 )}
-                                                
+
                                                 {isDispatched && (
                                                     <DispatchedBadge>🏍️</DispatchedBadge>
                                                 )}
-                                                
+
                                                 {/* ✅ Só exibir o horário agendado se realmente tiver */}
                                                 {isScheduled && hasScheduledTime && (
                                                     <ScheduledTime>
@@ -545,9 +545,21 @@ const Orders = ({
                                             </td>
                                             <td>{o.customer_name || 'Cliente'}</td>
                                             <td>
-                                                {items.map((i, idx) => (
-                                                    <div key={idx}>{i.qty}x {i.name}</div>
-                                                ))}
+                                                {items.map((i, idx) => {
+                                                    const hasAddons = i.addons && i.addons.length > 0;
+                                                    return (
+                                                        <div key={idx}>
+                                                            <div>{i.qty}x {i.name}</div>
+                                                            {hasAddons && (
+                                                                <div style={{ paddingLeft: '12px', fontSize: '11px', color: '#888', borderLeft: '2px solid #e74c3c' }}>
+                                                                    {i.addons.map((addon, aidx) => (
+                                                                        <div key={aidx}>+ {addon.quantity}x {addon.name}</div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </td>
                                             <td>
                                                 <div>
@@ -584,7 +596,7 @@ const Orders = ({
                             const hasDisc = hasDiscount(o);
                             const discountText = getDiscountText(o);
                             const isDispatched = statusClass === 'dispatched';
-                            
+
                             // ✅ CORREÇÃO: Verificar se é agendado corretamente
                             const isScheduled = isOrderScheduled(o);
                             const hasScheduledTime = hasOrderScheduledTime(o);
@@ -600,16 +612,16 @@ const Orders = ({
                                             >
                                                 #{o.order_number || o.id}
                                             </OrderNumber>
-                                            
+
                                             {/* ✅ Só exibir se for agendado */}
                                             {isScheduled && (
                                                 <ScheduledBadge>📅</ScheduledBadge>
                                             )}
-                                            
+
                                             {hasDisc && (
                                                 <DiscountBadge>💰</DiscountBadge>
                                             )}
-                                            
+
                                             {isDispatched && (
                                                 <DispatchedBadge>🏍️</DispatchedBadge>
                                             )}
@@ -662,13 +674,28 @@ const Orders = ({
                                     <MobileOrderRow style={{ flexDirection: 'column', alignItems: 'stretch', borderBottom: 'none' }}>
                                         <span className="label" style={{ marginBottom: '8px' }}>Itens</span>
                                         <MobileItemsList>
-                                            {items.map((item, idx) => (
-                                                <div className="item" key={idx}>
-                                                    <span className="item-name">{item.name}</span>
-                                                    <span className="item-qty">{item.qty}x</span>
-                                                    <span className="item-price">R$ {formatMoney(item.price * item.qty)}</span>
-                                                </div>
-                                            ))}
+                                            {items.map((item, idx) => {
+                                                const hasAddons = item.addons && item.addons.length > 0;
+                                                return (
+                                                    <div key={idx}>
+                                                        <div className="item">
+                                                            <span className="item-name">{item.name}</span>
+                                                            <span className="item-qty">{item.qty}x</span>
+                                                            <span className="item-price">R$ {formatMoney(item.price * item.qty)}</span>
+                                                        </div>
+                                                        {hasAddons && (
+                                                            <div style={{ paddingLeft: '16px', fontSize: '11px', color: '#888', borderLeft: '2px solid #e74c3c', marginBottom: '4px' }}>
+                                                                {item.addons.map((addon, aidx) => (
+                                                                    <div key={aidx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                        <span>+ {addon.quantity}x {addon.name}</span>
+                                                                        <span>R$ {formatMoney(addon.price * addon.quantity)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </MobileItemsList>
                                     </MobileOrderRow>
 
