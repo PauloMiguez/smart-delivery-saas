@@ -50,7 +50,7 @@ const CATEGORY_ICONS = {
 };
 
 // ============================================================
-//  STYLED COMPONENTS
+//  STYLED COMPONENTS - ADAPTADOS PARA MOBILE FULLSCREEN
 // ============================================================
 
 const Overlay = styled.div`
@@ -80,6 +80,15 @@ const Modal = styled.div`
   padding: 0;
   overflow: hidden;
   animation: slideUp 0.3s ease;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    animation: none;
+  }
+
   @keyframes slideUp {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
@@ -87,53 +96,69 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  padding: 16px 16px 12px 16px;
-  max-height: 92vh;
   display: flex;
   flex-direction: column;
   height: 100%;
-`;
+  padding: 0;
 
-// ============================================================
-//  HEADER (apenas botão fechar, sem título fixo)
-// ============================================================
-const Header = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-`;
-
-const CloseButton = styled.button`
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #666;
-  font-size: 22px;
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #333;
+  @media (min-width: 769px) {
+    padding: 16px 16px 12px 16px;
   }
 `;
 
 // ============================================================
-//  CONTAINER COM SCROLL (onde a imagem e os addons ficam)
+//  HEADER (apenas botão fechar, sobreposto à imagem)
+// ============================================================
+const CloseButtonWrapper = styled.div`
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+
+  @media (max-width: 768px) {
+    top: 16px;
+    right: 16px;
+  }
+`;
+
+const CloseButton = styled.button`
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  @media (max-width: 768px) {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+  }
+`;
+
+// ============================================================
+//  SCROLL CONTAINER (ocupa o resto, com scroll)
 // ============================================================
 const ScrollContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  margin: 0 -16px;
   padding: 0 16px 16px 16px;
+
+  @media (max-width: 768px) {
+    padding: 0 16px 16px 16px;
+  }
+
   &::-webkit-scrollbar {
     width: 4px;
   }
@@ -144,20 +169,26 @@ const ScrollContainer = styled.div`
 `;
 
 // ============================================================
-//  PRODUCT CARD (imagem, nome, preço, descrição) - primeiro item
+//  PRODUCT CARD - imagem ocupa todo o topo (sem fundo branco)
 // ============================================================
 const ProductCard = styled.div`
   margin-bottom: 20px;
-  border-radius: 16px;
+  border-radius: 0;
   overflow: hidden;
-  background: ${props => props.theme.colors.surface};
-  border: 1px solid ${props => props.theme.colors.border};
+  background: transparent;
+
+  @media (min-width: 769px) {
+    border-radius: 16px;
+    border: 1px solid ${props => props.theme.colors.border};
+    background: ${props => props.theme.colors.surface};
+  }
 `;
 
 const ProductImage = styled.div`
   width: 100%;
-  height: 220px;
+  height: 240px;
   background: #f0f0f0;
+  position: relative;
 
   img {
     width: 100%;
@@ -165,8 +196,10 @@ const ProductImage = styled.div`
     object-fit: cover;
   }
 
-  @media (max-width: 400px) {
-    height: 160px;
+  @media (max-width: 768px) {
+    height: 45vh;
+    min-height: 200px;
+    max-height: 400px;
   }
 `;
 
@@ -178,10 +211,15 @@ const ProductImagePlaceholder = styled.div`
   justify-content: center;
   font-size: 48px;
   color: #ccc;
+  background: #f5f5f5;
 `;
 
 const ProductInfo = styled.div`
   padding: 12px 16px 16px 16px;
+
+  @media (max-width: 768px) {
+    padding: 16px 0 12px 0;
+  }
 `;
 
 const ProductName = styled.h3`
@@ -207,7 +245,7 @@ const ProductDescription = styled.p`
 `;
 
 // ============================================================
-//  GRUPOS DE ACOMPANHAMENTOS (com cabeçalho sticky)
+//  GRUPOS DE ACOMPANHAMENTOS (sticky)
 // ============================================================
 const AddonGroup = styled.div`
   margin-bottom: 20px;
@@ -224,9 +262,14 @@ const GroupHeader = styled.div`
   border-bottom: 2px solid ${props => props.theme.colors.border};
   background: white;
   position: sticky;
-  top: 0;                  /* fixa no topo do scroll */
+  top: 0;
   z-index: 3;
   margin: 0 -4px;
+
+  @media (max-width: 768px) {
+    padding: 10px 0 6px 0;
+    margin: 0;
+  }
 `;
 
 const CategoryIcon = styled.span`
@@ -311,15 +354,18 @@ const Quantity = styled.span`
 `;
 
 // ============================================================
-//  FOOTER
+//  FOOTER FIXO
 // ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
-  padding-top: 14px;
+  padding: 14px 16px 16px 16px;
   flex-shrink: 0;
   background: white;
-  margin: 0 -16px;
-  padding: 14px 16px 0 16px;
+
+  @media (min-width: 769px) {
+    padding: 14px 0 0 0;
+    margin: 0;
+  }
 `;
 
 const TotalSection = styled.div`
@@ -504,30 +550,29 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* HEADER com apenas o botão fechar */}
-            <Header>
-              <CloseButton onClick={onClose}>✕</CloseButton>
-            </Header>
+            {/* IMAGEM EM DESTAQUE NO TOPO - sem fundo branco ao redor */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {item.image_url ? (
+                <ProductImage>
+                  <img src={item.image_url} alt={item.name} loading="lazy" />
+                </ProductImage>
+              ) : (
+                <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+              )}
+              <CloseButtonWrapper>
+                <CloseButton onClick={onClose}>✕</CloseButton>
+              </CloseButtonWrapper>
+            </div>
 
-            {/* CONTAINER COM SCROLL (imagem + lista de categorias) */}
             <ScrollContainer>
-              {/* PRODUCT CARD - imagem ocupa o topo e some ao rolar */}
-              <ProductCard>
-                {item.image_url ? (
-                  <ProductImage>
-                    <img src={item.image_url} alt={item.name} loading="lazy" />
-                  </ProductImage>
-                ) : (
-                  <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
+              {/* INFORMAÇÕES DO PRODUTO (nome, preço, descrição) */}
+              <ProductInfo>
+                <ProductName>{item.name}</ProductName>
+                <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
+                {item.description && (
+                  <ProductDescription>{item.description}</ProductDescription>
                 )}
-                <ProductInfo>
-                  <ProductName>{item.name}</ProductName>
-                  <ProductPrice>R$ {formatPrice(item.price)}</ProductPrice>
-                  {item.description && (
-                    <ProductDescription>{item.description}</ProductDescription>
-                  )}
-                </ProductInfo>
-              </ProductCard>
+              </ProductInfo>
 
               {/* LISTA DE ACOMPANHAMENTOS COM CABEÇALHOS STICKY */}
               {loading ? (
