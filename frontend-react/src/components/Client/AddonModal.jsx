@@ -110,7 +110,7 @@ const ModalContent = styled.div`
 `;
 
 // ============================================================
-//  IMAGEM DO PRODUTO – primeiro elemento do scroll
+//  IMAGEM – SEM PADDING (ocupa toda a largura)
 // ============================================================
 const ProductImage = styled.div`
   width: 100%;
@@ -118,7 +118,6 @@ const ProductImage = styled.div`
   background: #f0f0f0;
   flex-shrink: 0;
   overflow: hidden;
-  margin-bottom: 16px;
 
   img {
     width: 100%;
@@ -134,7 +133,7 @@ const ProductImage = styled.div`
   }
 
   @media (min-width: 769px) {
-    border-radius: 16px;
+    border-radius: 24px 24px 0 0;
   }
 `;
 
@@ -150,16 +149,16 @@ const ProductImagePlaceholder = styled.div`
 `;
 
 // ============================================================
-//  SCROLL CONTAINER – contém nome, preço, descrição e addons
+//  SCROLL CONTAINER – com padding lateral e inferior
 // ============================================================
 const ScrollContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 0 16px 16px 16px;
+  padding: 16px 16px 16px 16px; /* top, laterais, bottom */
   min-height: 0;
 
   @media (max-width: 768px) {
-    padding: 0 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
   }
 
   &::-webkit-scrollbar {
@@ -201,7 +200,7 @@ const ProductDescription = styled.p`
 `;
 
 // ============================================================
-//  GRUPOS DE ACOMPANHAMENTOS (com sticky nos títulos)
+//  GRUPOS DE ACOMPANHAMENTOS (títulos sticky)
 // ============================================================
 const AddonGroup = styled.div`
   margin-bottom: 24px;
@@ -304,7 +303,7 @@ const Quantity = styled.span`
 `;
 
 // ============================================================
-//  FOOTER FIXO (com botões "Fechar" e "Concluir")
+//  FOOTER – com padding lateral consistente
 // ============================================================
 const Footer = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
@@ -313,7 +312,7 @@ const Footer = styled.div`
   background: white;
 
   @media (min-width: 769px) {
-    padding: 14px 0 0 0;
+    padding: 14px 16px 16px 16px; /* mesmo padding em desktop */
   }
 `;
 
@@ -399,24 +398,19 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ============================================================
-  //  BLOQUEAR SCROLL DO BODY QUANDO O MODAL ESTIVER ABERTO
-  // ============================================================
+  // Bloquear scroll do body
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
-
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
 
-  // ============================================================
-  //  CARREGAR DADOS
-  // ============================================================
+  // Carregar dados
   useEffect(() => {
     if (isOpen && item) loadData();
   }, [isOpen, item]);
@@ -443,9 +437,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     setLoading(false);
   };
 
-  // ============================================================
-  //  INICIALIZAR ADDONS SELECIONADOS
-  // ============================================================
+  // Inicializar addons selecionados
   useEffect(() => {
     if (item && item.addons) {
       const initial = {};
@@ -458,9 +450,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
     }
   }, [item]);
 
-  // ============================================================
-  //  CALCULAR TOTAL
-  // ============================================================
+  // Calcular total
   useEffect(() => {
     if (!item) return;
     let total = parseFloat(item.price) || 0;
@@ -477,9 +467,6 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   if (!isOpen || !item) return null;
 
-  // ============================================================
-  //  FUNÇÕES AUXILIARES DO COMPONENTE
-  // ============================================================
   const getCategoryDescription = (categoryName) => {
     const category = categories.find(c => c.name === categoryName);
     return category?.description || DEFAULT_DESCRIPTIONS[categoryName] || '';
@@ -521,15 +508,12 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
 
   const totalAddonsCount = getTotalAddonsCount();
 
-  // ============================================================
-  //  RENDER
-  // ============================================================
   return (
     <ThemeProvider theme={modalTheme}>
       <Overlay onClick={onClose}>
         <Modal onClick={e => e.stopPropagation()}>
           <ModalContent>
-            {/* ✅ IMAGEM – ROLA JUNTO COM O CONTEÚDO (primeiro elemento) */}
+            {/* IMAGEM – SEM PADDING, OCUPA TODA A LARGURA */}
             {item.image_url ? (
               <ProductImage>
                 <img src={item.image_url} alt={item.name} loading="lazy" />
@@ -538,7 +522,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               <ProductImagePlaceholder>🍽️</ProductImagePlaceholder>
             )}
 
-            {/* ✅ SCROLL CONTAINER – nome, preço, descrição, addons */}
+            {/* SCROLL CONTAINER – COM PADDING LATERAL E INFERIOR */}
             <ScrollContainer>
               <ProductInfo>
                 <ProductName>{item.name}</ProductName>
@@ -590,7 +574,7 @@ const AddonModal = ({ isOpen, onClose, item, itemIndex }) => {
               )}
             </ScrollContainer>
 
-            {/* ✅ FOOTER FIXO (único local com "Fechar") */}
+            {/* FOOTER – COM PADDING LATERAL CONSISTENTE */}
             <Footer>
               <TotalSection>
                 <TotalLabel>
