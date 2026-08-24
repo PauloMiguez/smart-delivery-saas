@@ -1049,11 +1049,17 @@ app.get('/api/categories', async (req, res) => {
         }
 
         const [categories] = await pool.query(
-            'SELECT * FROM categories WHERE tenant_id = ? ORDER BY display_order ASC, name',
+            `SELECT * FROM categories WHERE tenant_id = ? ORDER BY display_order ASC, name`,
             [tenantId]
         );
 
-        res.json({ success: true, data: categories });
+        // ✅ Adicionar category_type (fallback para 'principal' se não existir)
+        const categoriesWithType = categories.map(cat => ({
+            ...cat,
+            category_type: cat.category_type || 'principal'
+        }));
+
+        res.json({ success: true, data: categoriesWithType });
     } catch (error) {
         console.error('Erro ao listar categorias:', error);
         res.status(500).json({ success: false, error: 'Erro ao carregar categorias' });
@@ -1064,16 +1070,16 @@ app.get('/api/categories', async (req, res) => {
 app.post('/api/categories', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const { name, description, display_order } = req.body; // ✅ ADICIONAR description
+        const { name, description, display_order, category_type = 'principal' } = req.body;
 
         if (!name) {
             return res.status(400).json({ success: false, error: 'Nome da categoria é obrigatório' });
         }
 
         const [result] = await pool.query(
-            `INSERT INTO categories (tenant_id, name, description, display_order) 
-             VALUES (?, ?, ?, ?)`,
-            [tenantId, name, description || null, display_order || 1]
+            `INSERT INTO categories (tenant_id, name, description, display_order, category_type) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [tenantId, name, description || null, display_order || 1, category_type]
         );
 
         res.status(201).json({
@@ -1092,7 +1098,7 @@ app.put('/api/categories/:id', verifyToken, async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const categoryId = req.params.id;
-        const { name, description, display_order } = req.body;
+        const { name, description, display_order, category_type } = req.body;
 
         if (!name) {
             return res.status(400).json({ success: false, error: 'Nome da categoria é obrigatório' });
@@ -1100,9 +1106,9 @@ app.put('/api/categories/:id', verifyToken, async (req, res) => {
 
         const [result] = await pool.query(
             `UPDATE categories 
-             SET name = ?, description = ?, display_order = ?
+             SET name = ?, description = ?, display_order = ?, category_type = ?
              WHERE id = ? AND tenant_id = ?`,
-            [name, description || null, display_order || 1, categoryId, tenantId]
+            [name, description || null, display_order || 1, category_type || 'principal', categoryId, tenantId]
         );
 
         if (result.affectedRows === 0) {

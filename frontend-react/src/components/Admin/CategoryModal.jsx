@@ -4,8 +4,9 @@ import './CategoryModal.css';
 const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
     const [formData, setFormData] = useState({
         name: '',
-        description: '', // ✅ ADICIONADO
-        display_order: 1
+        description: '',
+        display_order: 1,
+        category_type: 'principal' // ✅ NOVO CAMPO
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -14,14 +15,16 @@ const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
         if (category) {
             setFormData({
                 name: category.name || '',
-                description: category.description || '', // ✅ CARREGAR DESCRIÇÃO
-                display_order: category.display_order || 1
+                description: category.description || '',
+                display_order: category.display_order || 1,
+                category_type: category.category_type || 'principal' // ✅ CARREGAR VALOR
             });
         } else {
             setFormData({
                 name: '',
-                description: '', // ✅ RESETAR
-                display_order: 1
+                description: '',
+                display_order: 1,
+                category_type: 'principal'
             });
         }
         setError('');
@@ -81,6 +84,26 @@ const CategoryModal = ({ isOpen, onClose, onSave, category }) => {
                             required
                             autoFocus
                         />
+                    </div>
+
+                    {/* ✅ SELETOR DE TIPO DE CATEGORIA */}
+                    <div className="form-group">
+                        <label>Tipo de categoria</label>
+                        <select
+                            name="category_type"
+                            value={formData.category_type}
+                            onChange={handleChange}
+                            className="form-select"
+                        >
+                            <option value="principal">📦 Produto Principal</option>
+                            <option value="independente">🍟 Acompanhamento (aparece no cardápio)</option>
+                            <option value="dependente">➕ Adicional Dependente (só via acompanhamentos)</option>
+                        </select>
+                        <small className="field-hint">
+                            {formData.category_type === 'principal' && 'Produtos que aparecem no cardápio e podem ter acompanhamentos'}
+                            {formData.category_type === 'independente' && 'Produtos que aparecem no cardápio e podem ser comprados sozinhos'}
+                            {formData.category_type === 'dependente' && 'Produtos que NÃO aparecem no cardápio, só como acompanhamento'}
+                        </small>
                     </div>
 
                     {/* ✅ CAMPO DE DESCRIÇÃO */}

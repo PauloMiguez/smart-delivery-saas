@@ -205,7 +205,7 @@ const AddonItem = styled.div`
   padding: 1px 0;
 `;
 
-// ✅ BOTÃO DE ACOMPANHAMENTOS
+// ✅ BOTÃO DE ACOMPANHAMENTOS (SERÁ CONDICIONAL)
 const AddonButton = styled.button`
   background: none;
   border: 1px dashed ${tokens.colors.border};
@@ -361,9 +361,9 @@ const CheckoutButton = styled.button`
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL
+//  COMPONENTE PRINCIPAL - CORRIGIDO
 // ============================================================
-const CartDrawer = ({ isOpen, onClose }) => {
+const CartDrawer = ({ isOpen, onClose, categories = [] }) => {
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { 
@@ -395,6 +395,13 @@ const CartDrawer = ({ isOpen, onClose }) => {
     setSelectedItemIndex(null);
   };
 
+  // ✅ VERIFICAR SE O ITEM É DE CATEGORIA PRINCIPAL
+  const isPrincipalProduct = (item) => {
+    if (!item || !item.category) return false;
+    const category = categories.find(c => c.name === item.category);
+    return category && category.category_type === 'principal';
+  };
+
   const safeSubtotal = parseFloat(subtotal) || 0;
 
   return (
@@ -420,6 +427,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
             cart.map((item, index) => {
               const itemTotal = getItemTotal(item);
               const hasAddonsSelected = hasAddons(item);
+              const isPrincipal = isPrincipalProduct(item);
 
               return (
                 <CartItem key={item.id || index}>
@@ -447,10 +455,12 @@ const CartDrawer = ({ isOpen, onClose }) => {
                       </AddonsList>
                     )}
 
-                    {/* ✅ BOTÃO PARA ADICIONAR/EDITAR ACOMPANHAMENTOS */}
-                    <AddonButton onClick={() => handleOpenAddons(index)}>
-                      {hasAddonsSelected ? '✏️ Editar acompanhamentos' : '➕ Adicionar acompanhamentos'}
-                    </AddonButton>
+                    {/* ✅ BOTÃO PARA ADICIONAR/EDITAR ACOMPANHAMENTOS - APENAS PARA PRODUTOS PRINCIPAIS */}
+                    {isPrincipal && (
+                      <AddonButton onClick={() => handleOpenAddons(index)}>
+                        {hasAddonsSelected ? '✏️ Editar acompanhamentos' : '➕ Adicionar acompanhamentos'}
+                      </AddonButton>
+                    )}
 
                     <ItemControls>
                       <QtyButton

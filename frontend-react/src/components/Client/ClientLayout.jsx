@@ -17,32 +17,32 @@ import TrackOrder from './TrackOrder';
 //  DESIGN SYSTEM / THEME (Delivery & Automation Warm Theme)
 // ============================================================
 const theme = {
-  colors: {
-    primary: '#D9531E',
-    primaryHover: '#C04313',
-    primaryLight: '#FDF3EF',
-    textMain: '#1F2421',
-    textMuted: '#60696B',
-    textSubtle: '#8C9699',
-    background: '#FAFAFA',
-    surface: '#FFFFFF',
-    border: '#E8EBEB',
-    borderDark: '#D1D8D8',
-    success: '#2E7D32',
-    successBg: '#E8F5E9',
-    danger: '#D32F2F',
-    dangerBg: '#FFEBEE',
-  },
-  radius: {
-    sm: '6px',
-    md: '10px',
-    lg: '16px',
-    full: '9999px',
-  },
-  shadows: {
-    card: '0px 2px 8px rgba(0, 0, 0, 0.04)',
-    floating: '0px 8px 24px rgba(217, 83, 30, 0.25)',
-  }
+    colors: {
+        primary: '#D9531E',
+        primaryHover: '#C04313',
+        primaryLight: '#FDF3EF',
+        textMain: '#1F2421',
+        textMuted: '#60696B',
+        textSubtle: '#8C9699',
+        background: '#FAFAFA',
+        surface: '#FFFFFF',
+        border: '#E8EBEB',
+        borderDark: '#D1D8D8',
+        success: '#2E7D32',
+        successBg: '#E8F5E9',
+        danger: '#D32F2F',
+        dangerBg: '#FFEBEE',
+    },
+    radius: {
+        sm: '6px',
+        md: '10px',
+        lg: '16px',
+        full: '9999px',
+    },
+    shadows: {
+        card: '0px 2px 8px rgba(0, 0, 0, 0.04)',
+        floating: '0px 8px 24px rgba(217, 83, 30, 0.25)',
+    }
 };
 
 // ============================================================
@@ -363,7 +363,7 @@ const FloatingBadge = styled.span`
 `;
 
 // ============================================================
-//  COMPONENTE PRINCIPAL - CORRIGIDO
+//  COMPONENTE PRINCIPAL
 // ============================================================
 const ClientLayout = () => {
     const { tenant, loading: tenantLoading } = useTenant();
@@ -372,6 +372,7 @@ const ClientLayout = () => {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [categoriesWithType, setCategoriesWithType] = useState([]);
     const [activeCategory, setActiveCategory] = useState('');
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -379,17 +380,14 @@ const ClientLayout = () => {
     const [storeStatus, setStoreStatus] = useState(null);
     const [operatingHours, setOperatingHours] = useState([]);
 
-    // ✅ Estado para o modal de imagem
     const [modalImage, setModalImage] = useState(null);
 
-    // ✅ Função para abrir o modal de imagem
     const openImageModal = (imageUrl, imageAlt) => {
         if (imageUrl) {
             setModalImage({ src: imageUrl, alt: imageAlt || 'Imagem do produto' });
         }
     };
 
-    // ✅ Função para fechar o modal de imagem
     const closeImageModal = () => {
         setModalImage(null);
     };
@@ -397,12 +395,9 @@ const ClientLayout = () => {
     const _forceComponents = [OrdersHistory, TrackOrder];
 
     // ============================================================
-    //  ✅ CORREÇÃO: VERIFICAR TENANT ANTES DE CARREGAR DADOS
+    //  CARREGAR DADOS - SÓ QUANDO HOUVER TENANT
     // ============================================================
-
-    // 1. Carregar dados principais - SÓ QUANDO HOUVER TENANT
     useEffect(() => {
-        // ✅ SÓ CARREGAR SE HOUVER TENANT E NÃO ESTIVER CARREGANDO O TENANT
         if (tenantLoading) {
             console.log('⏳ Aguardando carregamento do tenant...');
             return;
@@ -418,7 +413,7 @@ const ClientLayout = () => {
             try {
                 setIsLoading(true);
                 console.log('📊 Carregando dados para tenant:', tenant);
-                
+
                 const [configRes, productsRes, categoriesRes, statusRes, hoursRes] = await Promise.all([
                     api.get('/config'),
                     api.get('/products?active_only=true'),
@@ -431,26 +426,45 @@ const ClientLayout = () => {
                 const categoriesData = categoriesRes.data.data || [];
 
                 setConfig(configRes.data.data);
-                setProducts(productsData);
                 setStoreStatus(statusRes.data.data);
                 setOperatingHours(hoursRes.data.data || []);
+
+                // ✅ Armazenar categorias com tipo
+                setCategoriesWithType(categoriesData);
+
+                // ✅ FILTRAR PRODUTOS: EXCLUIR CATEGORIAS DEPENDENTES
+                const filteredProductsData = productsData.filter(product => {
+                    const category = categoriesData.find(c => c.name === product.category);
+                    if (!category) return true;
+                    // ✅ OCULTA PRODUTOS DE CATEGORIAS DEPENDENTES
+                    return category.category_type !== 'dependente';
+                });
+
+                setProducts(filteredProductsData);
+
+                // ✅ FILTRAR CATEGORIAS: EXCLUIR CATEGORIAS DEPENDENTES
+                const availableCategories = categoriesData
+                    .filter(cat => {
+                        const hasProduct = filteredProductsData.some(p => p.category === cat.name && p.active);
+                        // ✅ OCULTA CATEGORIAS DEPENDENTES
+                        return hasProduct && cat.category_type !== 'dependente';
+                    })
+                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                    .map(cat => cat.name);
+
+                setCategories(availableCategories);
+
+                if (availableCategories.length > 0) {
+                    setActiveCategory(availableCategories[0]);
+                }
 
                 if (statusRes.data.success) {
                     setIsOpen(statusRes.data.data.is_open);
                 }
 
-                const sortedCategories = categoriesData
-                    .filter(cat => productsData.some(p => p.category === cat.name && p.active))
-                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-                    .map(cat => cat.name);
-
-                setCategories(sortedCategories);
-                if (sortedCategories.length > 0) {
-                    setActiveCategory(sortedCategories[0]);
-                }
-                setFilteredProducts(productsData);
-                
                 console.log('✅ Dados carregados com sucesso!');
+                console.log('📋 Categorias disponíveis:', availableCategories);
+                console.log('📦 Produtos carregados:', filteredProductsData.length);
             } catch (error) {
                 console.error('❌ Erro ao carregar dados:', error);
             } finally {
@@ -507,10 +521,9 @@ const ClientLayout = () => {
     const todayHours = getTodayHours();
 
     // ============================================================
-    //  ✅ CORREÇÃO: RENDERIZAÇÃO CONDICIONAL
+    //  RENDERIZAÇÃO
     // ============================================================
 
-    // ✅ SE NÃO HOUVER TENANT, MOSTRAR PÁGINA DE BOAS-VINDAS
     if (!tenant && !tenantLoading) {
         return (
             <ThemeProvider theme={theme}>
@@ -532,7 +545,6 @@ const ClientLayout = () => {
         );
     }
 
-    // ✅ SE ESTIVER CARREGANDO, MOSTRAR LOADING
     if (tenantLoading || (isLoading && !config)) {
         return (
             <ThemeProvider theme={theme}>
@@ -546,7 +558,6 @@ const ClientLayout = () => {
         );
     }
 
-    // ✅ SE HOUVER TENANT, MOSTRAR CONTEÚDO
     const hasBanner = !!config?.banner_image;
     const storeName = config?.store_name || 'Restaurante';
     const logoImage = config?.logo_image;
@@ -666,10 +677,10 @@ const ClientLayout = () => {
                 <CartDrawer
                     isOpen={isCartOpen}
                     onClose={() => setIsCartOpen(false)}
+                    categories={categoriesWithType}  
                 />
             </AppContainer>
 
-            {/* ✅ MODAL DE IMAGEM - GLOBAL */}
             {modalImage && (
                 <ImageModal
                     src={modalImage.src}
